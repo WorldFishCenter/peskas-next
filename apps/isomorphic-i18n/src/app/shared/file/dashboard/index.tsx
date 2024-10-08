@@ -10,18 +10,18 @@ import Members from "@/app/shared/file/dashboard/members";
 import FileListTable from "@/app/shared/file/dashboard/file-list/table";
 import UpgradeStorage from "@/app/shared/file/dashboard/upgrade-storage";
 import RecentActivities from "@/app/shared/file/dashboard/recent-activities";
+import DeckGL from "@/app/shared/file/dashboard/deck-map";
 
 export default function FileDashboard({ lang }: { lang?: string }) {
   return (
     <div className="@container">
       <FileStats className="mb-5 2xl:mb-8" lang={lang} />
       <div className="mb-6 grid grid-cols-1 gap-6 @4xl:grid-cols-12 2xl:mb-8 2xl:gap-8">
-        <StorageReport
-          className="@container @4xl:col-span-8 @[96.937rem]:col-span-9"
-          lang={lang}
-        />
+        <div className="@container @4xl:col-span-8 @[96.937rem]:col-span-9 mb-8">
+          <DeckGL />
+        </div>
         <StorageSummary
-          className="@4xl:col-span-4 @[96.937rem]:col-span-3"
+          className="@4xl:col-span-4 @[96.937rem]:col-span-3 mb-8"
           lang={lang}
         />
       </div>
