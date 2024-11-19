@@ -15,21 +15,42 @@ import {
 import cn from '@utils/class-names';
 import { api } from "@/trpc/react";
 
+type MetricKey = "mean_trip_catch" | "mean_effort" | "mean_cpue" | "mean_cpua";
+
 interface RadarData {
   month: string;
-  meanCatch: number;
+  value: number;
 }
 
-const CustomTooltip = ({ active, payload }: any) => {
+interface MetricInfo {
+  label: string;
+  unit: string;
+}
+
+interface CatchRadarChartProps {
+  className?: string;
+  lang?: string;
+  selectedMetric: MetricKey;
+}
+
+const METRIC_INFO: Record<MetricKey, MetricInfo> = {
+  mean_trip_catch: { label: 'Mean Catch per Trip', unit: 'kg' },
+  mean_effort: { label: 'Mean Effort', unit: 'hours' },
+  mean_cpue: { label: 'Mean CPUE', unit: 'kg/hour' },
+  mean_cpua: { label: 'Mean CPUA', unit: 'kg/area' }
+};
+
+const CustomTooltip = ({ active, payload, metric }: any) => {
   if (active && payload && payload.length) {
+    const metricInfo = METRIC_INFO[metric as MetricKey];
     return (
       <div className="bg-white p-4 border border-gray-200 shadow-lg rounded-lg">
         <p className="text-sm font-medium text-gray-600 mb-1">
           {payload[0].payload.month}
         </p>
         <p className="text-sm">
-          <span className="font-medium">Mean Catch:</span>{' '}
-          {payload[0].value.toFixed(1)} kg
+          <span className="font-medium">{metricInfo.label}:</span>{' '}
+          {payload[0].value.toFixed(1)} {metricInfo.unit}
         </p>
       </div>
     );
@@ -40,19 +61,19 @@ const CustomTooltip = ({ active, payload }: any) => {
 export default function CatchRadarChart({
   className,
   lang,
-}: {
-  className?: string;
-  lang?: string;
-}) {
+  selectedMetric
+}: CatchRadarChartProps) {
   const [data, setData] = useState<RadarData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { t } = useTranslation(lang!);
 
-  const { data: meanCatch } = api.aggregatedCatch.meanCatchRadar.useQuery();
+  const { data: meanCatch } = api.aggregatedCatch.meanCatchRadar.useQuery({
+    metric: selectedMetric
+  });
 
   useEffect(() => {
-    if (!meanCatch) return
+    if (!meanCatch) return;
 
     try {
       setLoading(true);
@@ -69,7 +90,7 @@ export default function CatchRadarChart({
     } finally {
       setLoading(false);
     }
-  }, [ meanCatch ]);
+  }, [meanCatch, selectedMetric]);
 
   if (loading) return <div>Loading chart...</div>;
   if (error) return <div>Error: {error}</div>;
@@ -77,7 +98,7 @@ export default function CatchRadarChart({
 
   return (
     <WidgetCard
-      title={t('Monthly Catch')}
+      title={METRIC_INFO[selectedMetric].label}
       className={cn('@container', className)}
     >
       <div className="mt-5 h-96 w-full pb-2 @sm:h-96 @xl:pb-0 @2xl:aspect-[1060/660] @2xl:h-auto lg:mt-7">
@@ -94,13 +115,13 @@ export default function CatchRadarChart({
               tick={{ fill: '#666' }}
             />
             <Radar
-              name="Mean Catch"
-              dataKey="meanCatch"
+              name={METRIC_INFO[selectedMetric].label}
+              dataKey="value"
               stroke="#0c526e"
               fill="#0c526e"
               fillOpacity={0.25}
             />
-            <Tooltip content={<CustomTooltip />} />
+            <Tooltip content={(props) => <CustomTooltip {...props} metric={selectedMetric} />} />
           </RadarChart>
         </ResponsiveContainer>
       </div>

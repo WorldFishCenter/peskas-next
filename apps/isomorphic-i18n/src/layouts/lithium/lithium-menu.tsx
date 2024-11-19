@@ -251,34 +251,6 @@ export default function HeaderMenuLeft({ lang }: { lang?: string }) {
         </NavMenu.Item>
         <NavMenu.Item>
           <NavMenu.Trigger className="flex items-center gap-1 duration-200 ">
-            <MenuTriggerButton name="widgets" />
-          </NavMenu.Trigger>
-          <NavMenu.Content>
-            <div className="w-[127px]">
-              <LinkMenu
-                className="flex flex-col p-3 dark:bg-gray-100"
-                items={lithiumMenuItems.widgets.dropdownItems ?? []}
-                lang={lang}
-              />
-            </div>
-          </NavMenu.Content>
-        </NavMenu.Item>
-        <NavMenu.Item>
-          <NavMenu.Trigger className="flex items-center gap-1 duration-200 ">
-            <MenuTriggerButton name="forms" />
-          </NavMenu.Trigger>
-          <NavMenu.Content>
-            <div className="w-[460px]">
-              <LinkMenu
-                className="grid grid-cols-2 gap-x-2 p-3 dark:bg-gray-100"
-                items={lithiumMenuItems.forms.dropdownItems ?? []}
-                lang={lang}
-              />
-            </div>
-          </NavMenu.Content>
-        </NavMenu.Item>
-        <NavMenu.Item>
-          <NavMenu.Trigger className="flex items-center gap-1 duration-200 ">
             <MenuTriggerButton name="groups" />
           </NavMenu.Trigger>
           <NavMenu.Content>

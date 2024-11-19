@@ -18,8 +18,6 @@ export default function SettingsDrawer() {
           <ColorOptions />
         </div>
       </SimpleBar>
-
-      <SettingsFooterButton />
     </>
   );
 }

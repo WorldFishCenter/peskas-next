@@ -1,8 +1,8 @@
 import { z } from "zod";
-
 import { CatchMonthlyModel } from "@repo/nosql/schema/catch-monthly";
-
 import { createTRPCRouter, protectedProcedure } from "../trpc";
+
+const metricSchema = z.enum(['mean_trip_catch', 'mean_effort', 'mean_cpue', 'mean_cpua']);
 
 export const aggregatedCatchRouter = createTRPCRouter({
   monthly: protectedProcedure
@@ -10,28 +10,35 @@ export const aggregatedCatchRouter = createTRPCRouter({
       return CatchMonthlyModel.aggregate([
         {
           $match: {
-            BMU: "Kenyatta"  // We'll verify if this is the correct BMU name from the logs
+            BMU: "Kenyatta",
+            mean_trip_catch: { $ne: null }  // Added null check
           }
         },
         {
           $project: {
             _id: 0,
             date: 1,
-            mean_trip_catch: 1
+            mean_trip_catch: 1,
+            mean_effort: 1,
+            mean_cpue: 1,
+            mean_cpua: 1
           }
         },
         {
-          $sort: { date: 1 }
+          $sort: { date: -1 }  // Changed to descending sort
         }
       ]).exec()
     }),
   meanCatchRadar: protectedProcedure
-    .query(() => {
+    .input(z.object({
+      metric: metricSchema.default('mean_trip_catch')
+    }))
+    .query(({ input }) => {
       return CatchMonthlyModel.aggregate([
         {
           $match: {
             BMU: "Bureni",
-            mean_trip_catch: { $ne: null }
+            [input.metric]: { $ne: null }
           }
         },
         {
@@ -42,7 +49,7 @@ export const aggregatedCatchRouter = createTRPCRouter({
         {
           $group: {
             _id: "$monthNum",
-            meanCatch: { $avg: "$mean_trip_catch" }
+            value: { $avg: `$${input.metric}` }
           }
         },
         {
@@ -68,14 +75,14 @@ export const aggregatedCatchRouter = createTRPCRouter({
                 default: "Unknown"
               }
             },
-            meanCatch: { $round: ["$meanCatch", 1] }
+            value: { $round: ["$value", 1] }
           }
         },
         {
-          $sort: { monthNum: 1 }  // Sort by numeric month value
+          $sort: { monthNum: 1 }
         },
         {
-          $project: {  // Remove the monthNum field from final output
+          $project: {
             monthNum: 0
           }
         }

@@ -1,28 +1,106 @@
-'use client';
+"use client";
 
-import { useMemo, useState } from 'react';
-import Link from 'next/link';
-import { useTable } from '@hooks/use-table';
-import { useColumn } from '@hooks/use-column';
-import { getColumns } from '@/app/shared/file/dashboard/file-list/columns';
-import { Title } from 'rizzui';
-import { routes } from '@/config/routes';
-import { allFilesData } from '@/data/all-files';
-import { useTranslation } from '@/app/i18n/client';
-import ControlledTable from '@/app/shared/controlled-table';
+import { useMemo, useState } from "react";
+import { useTable } from "@hooks/use-table";
+import { Title } from "rizzui";
+import { useTranslation } from "@/app/i18n/client";
+import ControlledTable from "@/app/shared/controlled-table";
+import { api } from "@/trpc/react";
+import Table from "@/app/shared/table";
 
-export default function FileListTable({ className, lang }: { className?: string; lang?: string; }) {
-  const [pageSize, setPageSize] = useState(5);
-  const { t } = useTranslation(lang!, 'table');
-  const onHeaderCellClick = (value: string) => ({
-    onClick: () => {
-      handleSort(value);
-    },
-  });
+type ColumnType = {
+  title: string;
+  dataKey: string;
+  width?: number;
+  render?: (_: unknown, row: any) => React.ReactNode;
+};
 
-  const onDeleteItem = (id: string) => {
-    handleDelete(id);
-  };
+interface CatchTableData {
+  id: string;
+  bmu: string;
+  mean_trip_catch: number;
+  mean_effort: number;
+  mean_cpue: number;
+  mean_cpua: number;
+  date: string;
+}
+
+export default function FileListTable({
+  className,
+  lang,
+  selectedMetric,
+}: {
+  className?: string;
+  lang?: string;
+  selectedMetric: string;
+}) {
+  const [pageSize, setPageSize] = useState(10);
+  const { t } = useTranslation(lang!, "table");
+
+  const { data: monthlyData, isLoading: isDataLoading } =
+    api.aggregatedCatch.monthly.useQuery();
+
+  const transformedData: CatchTableData[] = useMemo(() => {
+    if (!monthlyData) return [];
+
+    return monthlyData.map((item: any, index: number) => ({
+      id: index.toString(),
+      bmu: "Kenyatta",
+      date: new Date(item.date).toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "long",
+      }),
+      mean_trip_catch: Number(item.mean_trip_catch?.toFixed(2)) || 0,
+      mean_effort: Number(item.mean_effort?.toFixed(2)) || 0,
+      mean_cpue: Number(item.mean_cpue?.toFixed(2)) || 0,
+      mean_cpua: Number(item.mean_cpua?.toFixed(2)) || 0,
+    }));
+  }, [monthlyData]);
+
+  const columns = useMemo<ColumnType[]>(
+    () => [
+      {
+        title: "BMU",
+        dataKey: "bmu",
+        width: 150,
+        render: (_: unknown, row: CatchTableData) => (
+          <span className="font-medium">{row.bmu}</span>
+        ),
+      },
+      {
+        title: "Date",
+        dataKey: "date",
+        width: 200,
+        render: (_: unknown, row: CatchTableData) => row.date,
+      },
+      {
+        title: "Mean Catch (kg)",
+        dataKey: "mean_trip_catch",
+        width: 150,
+        render: (_: unknown, row: CatchTableData) =>
+          row.mean_trip_catch.toFixed(2),
+      },
+      {
+        title: "Mean Effort (hours)",
+        dataKey: "mean_effort",
+        width: 150,
+        render: (_: unknown, row: CatchTableData) => row.mean_effort.toFixed(2),
+      },
+      {
+        title: "CPUE (kg/hour)",
+        dataKey: "mean_cpue",
+        width: 150,
+        render: (_: unknown, row: CatchTableData) => row.mean_cpue.toFixed(2),
+      },
+      {
+        title: "CPUA (kg/area)",
+        dataKey: "mean_cpua",
+        width: 150,
+        render: (_: unknown, row: CatchTableData) => row.mean_cpua.toFixed(2),
+      },
+    ],
+    []
+  );
 
   const {
     isLoading,
@@ -32,16 +110,7 @@ export default function FileListTable({ className, lang }: { className?: string;
     handlePaginate,
     sortConfig,
     handleSort,
-    handleDelete,
-  } = useTable(allFilesData, pageSize);
-
-  const columns = useMemo(
-    () => getColumns({ sortConfig, onHeaderCellClick, onDeleteItem, t }),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [onHeaderCellClick, sortConfig.key, sortConfig.direction, onDeleteItem]
-  );
-
-  const { visibleColumns } = useColumn(columns);
+  } = useTable(transformedData, pageSize);
 
   return (
     <div className={className}>
@@ -50,24 +119,16 @@ export default function FileListTable({ className, lang }: { className?: string;
           as="h3"
           className="text-lg font-semibold text-gray-900 xl:text-xl"
         >
-          {t('text-all-files')}
+          {t("Catch Data by Month")}
         </Title>
-        <Link
-          href={routes.file.manager}
-          className="text-sm font-medium text-gray-900 hover:underline"
-        >
-          {t('text-view-all')}
-        </Link>
       </div>
       <ControlledTable
-        isLoading={isLoading}
+        isLoading={isLoading || isDataLoading}
         data={tableData}
-        // @ts-ignore
-        columns={visibleColumns}
+        columns={columns}
         scroll={{ x: 1300 }}
         variant="modern"
         tableLayout="fixed"
-        rowKey={(record) => record.id}
         className="overflow-hidden rounded-lg border border-muted text-sm"
         paginatorOptions={{
           pageSize,
