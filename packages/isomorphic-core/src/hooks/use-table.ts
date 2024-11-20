@@ -11,6 +11,9 @@ export function useTable<T extends AnyObject>(
   initialFilterState?: Partial<Record<string, any>>
 ) {
   const [data, setData] = useState(initialData);
+  useEffect(() => {
+    setData(initialData);
+  }, [initialData]);
 
   /*
    * Dummy loading state.
