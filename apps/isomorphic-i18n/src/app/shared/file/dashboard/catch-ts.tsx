@@ -9,28 +9,25 @@ import {
   AreaChart,
   Area,
   ReferenceLine,
+  Legend,
 } from "recharts";
 import SimpleBar from "@ui/simplebar";
 import { useMedia } from "@hooks/use-media";
 import { useTranslation } from "@/app/i18n/client";
 import { api } from "@/trpc/react";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/app/components/select";
+import cn from "@utils/class-names";
+import { ActionIcon, Popover } from "rizzui";
 
 type MetricKey = "mean_trip_catch" | "mean_effort" | "mean_cpue" | "mean_cpua";
 
 interface ChartDataPoint {
   date: number;
-  value: number;
+  [key: string]: number | undefined;
 }
 
 interface ApiDataPoint {
   date: string;
+  landing_site: string;
   mean_trip_catch: number;
   mean_effort: number;
   mean_cpue: number;
@@ -50,6 +47,34 @@ interface CatchMetricsChartProps {
   onMetricChange: (metric: MetricKey) => void;
 }
 
+interface TooltipProps {
+  active?: boolean;
+  payload?: Array<{
+    value: number;
+    name?: string;
+    dataKey: string | number;
+    color: string;
+  }>;
+  label?: string | number;
+  separator?: string;
+  selectedMetric: MetricKey;
+  selectedMetricOption: MetricOption | undefined;
+}
+
+interface VisibilityState {
+  [key: string]: {
+    opacity: number;
+  };
+}
+
+type TickProps = {
+  x?: number;
+  y?: number;
+  payload?: {
+    value: number;
+  };
+};
+
 const METRIC_OPTIONS: MetricOption[] = [
   { value: "mean_trip_catch", label: "Mean Catch per Trip", unit: "kg" },
   { value: "mean_effort", label: "Mean Effort", unit: "hours" },
@@ -57,10 +82,82 @@ const METRIC_OPTIONS: MetricOption[] = [
   { value: "mean_cpua", label: "Mean CPUA", unit: "kg/area" },
 ];
 
-const CustomTooltip = ({ active, payload, label, selectedMetric }: any) => {
-  if (active && payload?.[0]) {
-    const date = new Date(label);
-    const metric = METRIC_OPTIONS.find((m) => m.value === selectedMetric);
+const SITE_COLORS = {
+  Kenyatta: "#0c526e",
+  Bureni: "#fc3468",
+  Marina: "#f09609",
+};
+
+const MetricSelector = ({ selectedMetric, onMetricChange, selectedMetricOption }: {
+  selectedMetric: MetricKey;
+  onMetricChange: (metric: MetricKey) => void;
+  selectedMetricOption: MetricOption | undefined;
+}) => {
+  const [isOpen, setIsOpen] = useState(false);
+
+  return (
+    <div className="flex items-center gap-2">
+      <span className="text-sm text-gray-500">Select metric:</span>
+      <Popover isOpen={isOpen} setIsOpen={setIsOpen} placement="bottom-end">
+        <Popover.Trigger>
+          <ActionIcon 
+            variant="text" 
+            className="relative h-auto w-auto p-0 flex items-center gap-2"
+          >
+            <span className="text-sm font-medium text-gray-900">
+              {selectedMetricOption?.label}
+            </span>
+            <svg
+              className="h-4 w-4 text-gray-500"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M19 9l-7 7-7-7"
+              />
+            </svg>
+          </ActionIcon>
+        </Popover.Trigger>
+        <Popover.Content className="w-[200px] p-1">
+          <div className="space-y-0.5">
+            {METRIC_OPTIONS.map((option) => (
+              <button
+                key={option.value}
+                onClick={() => {
+                  onMetricChange(option.value);
+                  setIsOpen(false);
+                }}
+                className={cn(
+                  "w-full px-3 py-2 text-left text-sm transition duration-200 rounded-md",
+                  selectedMetric === option.value 
+                    ? "bg-gray-100 text-gray-900"
+                    : "text-gray-600 hover:bg-gray-50"
+                )}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+        </Popover.Content>
+      </Popover>
+    </div>
+  );
+};
+
+
+const CustomTooltip = ({
+  active,
+  payload,
+  label,
+  selectedMetric,
+  selectedMetricOption,
+}: TooltipProps) => {
+  if (active && payload?.length) {
+    const date = new Date(label as number);
 
     return (
       <div className="bg-white p-4 border border-gray-200 shadow-lg rounded-lg">
@@ -70,20 +167,27 @@ const CustomTooltip = ({ active, payload, label, selectedMetric }: any) => {
             year: "numeric",
           })}
         </p>
-        <div className="flex items-center gap-2">
-          <div className="w-2 h-2 rounded-full bg-[#0c526e]" />
-          <p className="text-sm">
-            <span className="font-medium">{metric?.label}:</span>{" "}
-            {payload[0].value.toFixed(1)} {metric?.unit}
-          </p>
-        </div>
+        {payload.map((entry) => (
+          <div key={entry.dataKey} className="flex items-center gap-2">
+            <div
+              className="w-2 h-2 rounded-full"
+              style={{ backgroundColor: entry.color }}
+            />
+            <p className="text-sm">
+              <span className="font-medium">
+                {entry.name || entry.dataKey}:
+              </span>{" "}
+              {entry.value?.toFixed(1) ?? "N/A"} {selectedMetricOption?.unit}
+            </p>
+          </div>
+        ))}
       </div>
     );
   }
   return null;
 };
 
-function CustomYAxisTick({ x, y, payload }: any) {
+function CustomYAxisTick({ x = 0, y = 0, payload = { value: 0 } }: TickProps) {
   return (
     <g transform={`translate(${x},${y})`}>
       <text
@@ -108,25 +212,78 @@ export default function CatchMetricsChart({
   const [chartData, setChartData] = useState<ChartDataPoint[]>([]);
   const [loading, setLoading] = useState(true);
   const [fiveYearMarks, setFiveYearMarks] = useState<number[]>([]);
+  const [visibilityState, setVisibilityState] = useState<VisibilityState>(() =>
+    Object.keys(SITE_COLORS).reduce(
+      (acc, site) => ({
+        ...acc,
+        [site]: { opacity: 1 },
+      }),
+      {}
+    )
+  );
+
   const isTablet = useMedia("(max-width: 800px)", false);
   const { t } = useTranslation(lang!, "common");
 
-  const handleValueChange = (value: MetricKey) => {
-    onMetricChange(value);
+  const { data: monthlyData } = api.aggregatedCatch.monthly.useQuery();
+
+  const handleLegendClick = (site: string) => {
+    setVisibilityState((prev) => ({
+      ...prev,
+      [site]: {
+        opacity: prev[site].opacity === 1 ? 0.2 : 1,
+      },
+    }));
   };
 
-  const { data: monthlyData } = api.aggregatedCatch.monthly.useQuery();
+  const CustomLegend = ({ payload }: any) => {
+    return (
+      <div className="flex flex-wrap gap-4 justify-center mt-2">
+        {payload?.map((entry: any) => (
+          <div
+            key={entry.value}
+            className="flex items-center gap-2 cursor-pointer select-none transition-all duration-200"
+            onClick={() => handleLegendClick(entry.value)}
+            style={{ opacity: visibilityState[entry.value]?.opacity }}
+          >
+            <div
+              className="w-3 h-3 rounded-full transition-all duration-200"
+              style={{
+                backgroundColor: entry.color,
+              }}
+            />
+            <span className="text-sm font-medium">{entry.value}</span>
+          </div>
+        ))}
+      </div>
+    );
+  };
 
   useEffect(() => {
     if (!monthlyData) return;
 
     try {
-      const processedData = monthlyData.map((item: ApiDataPoint) => ({
-        date: new Date(item.date).getTime(),
-        value: item[selectedMetric],
-      }));
+      const groupedData = monthlyData.reduce<Record<string, ChartDataPoint>>(
+        (acc, item: ApiDataPoint) => {
+          const date = new Date(item.date).getTime();
+          if (!acc[date]) {
+            acc[date] = {
+              date,
+              Kenyatta: undefined,
+              Bureni: undefined,
+              Marina: undefined,
+            };
+          }
+          acc[date][item.landing_site] = item[selectedMetric];
+          return acc;
+        },
+        {}
+      );
 
-      // Find 5-year interval marks
+      const processedData = Object.values(groupedData).sort(
+        (a, b) => a.date - b.date
+      );
+
       const allYears = processedData.map((item: ChartDataPoint) =>
         new Date(item.date).getFullYear()
       );
@@ -149,7 +306,8 @@ export default function CatchMetricsChart({
   }, [monthlyData, selectedMetric]);
 
   if (loading) return <div>Loading chart...</div>;
-  if (!chartData || chartData.length === 0) return <div>No data available.</div>;
+  if (!chartData || chartData.length === 0)
+    return <div>No data available.</div>;
 
   const selectedMetricOption = METRIC_OPTIONS.find(
     (m) => m.value === selectedMetric
@@ -159,41 +317,11 @@ export default function CatchMetricsChart({
     <WidgetCard
       title={
         <div className="flex items-center justify-between w-full">
-          <span>{selectedMetricOption?.label}</span>
-          <Select value={selectedMetric} onValueChange={handleValueChange}>
-            <SelectTrigger
-              className="w-48"
-              onMouseEnter={(e) => {
-                const event = new MouseEvent("click", {
-                  view: window,
-                  bubbles: true,
-                  cancelable: true,
-                });
-                e.currentTarget.dispatchEvent(event);
-              }}
-            >
-              <SelectValue placeholder="Select metric" />
-            </SelectTrigger>
-            <SelectContent
-              onMouseLeave={(e) => {
-                const trigger = document.querySelector('[data-state="open"]');
-                if (trigger) {
-                  const event = new MouseEvent("click", {
-                    view: window,
-                    bubbles: true,
-                    cancelable: true,
-                  });
-                  trigger.dispatchEvent(event);
-                }
-              }}
-            >
-              {METRIC_OPTIONS.map((option) => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <MetricSelector
+            selectedMetric={selectedMetric}
+            onMetricChange={onMetricChange}
+            selectedMetricOption={selectedMetricOption}
+          />
         </div>
       }
       className={className}
@@ -215,16 +343,19 @@ export default function CatchMetricsChart({
               className="[&_.recharts-cartesian-axis-tick-value]:fill-gray-500 [&_.recharts-cartesian-axis.yAxis]:-translate-y-3 rtl:[&_.recharts-cartesian-axis.yAxis]:-translate-x-12 [&_.recharts-cartesian-grid-vertical]:opacity-0"
             >
               <defs>
-                <linearGradient
-                  id="metric_gradient"
-                  x1="0"
-                  y1="0"
-                  x2="0"
-                  y2="1"
-                >
-                  <stop offset="5%" stopColor="#0c526e" stopOpacity={0.75} />
-                  <stop offset="95%" stopColor="#0c526e" stopOpacity={0} />
-                </linearGradient>
+                {Object.entries(SITE_COLORS).map(([site, color]) => (
+                  <linearGradient
+                    key={site}
+                    id={`${site}_gradient`}
+                    x1="0"
+                    y1="0"
+                    x2="0"
+                    y2="1"
+                  >
+                    <stop offset="5%" stopColor={color} stopOpacity={0.75} />
+                    <stop offset="95%" stopColor={color} stopOpacity={0} />
+                  </linearGradient>
+                ))}
               </defs>
               <CartesianGrid strokeDasharray="8 10" strokeOpacity={0.435} />
               <XAxis
@@ -246,31 +377,32 @@ export default function CatchMetricsChart({
               <YAxis
                 axisLine={false}
                 tickLine={false}
-                tick={<CustomYAxisTick />}
+                tick={CustomYAxisTick}
                 width={45}
               />
               <Tooltip
-                content={(props) => (
-                  <CustomTooltip {...props} selectedMetric={selectedMetric} />
+                content={(props: any) => (
+                  <CustomTooltip
+                    {...props}
+                    selectedMetric={selectedMetric}
+                    selectedMetricOption={selectedMetricOption}
+                  />
                 )}
               />
-              {fiveYearMarks.map((date) => (
-                <ReferenceLine
-                  key={date}
-                  x={date}
-                  stroke="#718096"
-                  strokeDasharray="3 3"
-                  strokeOpacity={0.5}
+              <Legend content={CustomLegend} />
+              {Object.entries(SITE_COLORS).map(([site, color]) => (
+                <Area
+                  key={site}
+                  type="monotone"
+                  dataKey={site}
+                  name={site}
+                  stroke={color}
+                  strokeWidth={2}
+                  fillOpacity={visibilityState[site]?.opacity ?? 1}
+                  strokeOpacity={visibilityState[site]?.opacity ?? 1}
+                  fill={`url(#${site}_gradient)`}
                 />
               ))}
-              <Area
-                type="monotone"
-                dataKey="value"
-                stroke="#0c526e"
-                strokeWidth={2}
-                fillOpacity={1}
-                fill="url(#metric_gradient)"
-              />
             </AreaChart>
           </ResponsiveContainer>
         </div>

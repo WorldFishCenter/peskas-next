@@ -50,7 +50,7 @@ const CustomTooltip = ({ active, payload }: any) => {
     return (
       <div className="bg-white p-2 border border-gray-200 shadow-lg rounded-lg">
         <p className="text-sm font-medium">
-          <span>{payload[0].value}</span>
+          {payload[0].value.toLocaleString()}
         </p>
       </div>
     );
@@ -58,13 +58,8 @@ const CustomTooltip = ({ active, payload }: any) => {
   return null;
 };
 
-export function FileStatGrid({
-  className,
-  lang,
-}: {
-  className?: string;
-  lang?: string;
-}) {
+export function FileStatGrid({ className, lang }: { className?: string; lang?: string; }) {
+
   const { t } = useTranslation(lang!, "common");
   const [statsData, setStatsData] = useState<StatData[]>([]);
   const [loading, setLoading] = useState(true);
@@ -169,10 +164,14 @@ export function FileStatGrid({
             <div className="h-12 w-20 @[16.25rem]:h-16 @[16.25rem]:w-24 @xs:h-20 @xs:w-28">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart barSize={6} barGap={5} data={stat.chart}>
-                  <Bar dataKey="sale" fill={stat.fill} radius={[2, 2, 0, 0]} />
+                  <Bar 
+                    dataKey="sale" 
+                    fill={stat.fill} 
+                    radius={[2, 2, 0, 0]} 
+                  />
                   <Tooltip
                     content={<CustomTooltip />}
-                    cursor={{ fill: "transparent" }}
+                    cursor={{ fill: 'rgba(0, 0, 0, 0.1)' }}
                   />
                 </BarChart>
               </ResponsiveContainer>
@@ -189,6 +188,8 @@ export function FileStatGrid({
     </>
   );
 }
+
+
 export default function FileStats({ className, lang }: FileStatsType) {
   const {
     sliderEl,

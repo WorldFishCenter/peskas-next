@@ -11,6 +11,7 @@ import {
   Radar,
   ResponsiveContainer,
   Tooltip,
+  Legend,
 } from 'recharts';
 import cn from '@utils/class-names';
 import { api } from "@/trpc/react";
@@ -19,7 +20,7 @@ type MetricKey = "mean_trip_catch" | "mean_effort" | "mean_cpue" | "mean_cpua";
 
 interface RadarData {
   month: string;
-  value: number;
+  [key: string]: string | number;
 }
 
 interface MetricInfo {
@@ -33,6 +34,12 @@ interface CatchRadarChartProps {
   selectedMetric: MetricKey;
 }
 
+interface VisibilityState {
+  [key: string]: {
+    opacity: number;
+  };
+}
+
 const METRIC_INFO: Record<MetricKey, MetricInfo> = {
   mean_trip_catch: { label: 'Mean Catch per Trip', unit: 'kg' },
   mean_effort: { label: 'Mean Effort', unit: 'hours' },
@@ -40,18 +47,32 @@ const METRIC_INFO: Record<MetricKey, MetricInfo> = {
   mean_cpua: { label: 'Mean CPUA', unit: 'kg/area' }
 };
 
+const SITE_COLORS = {
+  Kenyatta: "#0c526e",
+  Bureni: "#fc3468",
+  Marina: "#f09609",
+};
+
 const CustomTooltip = ({ active, payload, metric }: any) => {
   if (active && payload && payload.length) {
     const metricInfo = METRIC_INFO[metric as MetricKey];
     return (
       <div className="bg-white p-4 border border-gray-200 shadow-lg rounded-lg">
-        <p className="text-sm font-medium text-gray-600 mb-1">
+        <p className="text-sm font-medium text-gray-600 mb-2">
           {payload[0].payload.month}
         </p>
-        <p className="text-sm">
-          <span className="font-medium">{metricInfo.label}:</span>{' '}
-          {payload[0].value.toFixed(1)} {metricInfo.unit}
-        </p>
+        {payload.map((entry: any) => (
+          <div key={entry.dataKey} className="flex items-center gap-2">
+            <div 
+              className="w-2 h-2 rounded-full" 
+              style={{ backgroundColor: entry.color }}
+            />
+            <p className="text-sm">
+              <span className="font-medium">{entry.name}:</span>{' '}
+              {entry.value?.toFixed(1) ?? "N/A"} {metricInfo.unit}
+            </p>
+          </div>
+        ))}
       </div>
     );
   }
@@ -66,6 +87,43 @@ export default function CatchRadarChart({
   const [data, setData] = useState<RadarData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [visibilityState, setVisibilityState] = useState<VisibilityState>(() =>
+    Object.keys(SITE_COLORS).reduce((acc, site) => ({
+      ...acc,
+      [site]: { opacity: 1 }
+    }), {})
+  );
+
+  const handleLegendClick = (site: string) => {
+    setVisibilityState(prev => ({
+      ...prev,
+      [site]: { 
+        opacity: prev[site].opacity === 1 ? 0.2 : 1
+      }
+    }));
+  };
+
+  const CustomLegend = ({ payload }: any) => {
+    return (
+      <div className="flex flex-wrap gap-4 justify-center mt-2">
+        {payload?.map((entry: any) => (
+          <div
+            key={entry.value}
+            className="flex items-center gap-2 cursor-pointer select-none transition-all duration-200"
+            onClick={() => handleLegendClick(entry.dataKey)}
+            style={{ opacity: visibilityState[entry.dataKey]?.opacity }}
+          >
+            <div 
+              className="w-3 h-3 rounded-full transition-all duration-200"
+              style={{ backgroundColor: entry.color }}
+            />
+            <span className="text-sm font-medium">{entry.value}</span>
+          </div>
+        ))}
+      </div>
+    );
+  };
+
   const { t } = useTranslation(lang!);
 
   const { data: meanCatch } = api.aggregatedCatch.meanCatchRadar.useQuery({
@@ -94,7 +152,7 @@ export default function CatchRadarChart({
 
   if (loading) return <div>Loading chart...</div>;
   if (error) return <div>Error: {error}</div>;
-  if (!data || data.length === 0) return <div>No data available for Bureni</div>;
+  if (!data || data.length === 0) return <div>No data available</div>;
 
   return (
     <WidgetCard
@@ -114,14 +172,19 @@ export default function CatchRadarChart({
               domain={[0, 'auto']}
               tick={{ fill: '#666' }}
             />
-            <Radar
-              name={METRIC_INFO[selectedMetric].label}
-              dataKey="value"
-              stroke="#0c526e"
-              fill="#0c526e"
-              fillOpacity={0.25}
-            />
+            {Object.entries(SITE_COLORS).map(([site, color]) => (
+              <Radar
+                key={site}
+                name={site}
+                dataKey={site}
+                stroke={color}
+                fill={color}
+                fillOpacity={visibilityState[site]?.opacity * 0.25}
+                strokeOpacity={visibilityState[site]?.opacity}
+              />
+            ))}
             <Tooltip content={(props) => <CustomTooltip {...props} metric={selectedMetric} />} />
+            <Legend content={CustomLegend} />
           </RadarChart>
         </ResponsiveContainer>
       </div>

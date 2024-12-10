@@ -17,14 +17,7 @@ export default function FileDashboard({ lang }: { lang?: string }) {
     <div className="@container">
       {/* General Stats Row */}
       <FileStats className="mb-5 2xl:mb-8" lang={lang} />
-
-      {/* Map Row - Full Width */}
-      <div className="mb-6 2xl:mb-8">
-        <div className="h-[500px] w-full relative @4xl:col-span-12 @[96.937rem]:col-span-12">
-          <DeckGL />
-        </div>
-      </div>
-
+      
       {/* Charts Row */}
       <div className="mb-6 grid grid-cols-1 gap-6 @4xl:grid-cols-12 2xl:mb-8 2xl:gap-8">
         <CatchMonthly
@@ -38,6 +31,13 @@ export default function FileDashboard({ lang }: { lang?: string }) {
           lang={lang}
           selectedMetric={selectedMetric}
         />
+      </div>
+
+      {/* Map Row - Full Width */}
+      <div className="mb-6 2xl:mb-8">
+        <div className="h-[500px] w-full relative @4xl:col-span-12 @[96.937rem]:col-span-12">
+          <DeckGL />
+        </div>
       </div>
 
       {/* Treemap Row */}

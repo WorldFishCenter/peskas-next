@@ -43,6 +43,7 @@
     "@tailwindcss/container-queries": "^0.1.1",
     "@uploadthing/react": "^6.5.1",
     "ahooks": "^3.8.0",
+    "aws4": "^1.13.2",
     "clsx": "^2.1.1",
     "date-arithmetic": "^4.1.0",
     "dayjs": "^1.11.11",
