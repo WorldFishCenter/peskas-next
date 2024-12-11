@@ -36,79 +36,142 @@ export async function up(): Promise<void> {
 
   const permissions = await PermissionModel.insertMany([
     {
-      name: "Admin",
+      name: "Admin Permission",
       domain: [
         {
-          country: "*",
-          BMU: "*",
-          person: "*",
+          country: "",
+          resource: "catch",
+          actions: ['create', 'read', 'update', 'delete'],
         },
+        {
+          country: "",
+          resource: "gear",
+          actions: ['create', 'read', 'update', 'delete'],
+        },
+        {
+          country: "",
+          resource: "map",
+          actions: ['create', 'read', 'update', 'delete'],
+        },       
+        {
+          country: "",
+          resource: "stats",
+          actions: ['create', 'read', 'update', 'delete'],
+        },                
       ],
-      actions: ["admin"],
     },
     {
-      name: "Control",
-      domain: [
-        {
-          country: "*",
-          BMU: "*",
-          person: "*",
-        },
-      ],
-      actions: ["read"],
+      name: "Control Permission",
+      domain: [],
     },
     {
       name: "IIA",
       domain: [
         {
-          country: "*",
-          BMU: "*",
-          person: "*",
+          country: "",
+          resource: "catch",
+          actions: ['read'],
         },
+        {
+          country: "",
+          resource: "gear",
+          actions: ['read'],
+        },
+        {
+          country: "",
+          resource: "map",
+          actions: ['read'],
+        },       
+        {
+          country: "",
+          resource: "stats",
+          actions: ['read'],
+        },    
       ],
-      actions: ["read", "write"],
     },
     {
-      name: "CIA",
+      name: "CIA Permission",
       domain: [
         {
-          country: "*",
-          BMU: "*",
-          person: "*",
+          country: "",
+          resource: "catch",
+          actions: ['read'],
         },
+        {
+          country: "",
+          resource: "gear",
+          actions: ['read'],
+        },
+        {
+          country: "",
+          resource: "map",
+          actions: ['read'],
+        },       
+        {
+          country: "",
+          resource: "stats",
+          actions: ['read'],
+        }, 
       ],
-      actions: ["read", "write", "submit"],
     },
     {
-      name: "WBCIA",
+      name: "WBCIA Permission",
       domain: [
         {
-          country: "*",
-          BMU: "*",
-          person: "*",
+          country: "",
+          resource: "catch",
+          actions: ['read'],
         },
+        {
+          country: "",
+          resource: "gear",
+          actions: ['read'],
+        },
+        {
+          country: "",
+          resource: "map",
+          actions: ['read'],
+        },       
+        {
+          country: "",
+          resource: "stats",
+          actions: ['read'],
+        }, 
       ],
-      actions: ["read", "write", "submit", "receive"],
     },
     {
-      name: "AIA",
+      name: "AIA Permission",
       domain: [
         {
-          country: "*",
-          BMU: "*",
-          person: "*",
+          country: "",
+          resource: "catch",
+          actions: ['read'],
         },
+        {
+          country: "",
+          resource: "gear",
+          actions: ['read'],
+        },
+        {
+          country: "",
+          resource: "map",
+          actions: ['read'],
+        },       
+        {
+          country: "",
+          resource: "stats",
+          actions: ['read'],
+        }, 
       ],
-      actions: ["read", "write", "submit", "receive", "review"],
     },
   ]);
 
-  const adminPerm = find(permissions, { name: "Admin" });
-  const controlPerm = find(permissions, { name: "Control" });
-  const iiaPerm = find(permissions, { name: "IIA" });
-  const ciaPerm = find(permissions, { name: "CIA" });
-  const wbciaPerm = find(permissions, { name: "WBCIA" });
-  const aiaPerm = find(permissions, { name: "AIA" });
+  const adminPerm = find(permissions, { name: "Admin Permission" });
+  const controlPerm = find(permissions, { name: "Control  Permission" });
+  const iiaPerm = find(permissions, { name: "IIA Permission" });
+  const ciaPerm = find(permissions, { name: "CIA Permission" });
+  const wbciaPerm = find(permissions, { name: "WBCIA Permission" });
+  const aiaPerm = find(permissions, { name: "AIA Permission" });
 
   const adminGroup = find(groups, { name: "Admin" });
   const controlGroup = find(groups, { name: "Control" });

@@ -1,17 +1,21 @@
+import { z } from "zod";
+import isEmpty from 'lodash/isEmpty';
+
 import { MonthlyStatsModel } from "@repo/nosql/schema/monthly-stats";
 
 import { createTRPCRouter, protectedProcedure } from "../trpc";
 
 export const monthlyStatsRouter = createTRPCRouter({
   allStats: protectedProcedure
-    .query(async () => {
+    .input(z.object({ bmus: z.string().array() }))
+    .query(async ({ input }) => {
       const data = await MonthlyStatsModel
-      .find({ 
-        landing_site: "kenyatta",
-      })
-      .sort({ date: -1 })
-      .limit(7)  // Get 7 to calculate percentage change
-      .exec();
+        .find({ landing_site: { $in: input.bmus } })
+        .sort({ date: -1 })
+        .limit(7)  // Get 7 to calculate percentage change
+        .lean();
+
+      if (isEmpty(data)) return {}
 
       // Calculate month-over-month changes and format data
       return {

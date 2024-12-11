@@ -25,10 +25,11 @@ export const authOptions: NextAuthOptions = {
         token.email = user.email
         token.maxAge = get(user, 'maxAge')
         token.groups = get(user, 'groups')
+        token.bmus = get(user, 'bmus')
       }
       return token;
     },
-    async session({ session, token, user }) {
+    async session({ session, token }) {
       const expiry = get(token, 'maxAge')
         ? {
             maxAge: token.maxAge as number,
@@ -43,6 +44,8 @@ export const authOptions: NextAuthOptions = {
           ...session.user,
           id: token.id as string | undefined,
           email: token.email,
+          groups: token.groups,
+          bmus: token.bmus,
         },
       };
     },
@@ -67,13 +70,19 @@ export const authOptions: NextAuthOptions = {
           const { email, password } = parsedCredentials.data
           await getDb()
           const user = await UserModel.findOne({ email: email })
-            .populate({ 
-              path: 'groups',
-              populate: {
-                path: 'permission_id',
-                model: 'Permission'
-              } 
-            })
+            .populate([
+              { 
+                path: 'groups',
+                populate: {
+                  path: 'permission_id',
+                  model: 'Permission'
+                } 
+              },
+              {
+                path: 'bmus',
+                select: { 'BMU': true, 'group': true },
+              }
+            ])
             .lean()
           if (!user) throw new UserNotFoundError()
 
@@ -88,7 +97,7 @@ export const authOptions: NextAuthOptions = {
              */ 
             const maxAge = rememberMe ? 30 * 24 * 60 * 60 : 24 * 60 * 60;
             return {
-              ...pick(user, ['id', 'email', 'groups']),
+              ...pick(user, ['id', 'email', 'groups', 'bmus']),
               maxAge
             }
           }

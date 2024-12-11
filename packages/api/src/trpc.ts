@@ -46,7 +46,6 @@ export const createTRPCContext = async (opts: {
   return {
     session,
     ip,
-    globalFilter: JSON.parse(globalFilter),
   };
 };
 

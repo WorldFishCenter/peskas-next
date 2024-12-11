@@ -1,11 +1,23 @@
 import type { Types } from "mongoose";
 import mongoose, { Schema } from "mongoose";
 
+export const TREATMENTS = [
+  "individual",
+  "community",
+  "experts",
+  "neighborhood",
+] as const;
+
+export type TTreatment = (typeof TREATMENTS)[number];
+
 /* eslint-disable @typescript-eslint/consistent-type-definitions */
 export type TBmu = {
   _id: Types.ObjectId;
   BMU: string;
-  size_km: number;
+  group: string;
+  lat: number;
+  lng: string;
+  treatments: TTreatment[];
 };
 
 /**
@@ -14,7 +26,10 @@ export type TBmu = {
 const bmuSchema = new Schema<TBmu>(
   {
     BMU: String,
-    size_km: Number,
+    group: String,
+    lat: Number,
+    lng: Number,
+    treatments: [{ type: String, enum: TREATMENTS }],
   },
   {
     collection: "bmu",

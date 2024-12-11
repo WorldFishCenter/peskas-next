@@ -2,6 +2,8 @@
 
 import { BarChart, Bar, ResponsiveContainer, Tooltip } from "recharts";
 import { useState, useEffect } from "react";
+import { useAtom } from 'jotai';
+import isEmpty from 'lodash/isEmpty';
 
 import { Button, Text } from "rizzui";
 import cn from "@utils/class-names";
@@ -12,6 +14,7 @@ import TrendingUpIcon from "@components/icons/trending-up";
 import TrendingDownIcon from "@components/icons/trending-down";
 import { useTranslation } from "@/app/i18n/client";
 import { api } from "@/trpc/react";
+import { bmusAtom } from "@/app/components/filter-selector";
 
 type FileStatsType = {
   className?: string;
@@ -63,11 +66,14 @@ export function FileStatGrid({ className, lang }: { className?: string; lang?: s
   const { t } = useTranslation(lang!, "common");
   const [statsData, setStatsData] = useState<StatData[]>([]);
   const [loading, setLoading] = useState(true);
-
-  const { data: monthlyData } = api.monthlyStats.allStats.useQuery();
+  const [bmus] = useAtom(bmusAtom);
+  const { data: monthlyData } = api.monthlyStats.allStats.useQuery({ bmus });
 
   useEffect(() => {
-    if (!monthlyData) return
+    if (isEmpty(monthlyData)) {
+      setLoading(false)
+      return
+    }
 
     const data: MonthlyStats = monthlyData
     const transformedStats: StatData[] = [

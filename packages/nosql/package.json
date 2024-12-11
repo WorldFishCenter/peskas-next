@@ -14,12 +14,17 @@
     "migrate": "migrate -f src/migrate.ts"
   },
   "devDependencies": {
+    "@types/bluebird": "^3.5.42",
+    "@types/lodash": "^4.17.1",
     "eslint": "8.57.0",
     "prettier": "3.2.5",
     "ts-migrate-mongoose": "^3.8.4",
     "typescript": "5.4.5"
   },
   "dependencies": {
+    "bluebird": "^3.7.2",
+    "csv-parser": "^3.0.0",
+    "lodash": "^4.17.21",
     "mongoose": "^8.7.1"
   }
 }

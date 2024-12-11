@@ -1,20 +1,22 @@
-import React, { useEffect, useState } from "react";
 import WidgetCard from "@components/cards/widget-card";
+import { useAtom } from "jotai";
+import { useEffect, useState } from "react";
 import {
+  Area,
+  AreaChart,
+  CartesianGrid,
+  Legend,
+  ResponsiveContainer,
+  Tooltip,
   XAxis,
   YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  AreaChart,
-  Area,
-  ReferenceLine,
-  Legend,
 } from "recharts";
-import SimpleBar from "@ui/simplebar";
-import { useMedia } from "@hooks/use-media";
+
+import { bmusAtom } from "@/app/components/filter-selector";
 import { useTranslation } from "@/app/i18n/client";
 import { api } from "@/trpc/react";
+import { useMedia } from "@hooks/use-media";
+import SimpleBar from "@ui/simplebar";
 import cn from "@utils/class-names";
 import { ActionIcon, Popover } from "rizzui";
 
@@ -88,7 +90,11 @@ const SITE_COLORS = {
   Marina: "#f09609",
 };
 
-const MetricSelector = ({ selectedMetric, onMetricChange, selectedMetricOption }: {
+const MetricSelector = ({
+  selectedMetric,
+  onMetricChange,
+  selectedMetricOption,
+}: {
   selectedMetric: MetricKey;
   onMetricChange: (metric: MetricKey) => void;
   selectedMetricOption: MetricOption | undefined;
@@ -100,8 +106,8 @@ const MetricSelector = ({ selectedMetric, onMetricChange, selectedMetricOption }
       <span className="text-sm text-gray-500">Select metric:</span>
       <Popover isOpen={isOpen} setIsOpen={setIsOpen} placement="bottom-end">
         <Popover.Trigger>
-          <ActionIcon 
-            variant="text" 
+          <ActionIcon
+            variant="text"
             className="relative h-auto w-auto p-0 flex items-center gap-2"
           >
             <span className="text-sm font-medium text-gray-900">
@@ -133,7 +139,7 @@ const MetricSelector = ({ selectedMetric, onMetricChange, selectedMetricOption }
                 }}
                 className={cn(
                   "w-full px-3 py-2 text-left text-sm transition duration-200 rounded-md",
-                  selectedMetric === option.value 
+                  selectedMetric === option.value
                     ? "bg-gray-100 text-gray-900"
                     : "text-gray-600 hover:bg-gray-50"
                 )}
@@ -147,7 +153,6 @@ const MetricSelector = ({ selectedMetric, onMetricChange, selectedMetricOption }
     </div>
   );
 };
-
 
 const CustomTooltip = ({
   active,
@@ -224,8 +229,9 @@ export default function CatchMetricsChart({
 
   const isTablet = useMedia("(max-width: 800px)", false);
   const { t } = useTranslation(lang!, "common");
+  const [bmus] = useAtom(bmusAtom);
 
-  const { data: monthlyData } = api.aggregatedCatch.monthly.useQuery();
+  const { data: monthlyData } = api.aggregatedCatch.monthly.useQuery({ bmus });
 
   const handleLegendClick = (site: string) => {
     setVisibilityState((prev) => ({

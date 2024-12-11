@@ -34,6 +34,7 @@ const handler = async (req: any) => {
     onError({ error, path }) {
       console.error(`>>> tRPC Error on '${path}'`, error);
     },
+    // batching: { enabled: false },
   });
 
   setCorsHeaders(response);

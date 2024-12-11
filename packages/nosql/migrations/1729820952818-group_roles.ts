@@ -1,108 +1,130 @@
-import getModels from "./connect";
+import get from 'lodash/get'
+import replace from 'lodash/replace'
+import split from 'lodash/split'
+import uniq from 'lodash/uniq'
+import isEmpty from 'lodash/isEmpty'
+import values from 'lodash/values'
+import Bluebird from 'bluebird'
+
+import getModels, { readCsv } from "./connect";
 
 export async function up (): Promise<void> {
-  const { BmuModel } = await getModels();
+  const { BmuModel, GroupModel, UserModel } = await getModels();
+  const filePath = './migrations/kenya_BMUs-20241202.csv';
+  const data = await readCsv(filePath);
+  const password = "$2a$10$KSPht5iRaWqfWrdwQGQeBeGs9/qk2v0XBjqvldWGP7bKYE8TWPmAu"
+  
+  await Bluebird.map(
+    data,
+    async (row) => {
+      const bmu = await BmuModel.findOneAndUpdate(
+        {
+          BMU: get(row, 'Study sites (BMUs)'),
+        },
+        {
+          BMU: get(row, 'Study sites (BMUs)'),
+          group: get(row, 'County (Group)'),
+          lat: get(row, 'Latitude'),
+          lng: get(row, 'Latitude'),
+          treatments: split(get(row, 'Treatment'), ','),
+        },
+        {
+          new: true,
+          upsert: true,
+          projection: { _id: 0, __v: 0 },
+        }
+      )
+    },
+    { concurrency: 3 },
+  )
 
-  const permissions = await BmuModel.insertMany([
-    {
-      BMU: "Bureni",
-      size_km: 1.27,
+  await Bluebird.map(
+    data,
+    async (row) => {
+      const userGroups = await GroupModel.find()
+      userGroups
+        .filter(userGroup => userGroup.name !== 'Admin')
+        .map(async (userGroup) => {
+          const name = replace(replace(`test+${userGroup.name}+${get(row, 'Study sites (BMUs)')}`, / /g, "+"), /-/g, "+")
+          const bmu = await BmuModel.findOne({BMU: get(row, 'Study sites (BMUs)')}).lean()
+          await UserModel.findOneAndUpdate({
+              email: `${name}@mountaindev.com`,
+            },
+            {
+              name: name,
+              email: `${name}@mountaindev.com`,
+              password: password,
+              bmus: [
+                bmu?._id
+              ],
+              groups: [
+                userGroup._id
+              ]
+            },
+            {
+              new: true,
+              upsert: true,
+              projection: { _id: 0, __v: 0 },
+            }
+          )
+        })      
+      
     },
-    {
-      BMU: "Chale",
-      size_km: 2.65,
-    },
-    {
-      BMU: "Gazi",
-      size_km: 6.55,
-    },
-    {
-      BMU: "Jimbo",
-      size_km: 14,
-    },
-    {
-      BMU: "Kanamai",
-      size_km: 5.53,
-    },
-    {
-      BMU: "Kenyatta",
-      size_km: 3.6,
-    },
-    {
-      BMU: "Kibuyuni",
-      size_km: 8.2,
-    },
-    {
-      BMU: "Kijangwani",
-      size_km: 0.88,
-    },
-    {
-      BMU: "Kuruwitu",
-      size_km: 1.42,
-    },
-    {
-      BMU: "Marina",
-      size_km: 4,
-    },
-    {
-      BMU: "Mgwani",
-      size_km: 5.4,
-    },
-    {
-      BMU: "Mkwiro",
-      size_km: 6.56,
-    },
-    {
-      BMU: "Msumarini",
-      size_km: 1.6,
-    },
-    {
-      BMU: "Mtwapa",
-      size_km: 4.96,
-    },
-    {
-      BMU: "Mvuleni",
-      size_km: 2.45,
-    },
-    {
-      BMU: "Mwaepe",
-      size_km: 4.22,
-    },
-    {
-      BMU: "Mwanyaza",
-      size_km: 2.45,
-    },
-    {
-      BMU: "Nyali",
-      size_km: 4,
-    },
-    {
-      BMU: "Reef",
-      size_km: 5.02,
-    },
-    {
-      BMU: "Shimoni",
-      size_km: 14.85,
-    },
-    {
-      BMU: "Tradewinds",
-      size_km: 3.07,
-    },
-    {
-      BMU: "Vanga",
-      size_km: 21.89,
-    },{
-      BMU: "Vipingo",
-      size_km: 1.49,
-    },{
-      BMU: "Wasini",
-      size_km: 5.89,
-    },
-  ]);
+    { concurrency: 3 },
+  )
 
+  const users = await UserModel.find()
+    .populate({ 
+      path: 'groups',
+      model: 'Group',
+      match: { name: { $in: [ 'WBCIA', 'AIA' ] } }
+    })
+    .lean()
+
+  await Bluebird.map(
+    users
+      .filter(user => !isEmpty(user.groups)),
+    async (user) => {
+      const bmu = await BmuModel.findOne({_id: { $in: user.bmus }}).lean()
+      const bmus = await BmuModel.find({group: bmu?.group}).select('_id')
+        .lean()
+      await UserModel.findOneAndUpdate({
+          _id: user._id,
+        },
+        {
+          bmus:bmus.map(bmu => bmu._id),
+        },
+      )
+    },
+    { concurrency: 3 },
+  )    
+
+  const allBmus = await BmuModel.find().lean()
+  const adminUsers = await UserModel.find({email: { $in: ['anthony@mountaindev.com', 'declan@mountaindev.com'] }})
+  adminUsers.map(async (adminUser) => {
+    await UserModel.findOneAndUpdate({
+        _id: adminUser._id,
+      },
+      {
+        bmus: allBmus.map(bmu => bmu._id),
+      },
+    )
+  })
 }
 
 export async function down (): Promise<void> {
-  const { BmuModel } = await getModels();
+  const { BmuModel, GroupModel, UserModel } = await getModels();
+  const filePath = './migrations/kenya_BMUs-20241202.csv';
+  const data = await readCsv(filePath);
+  const userGroups = await GroupModel.find()
+
+  data.map(async (row) => {
+    userGroups
+      .filter(userGroup => userGroup.name !== 'Admin')
+      .map(async (userGroup) => {
+        const name = replace(replace(`test+${userGroup.name}+${get(row, 'Study sites (BMUs)')}`, / /g, "+"), /-/g, "+")
+        await UserModel.deleteOne({ email: `${name}@mountaindev.com` })
+      })
+  })
   await BmuModel.deleteMany();
 }

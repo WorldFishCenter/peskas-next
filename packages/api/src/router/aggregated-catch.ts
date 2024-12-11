@@ -1,5 +1,5 @@
-import { z } from "zod";
 import { CatchMonthlyModel } from "@repo/nosql/schema/catch-monthly";
+import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "../trpc";
 
 const metricSchema = z.enum([
@@ -10,34 +10,37 @@ const metricSchema = z.enum([
 ]);
 
 export const aggregatedCatchRouter = createTRPCRouter({
-  monthly: protectedProcedure.query(() => {
-    return CatchMonthlyModel.aggregate([
-      {
-        $match: {
-          BMU: { $in: ["Kenyatta", "Bureni", "Marina"] },
-          mean_trip_catch: { $ne: null },
+  monthly: protectedProcedure
+    .input(z.object({ bmus: z.string().array() }))
+    .query(({ input }) => {
+      return CatchMonthlyModel.aggregate([
+        {
+          $match: {
+            BMU: { $in: input.bmus },
+            mean_trip_catch: { $ne: null },
+          },
         },
-      },
-      {
-        $project: {
-          _id: 0,
-          date: 1,
-          landing_site: "$BMU", // Rename BMU to landing_site for frontend compatibility
-          mean_trip_catch: 1,
-          mean_effort: 1,
-          mean_cpue: 1,
-          mean_cpua: 1,
+        {
+          $project: {
+            _id: 0,
+            date: 1,
+            landing_site: "$BMU", // Rename BMU to landing_site for frontend compatibility
+            mean_trip_catch: 1,
+            mean_effort: 1,
+            mean_cpue: 1,
+            mean_cpua: 1,
+          },
         },
-      },
-      {
-        $sort: { date: -1 },
-      },
-    ]).exec();
-  }),
+        {
+          $sort: { date: -1 },
+        },
+      ]).exec();
+    }),
 
   meanCatchRadar: protectedProcedure
     .input(
       z.object({
+        bmus: z.string().array(),
         metric: metricSchema.default("mean_trip_catch"),
       })
     )
@@ -45,7 +48,7 @@ export const aggregatedCatchRouter = createTRPCRouter({
       return CatchMonthlyModel.aggregate([
         {
           $match: {
-            BMU: { $in: ["Kenyatta", "Bureni", "Marina"] },
+            BMU: { $in: input.bmus },
             [input.metric]: { $ne: null },
           },
         },

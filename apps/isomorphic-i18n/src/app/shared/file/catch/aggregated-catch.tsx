@@ -14,6 +14,8 @@ import {
   ResponsiveContainer,
   Legend,
 } from "recharts";
+import { useAtom } from 'jotai';
+
 import { useMedia } from "@hooks/use-media";
 import { CustomTooltip } from "@components/charts/custom-tooltip";
 import TrendingUpIcon from "@components/icons/trending-up";
@@ -21,6 +23,7 @@ import SimpleBar from "@ui/simplebar";
 import { useTranslation } from "@/app/i18n/client";
 import { api } from "@/trpc/react";
 import { useGlobalFilter } from "@/app/components/global-filter-provider";
+import { bmusAtom } from "@/app/components/filter-selector";
 
 function CustomYAxisTick({ x, y, payload }: any) {
   return (
@@ -51,8 +54,9 @@ export default function AggregatedCatch({
   const is2xl = useMedia("(max-width: 1780px)", false);
   const isTablet = useMedia("(max-width: 800px)", false);
   const { t } = useTranslation(lang!, "common");
+  const [bmus] = useAtom(bmusAtom);
 
-  const { data: monthlyData } = api.aggregatedCatch.monthly.useQuery();
+  const { data: monthlyData } = api.aggregatedCatch.monthly.useQuery({ bmus });
 
   useEffect(() => {
     if (!monthlyData) return

@@ -2,11 +2,14 @@
 
 import React, { useEffect, useState } from 'react';
 import { Treemap, ResponsiveContainer, Tooltip } from 'recharts';
+import { useAtom } from 'jotai';
+
 import WidgetCard from '@components/cards/widget-card';
 import SimpleBar from '@ui/simplebar';
 import { useMedia } from '@hooks/use-media';
 import { useTranslation } from '@/app/i18n/client';
 import { api } from "@/trpc/react";
+import { bmusAtom } from "@/app/components/filter-selector";
 
 // Tableau10 qualitative palette
 const COLORS = [
@@ -102,11 +105,12 @@ const CustomTooltip = ({ active, payload }: any) => {
 export default function GearTreemap({ className, lang }: { className?: string; lang?: string; }) {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);  
   const isTablet = useMedia('(max-width: 800px)', false);
   const { t } = useTranslation(lang!, 'common');
+  const [bmus] = useAtom(bmusAtom);
 
-  const { data: treeData } = api.gear.tree.useQuery();
+  const { data: treeData } = api.gear.tree.useQuery({ bmus });
 
   useEffect(() => {
     if (!treeData) return

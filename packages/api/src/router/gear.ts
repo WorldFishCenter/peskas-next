@@ -1,10 +1,12 @@
+import { z } from "zod";
+
 import { GearDistributionModel } from "@repo/nosql/schema/gear-distribution";
 
 import { createTRPCRouter, protectedProcedure } from "../trpc";
 
 export const gearRouter = createTRPCRouter({
   distribution: protectedProcedure
-    .query(async () => {
+    .query(async ({ ctx }) => {
       const data = await GearDistributionModel.find({}).exec();
 
       // Transform data for the stacked bar chart
@@ -24,10 +26,11 @@ export const gearRouter = createTRPCRouter({
       }, []);
     }),
   tree: protectedProcedure
-    .query(() => {
+    .input(z.object({ bmus: z.string().array() }))
+    .query(({ input }) => {
       return GearDistributionModel
         .find({ 
-          landing_site: "Kenyatta",
+          landing_site: { $in: input.bmus },
           gear_n: { $gt: 0 }  // Only get gears with counts greater than 0
         })
         .select({

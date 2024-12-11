@@ -1,4 +1,6 @@
+import fs from 'node:fs'
 import mongoose from "mongoose";
+import csv from 'csv-parser'
 
 import {
   GroupModel,
@@ -19,5 +21,28 @@ const getModels = async () => {
     BmuModel,
   };
 };
+
+interface CsvRow {
+  name: string;
+  age: string;
+  city: string;
+}
+
+export async function readCsv(filePath: string): Promise<CsvRow[]> {
+  return new Promise((resolve, reject) => {
+    const results: CsvRow[] = [];
+    fs.createReadStream(filePath)
+      .pipe(csv())
+      .on('data', (data: CsvRow) => {
+        results.push(data);
+      })
+      .on('end', () => {
+        resolve(results);
+      })
+      .on('error', (error) => {
+        reject(error);
+      });
+  });
+}
 
 export default getModels;

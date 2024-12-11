@@ -7,11 +7,14 @@ import { SubmitHandler } from 'react-hook-form';
 import { PiArrowRightBold } from 'react-icons/pi';
 import { Checkbox, Password, Button, Input, Text, Loader } from 'rizzui';
 import { useRouter } from 'next/navigation'
+import { useSetAtom } from 'jotai';
+import { RESET } from 'jotai/utils' 
 
 import { Form } from '@ui/form';
 import { routes } from '@/config/routes';
 import { loginSchema, LoginSchema } from '@/validators/login.schema';
 import Alert from '@/app/_components/alert';
+import { bmusAtom, dropdownAtom } from "@/app/components/filter-selector";
 
 const initialValues: LoginSchema = {
   email: 'anthony@mountaindev.com',
@@ -23,8 +26,10 @@ export default function SignInForm() {
   //TODO: why we need to reset it here
   const [loading, setLoading] = useState(false)
   const [loginErr, setLoginErr] = useState('')
-  const [reset, setReset] = useState({})
+  const [reset] = useState({})
   const router = useRouter()
+  const setBmus = useSetAtom(bmusAtom);
+  const setBmusDropdown = useSetAtom(dropdownAtom);  
 
   const onSubmit: SubmitHandler<LoginSchema> = async (data) => {
     setLoading(true)
@@ -35,6 +40,8 @@ export default function SignInForm() {
     })
 
     if (resp?.ok) {
+      setBmus(RESET)
+      setBmusDropdown(RESET)
       router.refresh()
     } else if (!resp?.ok && resp?.error) {
       setLoginErr(resp?.error)

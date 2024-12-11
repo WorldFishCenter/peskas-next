@@ -1,20 +1,23 @@
 "use client";
 
-import { useTranslation } from '@/app/i18n/client';
-import WidgetCard from '@components/cards/widget-card';
-import { useEffect, useState } from 'react';
+import { useTranslation } from "@/app/i18n/client";
+import WidgetCard from "@components/cards/widget-card";
+import { useAtom } from "jotai";
+import { useEffect, useState } from "react";
 import {
-  RadarChart,
-  PolarGrid,
+  Legend,
   PolarAngleAxis,
+  PolarGrid,
   PolarRadiusAxis,
   Radar,
+  RadarChart,
   ResponsiveContainer,
   Tooltip,
-  Legend,
-} from 'recharts';
-import cn from '@utils/class-names';
+} from "recharts";
+
+import { bmusAtom } from "@/app/components/filter-selector";
 import { api } from "@/trpc/react";
+import cn from "@utils/class-names";
 
 type MetricKey = "mean_trip_catch" | "mean_effort" | "mean_cpue" | "mean_cpua";
 
@@ -41,10 +44,10 @@ interface VisibilityState {
 }
 
 const METRIC_INFO: Record<MetricKey, MetricInfo> = {
-  mean_trip_catch: { label: 'Mean Catch per Trip', unit: 'kg' },
-  mean_effort: { label: 'Mean Effort', unit: 'hours' },
-  mean_cpue: { label: 'Mean CPUE', unit: 'kg/hour' },
-  mean_cpua: { label: 'Mean CPUA', unit: 'kg/area' }
+  mean_trip_catch: { label: "Mean Catch per Trip", unit: "kg" },
+  mean_effort: { label: "Mean Effort", unit: "hours" },
+  mean_cpue: { label: "Mean CPUE", unit: "kg/hour" },
+  mean_cpua: { label: "Mean CPUA", unit: "kg/area" },
 };
 
 const SITE_COLORS = {
@@ -63,12 +66,12 @@ const CustomTooltip = ({ active, payload, metric }: any) => {
         </p>
         {payload.map((entry: any) => (
           <div key={entry.dataKey} className="flex items-center gap-2">
-            <div 
-              className="w-2 h-2 rounded-full" 
+            <div
+              className="w-2 h-2 rounded-full"
               style={{ backgroundColor: entry.color }}
             />
             <p className="text-sm">
-              <span className="font-medium">{entry.name}:</span>{' '}
+              <span className="font-medium">{entry.name}:</span>{" "}
               {entry.value?.toFixed(1) ?? "N/A"} {metricInfo.unit}
             </p>
           </div>
@@ -82,24 +85,27 @@ const CustomTooltip = ({ active, payload, metric }: any) => {
 export default function CatchRadarChart({
   className,
   lang,
-  selectedMetric
+  selectedMetric,
 }: CatchRadarChartProps) {
   const [data, setData] = useState<RadarData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [visibilityState, setVisibilityState] = useState<VisibilityState>(() =>
-    Object.keys(SITE_COLORS).reduce((acc, site) => ({
-      ...acc,
-      [site]: { opacity: 1 }
-    }), {})
+    Object.keys(SITE_COLORS).reduce(
+      (acc, site) => ({
+        ...acc,
+        [site]: { opacity: 1 },
+      }),
+      {}
+    )
   );
 
   const handleLegendClick = (site: string) => {
-    setVisibilityState(prev => ({
+    setVisibilityState((prev) => ({
       ...prev,
-      [site]: { 
-        opacity: prev[site].opacity === 1 ? 0.2 : 1
-      }
+      [site]: {
+        opacity: prev[site].opacity === 1 ? 0.2 : 1,
+      },
     }));
   };
 
@@ -113,7 +119,7 @@ export default function CatchRadarChart({
             onClick={() => handleLegendClick(entry.dataKey)}
             style={{ opacity: visibilityState[entry.dataKey]?.opacity }}
           >
-            <div 
+            <div
               className="w-3 h-3 rounded-full transition-all duration-200"
               style={{ backgroundColor: entry.color }}
             />
@@ -125,9 +131,12 @@ export default function CatchRadarChart({
   };
 
   const { t } = useTranslation(lang!);
+  const [bmus] = useAtom(bmusAtom);
 
+  // const { data: meanCatch } = api.aggregatedCatch.meanCatchRadar.useQuery({ bmus });
   const { data: meanCatch } = api.aggregatedCatch.meanCatchRadar.useQuery({
-    metric: selectedMetric
+    bmus,
+    metric: selectedMetric,
   });
 
   useEffect(() => {
@@ -136,15 +145,15 @@ export default function CatchRadarChart({
     try {
       setLoading(true);
       if (!meanCatch || !Array.isArray(meanCatch) || meanCatch.length === 0) {
-        setError('No data available');
+        setError("No data available");
         return;
       }
 
       setData(meanCatch);
       setError(null);
     } catch (error) {
-      console.error('Error fetching data:', error);
-      setError('Error fetching data');
+      console.error("Error fetching data:", error);
+      setError("Error fetching data");
     } finally {
       setLoading(false);
     }
@@ -157,20 +166,23 @@ export default function CatchRadarChart({
   return (
     <WidgetCard
       title={METRIC_INFO[selectedMetric].label}
-      className={cn('@container', className)}
+      className={cn("@container", className)}
     >
       <div className="mt-5 h-96 w-full pb-2 @sm:h-96 @xl:pb-0 @2xl:aspect-[1060/660] @2xl:h-auto lg:mt-7">
         <ResponsiveContainer width="100%" height="100%">
-          <RadarChart data={data} margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
+          <RadarChart
+            data={data}
+            margin={{ top: 20, right: 20, bottom: 20, left: 20 }}
+          >
             <PolarGrid gridType="polygon" />
             <PolarAngleAxis
               dataKey="month"
-              tick={{ fill: '#666', fontSize: 14 }}
+              tick={{ fill: "#666", fontSize: 14 }}
             />
             <PolarRadiusAxis
               angle={90}
-              domain={[0, 'auto']}
-              tick={{ fill: '#666' }}
+              domain={[0, "auto"]}
+              tick={{ fill: "#666" }}
             />
             {Object.entries(SITE_COLORS).map(([site, color]) => (
               <Radar
@@ -183,7 +195,11 @@ export default function CatchRadarChart({
                 strokeOpacity={visibilityState[site]?.opacity}
               />
             ))}
-            <Tooltip content={(props) => <CustomTooltip {...props} metric={selectedMetric} />} />
+            <Tooltip
+              content={(props) => (
+                <CustomTooltip {...props} metric={selectedMetric} />
+              )}
+            />
             <Legend content={CustomLegend} />
           </RadarChart>
         </ResponsiveContainer>

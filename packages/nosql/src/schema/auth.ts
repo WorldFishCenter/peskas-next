@@ -1,6 +1,10 @@
 import type { Types } from "mongoose";
 import mongoose, { Schema } from "mongoose";
 
+import type { TBmu } from "./bmu"
+
+export { BmuModel } from "./bmu"
+
 /* eslint-disable @typescript-eslint/consistent-type-definitions */
 export type TUser = {
   _id: Types.ObjectId;
@@ -12,6 +16,7 @@ export type TUser = {
   image: string;
   roleId: Types.ObjectId;
   groups: TGroup[];
+  bmus: TBmu[];
   created_at: Date;
   updated_at: Date;
 };
@@ -47,12 +52,10 @@ export type TGroup = {
 };
 
 export const PERMISSION_ACTIONS = [
-  "admin",
+  "create",
   "read",
-  "write",
-  "submit",
-  "receive",
-  "review",
+  "update",
+  "delete",
 ] as const;
 
 export type TAction = (typeof PERMISSION_ACTIONS)[number];
@@ -61,10 +64,9 @@ export type TPermission = {
   name: string;
   domain: {
     country: string;
-    BMU: string[] | "*";
-    person: string;
+    resource: string;
+    actions: TAction[];
   }[];
-  actions: TAction[];
   group_id: Types.ObjectId;
 };
 
@@ -79,6 +81,7 @@ const userSchema = new Schema<TUser>({
   emailVerified: Date,
   image: String,
   groups: [{ type: Schema.Types.ObjectId, ref: "Group" }],
+  bmus: [{ type: Schema.Types.ObjectId, ref: "Bmu" }],
   created_at: { type: Date, default: Date.now },
   updated_at: Date,
 });
@@ -114,7 +117,7 @@ const verificationTokenSchema = new Schema<TVerificationToken>(
 
 const groupSchema = new Schema<TGroup>({
   name: String,
-  permission_id: { type: Schema.Types.ObjectId, ref: "Permission" },
+  permission_id: { type: Schema.Types.ObjectId, ref: "Permission" },  
 });
 
 const permissionSchema = new Schema<TPermission>({
@@ -122,11 +125,10 @@ const permissionSchema = new Schema<TPermission>({
   domain: [
     {
       country: String,
-      BMU: Schema.Types.Mixed,
-      person: String,
+      resource: String,
+      actions: [{ type: String, enum: PERMISSION_ACTIONS }],
     },
   ],
-  actions: [{ type: String, enum: PERMISSION_ACTIONS }],
   group_id: { type: Schema.Types.ObjectId, ref: "Group" },
 });
 
