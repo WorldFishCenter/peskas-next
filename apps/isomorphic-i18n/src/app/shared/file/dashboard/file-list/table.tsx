@@ -13,10 +13,11 @@ import cn from "@utils/class-names";
 import { Info } from "lucide-react";
 
 type ColumnType = {
-  title: string;
+  title: React.ReactNode;
   dataKey: string;
   width?: number;
   sortable?: boolean;
+  onHeaderCell?: () => { onClick: () => void };
   render?: (_: unknown, row: any) => React.ReactNode;
 };
 
@@ -42,11 +43,7 @@ interface PerformanceData {
 
 const BAR_COLOR = "#0c526e";
 
-const PerformanceIndicator = ({
-  value,
-}: {
-  value: number;
-}) => {
+const PerformanceIndicator = ({ value }: { value: number }) => {
   let color;
   if (value >= 80) color = "text-green-600";
   else if (value >= 50) color = "text-yellow-600";
@@ -61,6 +58,74 @@ const PerformanceIndicator = ({
     </div>
   );
 };
+
+// A helper component similar to HeaderCell from your provided code:
+function SortableHeader({
+  title,
+  sortable,
+  isCurrentColumn,
+  direction,
+}: {
+  title: React.ReactNode;
+  sortable?: boolean;
+  isCurrentColumn: boolean;
+  direction?: 'asc' | 'desc';
+}) {
+  return (
+    <div className={cn("flex items-center gap-1", sortable && "cursor-pointer")}>
+      <span>{title}</span>
+      {sortable && (
+        <div className="inline-flex items-center">
+          {direction === undefined && (
+            // Neutral state: show both arrows to indicate sortable column
+            <div className="flex flex-col items-center text-gray-400">
+              {/* Up Arrow */}
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                fill="currentColor"
+                className="h-auto w-3"
+                viewBox="0 0 16 16"
+              >
+                <path d="m7.247 4.86-4.796 5.481c-.566.647-.106 1.659.753 1.659h9.592a1 1 0 0 0 .753-1.659L8.753 4.86a1 1 0 0 0-1.506 0z"/>
+              </svg>
+              {/* Down Arrow */}
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                fill="currentColor"
+                className="h-auto w-3"
+                viewBox="0 0 16 16"
+              >
+                <path d="M7.247 11.14 2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z"/>
+              </svg>
+            </div>
+          )}
+          {direction === 'asc' && (
+            // Ascending arrow (already sorted ascending)
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              fill="currentColor"
+              className="h-auto w-3"
+              viewBox="0 0 16 16"
+            >
+              <path d="m7.247 4.86-4.796 5.481c-.566.647-.106 1.659.753 1.659h9.592a1 1 0 0 0 .753-1.659L8.753 4.86a1 1 0 0 0-1.506 0z"/>
+            </svg>
+          )}
+          {direction === 'desc' && (
+            // Descending arrow (already sorted descending)
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              fill="currentColor"
+              className="h-auto w-3"
+              viewBox="0 0 16 16"
+            >
+              <path d="M7.247 11.14 2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z"/>
+            </svg>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function PerformanceTable({
   className,
@@ -82,15 +147,27 @@ export default function PerformanceTable({
     totalItems,
     currentPage,
     handlePaginate,
+    sortConfig,
+    handleSort,
   } = useTable(performanceData || [], pageSize);
 
   const columns = useMemo<ColumnType[]>(
     () => [
       {
-        title: t("BMU"),
+        title: (
+          <SortableHeader
+            title={t("BMU")}
+            sortable={true}
+            isCurrentColumn={sortConfig.key === "bmu"}
+            direction={sortConfig.key === "bmu" ? sortConfig.direction : undefined}
+          />
+        ),
         dataKey: "bmu",
         width: 150,
-        sortable: true, 
+        sortable: true,
+        onHeaderCell: () => ({
+          onClick: () => handleSort("bmu"),
+        }),
         render: (_: unknown, row: PerformanceData) => (
           <div className="space-y-1">
             <span className="font-medium">{row.bmu}</span>
@@ -101,10 +178,20 @@ export default function PerformanceTable({
         ),
       },
       {
-        title: t("Catch Performance"),
+        title: (
+          <SortableHeader
+            title={t("Catch Performance")}
+            sortable={true}
+            isCurrentColumn={sortConfig.key === "avgCatch"}
+            direction={sortConfig.key === "avgCatch" ? sortConfig.direction : undefined}
+          />
+        ),
         dataKey: "avgCatch",
         width: 180,
         sortable: true,
+        onHeaderCell: () => ({
+          onClick: () => handleSort("avgCatch"),
+        }),
         render: (_: unknown, row: PerformanceData) => (
           <div className="space-y-1">
             <div className="font-medium flex items-center gap-1">
@@ -115,10 +202,20 @@ export default function PerformanceTable({
         ),
       },
       {
-        title: t("CPUE"),
+        title: (
+          <SortableHeader
+            title={t("CPUE")}
+            sortable={true}
+            isCurrentColumn={sortConfig.key === "avgCPUE"}
+            direction={sortConfig.key === "avgCPUE" ? sortConfig.direction : undefined}
+          />
+        ),
         dataKey: "avgCPUE",
         width: 180,
         sortable: true,
+        onHeaderCell: () => ({
+          onClick: () => handleSort("avgCPUE"),
+        }),
         render: (_: unknown, row: PerformanceData) => (
           <div className="space-y-1">
             <div className="font-medium flex items-center gap-1">
@@ -129,10 +226,20 @@ export default function PerformanceTable({
         ),
       },
       {
-        title: t("Effort"),
+        title: (
+          <SortableHeader
+            title={t("Effort")}
+            sortable={true}
+            isCurrentColumn={sortConfig.key === "avgEffort"}
+            direction={sortConfig.key === "avgEffort" ? sortConfig.direction : undefined}
+          />
+        ),
         dataKey: "avgEffort",
         width: 180,
         sortable: true,
+        onHeaderCell: () => ({
+          onClick: () => handleSort("avgEffort"),
+        }),
         render: (_: unknown, row: PerformanceData) => (
           <div className="space-y-1">
             <div className="font-medium flex items-center gap-1">
@@ -146,7 +253,6 @@ export default function PerformanceTable({
         title: t("6-Month Trend"),
         dataKey: "trend",
         width: 200,
-        // Not sortable for trend data
         render: (_: unknown, row: PerformanceData) => (
           <div className="h-12">
             <ResponsiveContainer width="100%" height="100%">
@@ -161,7 +267,7 @@ export default function PerformanceTable({
         ),
       },
     ],
-    [t]
+    [t, sortConfig, handleSort]
   );
 
   return (

@@ -2,7 +2,7 @@
 import { useState } from "react";
 import FileStats from "@/app/shared/file/dashboard/file-stats";
 import CatchMonthly from "@/app/shared/file/dashboard/catch-ts";
-import FileListTable from "@/app/shared/file/dashboard/file-list/table";
+import PerformanceTable from "@/app/shared/file/dashboard/file-list/table";
 import GearTreemap from "@/app/shared/file/dashboard/gear-treemap";
 import CatchRadarChart from "@/app/shared/file/dashboard/catch-radar";
 import DeckGL from "@/app/shared/file/dashboard/deck-map";
@@ -49,10 +49,9 @@ export default function FileDashboard({ lang }: { lang?: string }) {
       </div>
 
       <div className="mb-6 grid grid-cols-1 gap-6 @4xl:grid-cols-12 2xl:mb-8 2xl:gap-8">
-        <FileListTable
+        <PerformanceTable
           className="@container @4xl:col-span-12 @[96.937rem]:col-span-12"
           lang={lang}
-          selectedMetric={selectedMetric}
         />
       </div>
     </div>
