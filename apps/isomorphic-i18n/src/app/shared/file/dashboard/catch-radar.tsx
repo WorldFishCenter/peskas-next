@@ -1,5 +1,4 @@
-"use client";
-
+import React from "react";
 import { useTranslation } from "@/app/i18n/client";
 import WidgetCard from "@components/cards/widget-card";
 import { useAtom } from "jotai";
@@ -50,11 +49,36 @@ const METRIC_INFO: Record<MetricKey, MetricInfo> = {
   mean_cpua: { label: "Mean CPUA", unit: "kg/area" },
 };
 
-const SITE_COLORS = {
-  Kenyatta: "#0c526e",
-  Bureni: "#fc3468",
-  Marina: "#f09609",
+// Generate colors dynamically based on index
+const generateColor = (index: number): string => {
+  const colors = [
+    "#0c526e", // Dark blue
+    "#fc3468", // Pink
+    "#f09609", // Orange
+    "#2563eb", // Blue
+    "#16a34a", // Green
+    "#9333ea", // Purple
+    "#ea580c", // Dark orange
+    "#0891b2", // Cyan
+  ];
+  return colors[index % colors.length];
 };
+
+// Define the correct month order starting from January
+const MONTH_ORDER = [
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
+];
 
 const CustomTooltip = ({ active, payload, metric }: any) => {
   if (active && payload && payload.length) {
@@ -90,21 +114,14 @@ export default function CatchRadarChart({
   const [data, setData] = useState<RadarData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [visibilityState, setVisibilityState] = useState<VisibilityState>(() =>
-    Object.keys(SITE_COLORS).reduce(
-      (acc, site) => ({
-        ...acc,
-        [site]: { opacity: 1 },
-      }),
-      {}
-    )
-  );
+  const [visibilityState, setVisibilityState] = useState<VisibilityState>({});
+  const [siteColors, setSiteColors] = useState<Record<string, string>>({});
 
   const handleLegendClick = (site: string) => {
     setVisibilityState((prev) => ({
       ...prev,
       [site]: {
-        opacity: prev[site].opacity === 1 ? 0.2 : 1,
+        opacity: prev[site]?.opacity === 1 ? 0.2 : 1,
       },
     }));
   };
@@ -133,7 +150,6 @@ export default function CatchRadarChart({
   const { t } = useTranslation(lang!);
   const [bmus] = useAtom(bmusAtom);
 
-  // const { data: meanCatch } = api.aggregatedCatch.meanCatchRadar.useQuery({ bmus });
   const { data: meanCatch } = api.aggregatedCatch.meanCatchRadar.useQuery({
     bmus,
     metric: selectedMetric,
@@ -149,11 +165,42 @@ export default function CatchRadarChart({
         return;
       }
 
-      setData(meanCatch);
+      // Get unique sites from the first data point (excluding 'month' field)
+      const uniqueSites = Object.keys(meanCatch[0]).filter(
+        (key) => key !== "month"
+      );
+
+      // Generate colors for each site
+      const newSiteColors = uniqueSites.reduce(
+        (acc, site, index) => ({
+          ...acc,
+          [site]: generateColor(index),
+        }),
+        {}
+      );
+      setSiteColors(newSiteColors);
+
+      // Initialize visibility state for all sites
+      setVisibilityState(
+        uniqueSites.reduce(
+          (acc, site) => ({
+            ...acc,
+            [site]: { opacity: 1 },
+          }),
+          {}
+        )
+      );
+
+      // Sort data according to MONTH_ORDER
+      const sortedData = [...meanCatch].sort((a, b) => {
+        return MONTH_ORDER.indexOf(a.month) - MONTH_ORDER.indexOf(b.month);
+      });
+
+      setData(sortedData);
       setError(null);
     } catch (error) {
-      console.error("Error fetching data:", error);
-      setError("Error fetching data");
+      console.error("Error processing data:", error);
+      setError("Error processing data");
     } finally {
       setLoading(false);
     }
@@ -184,7 +231,7 @@ export default function CatchRadarChart({
               domain={[0, "auto"]}
               tick={{ fill: "#666" }}
             />
-            {Object.entries(SITE_COLORS).map(([site, color]) => (
+            {Object.entries(siteColors).map(([site, color]) => (
               <Radar
                 key={site}
                 name={site}

@@ -84,10 +84,19 @@ const METRIC_OPTIONS: MetricOption[] = [
   { value: "mean_cpua", label: "Mean CPUA", unit: "kg/area" },
 ];
 
-const SITE_COLORS = {
-  Kenyatta: "#0c526e",
-  Bureni: "#fc3468",
-  Marina: "#f09609",
+// Generate colors dynamically based on index
+const generateColor = (index: number): string => {
+  const colors = [
+    "#0c526e", // Dark blue
+    "#fc3468", // Pink
+    "#f09609", // Orange
+    "#2563eb", // Blue
+    "#16a34a", // Green
+    "#9333ea", // Purple
+    "#ea580c", // Dark orange
+    "#0891b2", // Cyan
+  ];
+  return colors[index % colors.length];
 };
 
 const MetricSelector = ({
@@ -217,15 +226,8 @@ export default function CatchMetricsChart({
   const [chartData, setChartData] = useState<ChartDataPoint[]>([]);
   const [loading, setLoading] = useState(true);
   const [fiveYearMarks, setFiveYearMarks] = useState<number[]>([]);
-  const [visibilityState, setVisibilityState] = useState<VisibilityState>(() =>
-    Object.keys(SITE_COLORS).reduce(
-      (acc, site) => ({
-        ...acc,
-        [site]: { opacity: 1 },
-      }),
-      {}
-    )
-  );
+  const [visibilityState, setVisibilityState] = useState<VisibilityState>({});
+  const [siteColors, setSiteColors] = useState<Record<string, string>>({});
 
   const isTablet = useMedia("(max-width: 800px)", false);
   const { t } = useTranslation(lang!, "common");
@@ -237,47 +239,49 @@ export default function CatchMetricsChart({
     setVisibilityState((prev) => ({
       ...prev,
       [site]: {
-        opacity: prev[site].opacity === 1 ? 0.2 : 1,
+        opacity: prev[site]?.opacity === 1 ? 0.2 : 1,
       },
     }));
-  };
-
-  const CustomLegend = ({ payload }: any) => {
-    return (
-      <div className="flex flex-wrap gap-4 justify-center mt-2">
-        {payload?.map((entry: any) => (
-          <div
-            key={entry.value}
-            className="flex items-center gap-2 cursor-pointer select-none transition-all duration-200"
-            onClick={() => handleLegendClick(entry.value)}
-            style={{ opacity: visibilityState[entry.value]?.opacity }}
-          >
-            <div
-              className="w-3 h-3 rounded-full transition-all duration-200"
-              style={{
-                backgroundColor: entry.color,
-              }}
-            />
-            <span className="text-sm font-medium">{entry.value}</span>
-          </div>
-        ))}
-      </div>
-    );
   };
 
   useEffect(() => {
     if (!monthlyData) return;
 
     try {
+      // Get unique landing sites from the data
+      const uniqueSites = Array.from(
+        new Set(monthlyData.map((item: ApiDataPoint) => item.landing_site))
+      );
+
+      // Generate colors for each site
+      const newSiteColors = uniqueSites.reduce(
+        (acc, site, index) => ({
+          ...acc,
+          [site]: generateColor(index),
+        }),
+        {}
+      );
+      setSiteColors(newSiteColors);
+
+      // Initialize visibility state for all sites
+      setVisibilityState(
+        uniqueSites.reduce(
+          (acc, site) => ({
+            ...acc,
+            [site]: { opacity: 1 },
+          }),
+          {}
+        )
+      );
+
+      // Group data by date
       const groupedData = monthlyData.reduce<Record<string, ChartDataPoint>>(
         (acc, item: ApiDataPoint) => {
           const date = new Date(item.date).getTime();
           if (!acc[date]) {
             acc[date] = {
               date,
-              Kenyatta: undefined,
-              Bureni: undefined,
-              Marina: undefined,
+              ...uniqueSites.reduce((sites, site) => ({ ...sites, [site]: undefined }), {}),
             };
           }
           acc[date][item.landing_site] = item[selectedMetric];
@@ -311,9 +315,31 @@ export default function CatchMetricsChart({
     }
   }, [monthlyData, selectedMetric]);
 
+  const CustomLegend = ({ payload }: any) => {
+    return (
+      <div className="flex flex-wrap gap-4 justify-center mt-2">
+        {payload?.map((entry: any) => (
+          <div
+            key={entry.value}
+            className="flex items-center gap-2 cursor-pointer select-none transition-all duration-200"
+            onClick={() => handleLegendClick(entry.value)}
+            style={{ opacity: visibilityState[entry.value]?.opacity }}
+          >
+            <div
+              className="w-3 h-3 rounded-full transition-all duration-200"
+              style={{
+                backgroundColor: entry.color,
+              }}
+            />
+            <span className="text-sm font-medium">{entry.value}</span>
+          </div>
+        ))}
+      </div>
+    );
+  };
+
   if (loading) return <div>Loading chart...</div>;
-  if (!chartData || chartData.length === 0)
-    return <div>No data available.</div>;
+  if (!chartData || chartData.length === 0) return <div>No data available.</div>;
 
   const selectedMetricOption = METRIC_OPTIONS.find(
     (m) => m.value === selectedMetric
@@ -349,7 +375,7 @@ export default function CatchMetricsChart({
               className="[&_.recharts-cartesian-axis-tick-value]:fill-gray-500 [&_.recharts-cartesian-axis.yAxis]:-translate-y-3 rtl:[&_.recharts-cartesian-axis.yAxis]:-translate-x-12 [&_.recharts-cartesian-grid-vertical]:opacity-0"
             >
               <defs>
-                {Object.entries(SITE_COLORS).map(([site, color]) => (
+                {Object.entries(siteColors).map(([site, color]) => (
                   <linearGradient
                     key={site}
                     id={`${site}_gradient`}
@@ -396,7 +422,7 @@ export default function CatchMetricsChart({
                 )}
               />
               <Legend content={CustomLegend} />
-              {Object.entries(SITE_COLORS).map(([site, color]) => (
+              {Object.entries(siteColors).map(([site, color]) => (
                 <Area
                   key={site}
                   type="monotone"

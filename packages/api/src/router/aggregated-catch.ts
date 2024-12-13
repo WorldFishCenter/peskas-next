@@ -10,6 +10,7 @@ const metricSchema = z.enum([
 ]);
 
 export const aggregatedCatchRouter = createTRPCRouter({
+  // Keep original monthly endpoint for time series plot
   monthly: protectedProcedure
     .input(z.object({ bmus: z.string().array() }))
     .query(({ input }) => {
@@ -24,7 +25,7 @@ export const aggregatedCatchRouter = createTRPCRouter({
           $project: {
             _id: 0,
             date: 1,
-            landing_site: "$BMU", // Rename BMU to landing_site for frontend compatibility
+            landing_site: "$BMU",
             mean_trip_catch: 1,
             mean_effort: 1,
             mean_cpue: 1,
@@ -37,6 +38,99 @@ export const aggregatedCatchRouter = createTRPCRouter({
       ]).exec();
     }),
 
+  // New endpoint for performance table
+  performance: protectedProcedure
+    .input(z.object({ bmus: z.string().array() }))
+    .query(({ input }) => {
+      return CatchMonthlyModel.aggregate([
+        {
+          $match: {
+            BMU: { $in: input.bmus },
+            mean_trip_catch: { $ne: null },
+          },
+        },
+        {
+          $addFields: {
+            month: { $month: "$date" },
+            year: { $year: "$date" }
+          }
+        },
+        {
+          $group: {
+            _id: "$BMU",
+            avgCatch: { $avg: "$mean_trip_catch" },
+            avgEffort: { $avg: "$mean_effort" },
+            avgCPUE: { $avg: "$mean_cpue" },
+            avgCPUA: { $avg: "$mean_cpua" },
+            totalCatch: { $sum: "$mean_trip_catch" },
+            totalEffort: { $sum: "$mean_effort" },
+            monthlyData: {
+              $push: {
+                date: "$date",
+                mean_trip_catch: "$mean_trip_catch",
+                mean_effort: "$mean_effort",
+                mean_cpue: "$mean_cpue",
+                mean_cpua: "$mean_cpua"
+              }
+            }
+          }
+        },
+        {
+          $facet: {
+            stats: [
+              { $sort: { avgCatch: -1 } },
+              {
+                $group: {
+                  _id: null,
+                  maxCatch: { $first: "$avgCatch" },
+                  maxEffort: { $max: "$avgEffort" },
+                  maxCPUE: { $max: "$avgCPUE" },
+                  maxCPUA: { $max: "$avgCPUA" },
+                  bmus: { $push: "$$ROOT" }
+                }
+              },
+              {
+                $unwind: "$bmus"
+              },
+              {
+                $project: {
+                  bmu: "$bmus._id",
+                  avgCatch: "$bmus.avgCatch",
+                  avgEffort: "$bmus.avgEffort",
+                  avgCPUE: "$bmus.avgCPUE",
+                  avgCPUA: "$bmus.avgCPUA",
+                  totalCatch: "$bmus.totalCatch",
+                  monthlyData: "$bmus.monthlyData",
+                  catchPerformance: { 
+                    $multiply: [{ $divide: ["$bmus.avgCatch", "$maxCatch"] }, 100] 
+                  },
+                  effortPerformance: { 
+                    $multiply: [{ $divide: ["$bmus.avgEffort", "$maxEffort"] }, 100] 
+                  },
+                  cpuePerformance: { 
+                    $multiply: [{ $divide: ["$bmus.avgCPUE", "$maxCPUE"] }, 100] 
+                  },
+                  cpuaPerformance: { 
+                    $multiply: [{ $divide: ["$bmus.avgCPUA", "$maxCPUA"] }, 100] 
+                  }
+                }
+              },
+              {
+                $sort: { catchPerformance: -1 }
+              }
+            ]
+          }
+        },
+        {
+          $unwind: "$stats"
+        },
+        {
+          $replaceRoot: { newRoot: "$stats" }
+        }
+      ]).exec();
+    }),
+
+  // Keep original meanCatchRadar endpoint
   meanCatchRadar: protectedProcedure
     .input(
       z.object({
@@ -58,7 +152,6 @@ export const aggregatedCatchRouter = createTRPCRouter({
           },
         },
         {
-          // First group by both month and BMU
           $group: {
             _id: {
               month: "$monthNum",
@@ -68,7 +161,6 @@ export const aggregatedCatchRouter = createTRPCRouter({
           },
         },
         {
-          // Add month name
           $addFields: {
             monthName: {
               $switch: {
@@ -89,10 +181,10 @@ export const aggregatedCatchRouter = createTRPCRouter({
                 default: "Unknown",
               },
             },
+            sortOrder: "$_id.month",
           },
         },
         {
-          // Reshape data
           $group: {
             _id: "$monthName",
             values: {
@@ -104,53 +196,22 @@ export const aggregatedCatchRouter = createTRPCRouter({
           },
         },
         {
-          // Convert array to object
           $project: {
             _id: 0,
             month: "$_id",
-            Kenyatta: {
-              $reduce: {
-                input: "$values",
-                initialValue: null,
-                in: {
-                  $cond: [
-                    { $eq: ["$$this.k", "Kenyatta"] },
-                    "$$this.v",
-                    "$$value",
-                  ],
-                },
-              },
-            },
-            Bureni: {
-              $reduce: {
-                input: "$values",
-                initialValue: null,
-                in: {
-                  $cond: [
-                    { $eq: ["$$this.k", "Bureni"] },
-                    "$$this.v",
-                    "$$value",
-                  ],
-                },
-              },
-            },
-            Marina: {
-              $reduce: {
-                input: "$values",
-                initialValue: null,
-                in: {
-                  $cond: [
-                    { $eq: ["$$this.k", "Marina"] },
-                    "$$this.v",
-                    "$$value",
-                  ],
-                },
-              },
+            values: {
+              $arrayToObject: "$values",
             },
           },
         },
         {
-          // Sort by month number for proper order
+          $replaceRoot: {
+            newRoot: {
+              $mergeObjects: ["$values", { month: "$month" }],
+            },
+          },
+        },
+        {
           $sort: {
             month: 1,
           },
