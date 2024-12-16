@@ -6,6 +6,7 @@ import { CNFlag } from "@components/icons/language/CNFlag";
 import { USFlag } from "@components/icons/language/USFlag";
 import { DEFlag } from "@components/icons/language/DEFlag";
 import { ESFlag } from "@components/icons/language/ESFlag";
+import { SWFlag } from "@components/icons/language/SWFlag";
 import { usePathname, useRouter } from "next/navigation";
 import useQueryParams from "@hooks/use-query-params";
 import { useState } from "react";
@@ -27,6 +28,12 @@ const languageMenu: LanguageMenuProps[] = [
     value: "en",
     icon: <USFlag />,
   },
+  {
+    id: "sw",
+    name: "Swahili - SW",
+    value: "sw",
+    icon: <SWFlag />,
+  },  
   {
     id: "ar",
     name: "عربى - AR",

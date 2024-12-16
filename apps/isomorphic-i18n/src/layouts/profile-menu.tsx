@@ -31,7 +31,7 @@ export default function ProfileMenu({
         >
           <Avatar
             //src="https://tabler.io/icons/icon/user"
-            name="L L"
+            name="U"
             className={cn("!h-9 w-9 sm:!h-10 sm:!w-10", avatarClassName)}
           />
           {!!username && (
