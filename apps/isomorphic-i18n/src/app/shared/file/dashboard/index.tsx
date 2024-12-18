@@ -5,7 +5,6 @@ import CatchMonthly from "@/app/shared/file/dashboard/catch-ts";
 import PerformanceTable from "@/app/shared/file/dashboard/file-list/table";
 import GearTreemap from "@/app/shared/file/dashboard/gear-treemap";
 import CatchRadarChart from "@/app/shared/file/dashboard/catch-radar";
-import DeckGL from "@/app/shared/file/dashboard/deck-map";
 
 type MetricKey = "mean_trip_catch" | "mean_effort" | "mean_cpue" | "mean_cpua";
 
