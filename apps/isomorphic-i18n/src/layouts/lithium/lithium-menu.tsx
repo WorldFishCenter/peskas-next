@@ -58,7 +58,7 @@ function EnhancedMenuItems({
                 key={`enhance-menu-item-${item.name}-${index}`}
               >
                 <Link
-                  href={`/${lang}${item?.href}` ?? "/"}
+                  href={`/${lang}${item?.href}`}
                   className="group/submenu-link flex items-center gap-3 font-medium text-gray-900"
                 >
                   <span
@@ -208,7 +208,7 @@ export function LinkMenu({
             className="relative my-0.5 "
           >
             <Link
-              href={`/${lang}${item?.href}` ?? "/"}
+              href={`/${lang}${item?.href}`}
               className={cn(
                 "flex items-center gap-3 whitespace-nowrap rounded-md bg-gray-100/0 px-3 py-2 font-medium text-gray-900 duration-200 hover:bg-gray-100 hover:dark:bg-gray-50/50",
                 { "bg-gray-100 dark:bg-gray-50/50": isActive }
@@ -235,20 +235,20 @@ export default function HeaderMenuLeft({ lang }: { lang?: string }) {
         menuClassName="pb-5 top-3 gap-8 relative"
         menuContentClassName="mt-2 border border-gray-200 dark:border-gray-300"
       >
-        {/* <NavMenu.Item>
+         <NavMenu.Item>
           <NavMenu.Trigger className="flex items-center gap-1 duration-200 ">
-            <MenuTriggerButton name="catch" />
+            <MenuTriggerButton name="map" />
           </NavMenu.Trigger>
           <NavMenu.Content className="border border-[red] bg-white dark:bg-gray-100">
             <div className="w-[172px]">
               <LinkMenu
           className="flex flex-col p-3 dark:bg-gray-100"
-          items={lithiumMenuItems.catch.dropdownItems ?? []}
+          items={lithiumMenuItems.map.dropdownItems ?? []}
           lang={lang}
               />
             </div>
           </NavMenu.Content>
-             </NavMenu.Item> */}
+             </NavMenu.Item> 
         <NavMenu.Item>
           <NavMenu.Trigger className="flex items-center gap-1 duration-200 ">
             <MenuTriggerButton name="groups" />

@@ -882,5 +882,6 @@
   "text-violet": "Violet",
   "text-rose": "Rose",
   "text-yellow": "Yellow",
-  "text-no-data": "No Data"
+  "text-no-data": "No Data",
+  "text-select-metric": "Select metric"
 }

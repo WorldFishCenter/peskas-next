@@ -90,6 +90,7 @@ export const routes = {
     aggregated: '/catch/aggregated',
     composition: '/catch/composition',
   },
+  map: '/map',
   groups: {
     control: '/groups/control',
     iia: '/groups/iia',

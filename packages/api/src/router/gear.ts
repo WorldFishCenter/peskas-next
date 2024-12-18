@@ -1,44 +1,25 @@
 import { z } from "zod";
 
-import { GearDistributionModel } from "@repo/nosql/schema/gear-distribution";
-
+import { GearSummaryModel } from "@repo/nosql/schema/gear-summary";
 import { createTRPCRouter, protectedProcedure } from "../trpc";
 
 export const gearRouter = createTRPCRouter({
-  distribution: protectedProcedure
-    .query(async ({ ctx }) => {
-      const data = await GearDistributionModel.find({}).exec();
-
-      // Transform data for the stacked bar chart
-      return data.reduce((acc: any[], curr) => {
-        const existingSite = acc.find(item => item.landing_site === curr.landing_site);
-        
-        if (existingSite) {
-          existingSite[curr.gear] = curr.gear_perc;
-        } else {
-          acc.push({
-            landing_site: curr.landing_site,
-            [curr.gear]: curr.gear_perc
-          });
-        }
-        
-        return acc;
-      }, []);
-    }),
-  tree: protectedProcedure
+  summaries: protectedProcedure
     .input(z.object({ bmus: z.string().array() }))
     .query(({ input }) => {
-      return GearDistributionModel
+      return GearSummaryModel
         .find({ 
-          landing_site: { $in: input.bmus },
-          gear_n: { $gt: 0 }  // Only get gears with counts greater than 0
+          BMU: { $in: input.bmus }
         })
         .select({
           _id: 0,
+          BMU: 1,
           gear: 1,
-          gear_n: 1
+          mean_trip_catch: 1,
+          mean_effort: 1,
+          mean_cpue: 1,
+          mean_cpua: 1
         })
-        .sort({ gear_n: -1 })
         .exec();
-  }),
+    }),
 });

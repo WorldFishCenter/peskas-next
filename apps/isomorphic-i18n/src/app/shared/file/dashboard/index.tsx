@@ -33,13 +33,6 @@ export default function FileDashboard({ lang }: { lang?: string }) {
         />
       </div>
 
-      {/* Map Row - Full Width */}
-      <div className="mb-6 2xl:mb-8">
-        <div className="h-[500px] w-full relative @4xl:col-span-12 @[96.937rem]:col-span-12">
-          <DeckGL />
-        </div>
-      </div>
-
       {/* Treemap Row */}
       <div className="mb-6 grid grid-cols-1 gap-6 @4xl:grid-cols-12 2xl:mb-8 2xl:gap-8">
         <GearTreemap

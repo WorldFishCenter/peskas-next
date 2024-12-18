@@ -1,4 +1,5 @@
 import FishIcon from '@components/icons/fish';
+import MapIcon from '@components/icons/map';
 import PieIcon from '@components/icons/pie';
 import FilesIcon from '@components/icons/files';
 import TruckIcon from '@components/icons/truck';
@@ -50,6 +51,7 @@ import SuitcaseIcon from '@components/icons/suitcase';
 
 export const lithiumMenuIcons = {
   FishIcon,
+  MapIcon,
   PieIcon,
   FilesIcon,
   TruckIcon,

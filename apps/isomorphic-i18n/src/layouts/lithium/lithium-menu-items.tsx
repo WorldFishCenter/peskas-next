@@ -39,6 +39,17 @@ export const lithiumMenuItems: LithiumMenuItem = {
       },
     ],
   },
+  map: {
+    name: 'sidebar-map',
+    type: 'link',
+    dropdownItems: [
+      {
+        name: 'Map',
+        href: routes.map,
+        icon: 'MapIcon',
+      },
+    ],
+  },
   widgets: {
     name: 'sidebar-menu-widgets',
     type: 'link',
@@ -55,27 +66,6 @@ export const lithiumMenuItems: LithiumMenuItem = {
       },
       {
         name: 'sidebar-menu-charts',
-        href: routes.forms.personalInformation,
-        icon: 'PieChartCurrencyIcon',
-      },
-    ],
-  },
-  mental: {
-    name: 'mental',
-    type: 'link',
-    dropdownItems: [
-      {
-        name: 'sidebar-menu-cards',
-        href: routes.widgets.cards,
-        icon: 'DicesIcon',
-      },
-      {
-        name: 'sidebar-menu-charts',
-        href: routes.widgets.charts,
-        icon: 'PieChartCurrencyIcon',
-      },
-      {
-        name: 'Gianni',
         href: routes.forms.personalInformation,
         icon: 'PieChartCurrencyIcon',
       },
