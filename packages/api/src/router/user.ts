@@ -1,3 +1,4 @@
+import bcryptjs from "bcryptjs";
 import mongoose from "mongoose";
 import { z } from "zod";
 
@@ -21,8 +22,10 @@ export const UpsertUserSchema = z.object({
     .optional(),
   name: z.string().min(1),
   email: z.string().email(),
+  password: z.string().optional(),
   role: z.string().min(1),
   status: z.string().min(1),
+  bmuNames: z.string().array(),
 });
 
 export const userRouter = createTRPCRouter({
@@ -105,20 +108,23 @@ export const userRouter = createTRPCRouter({
     .input(UpsertUserSchema)
     .mutation(async ({ input }) => {
       const userGroup = await GroupModel.findOne({ name: input.role });
-      await UserModel.findOneAndUpdate(
-        {
-          _id: input._id ?? new mongoose.Types.ObjectId(),
-        },
+      const bmuGroups = await BmuModel.find({
+        BMU: { $in: input.bmuNames },
+      });
+      const findOne = input._id ? { _id: input._id } : { email: input.email };
+      const _user = await UserModel.findOneAndUpdate(
+        findOne,
         {
           name: input.name,
           email: input.email,
+          password: input.password
+            ? await bcryptjs.hash(input.password, 12)
+            : undefined,
           status: input.status,
           groups: [userGroup?._id],
+          bmus: bmuGroups.map((bmu) => bmu._id),
         },
-        {
-          new: true,
-          upsert: true,
-        }
+        { new: true, upsert: true }
       );
     }),
 });

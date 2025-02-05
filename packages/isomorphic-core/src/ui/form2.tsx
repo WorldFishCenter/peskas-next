@@ -1,22 +1,22 @@
 "use client";
 
+import { zodResolver } from "@hookform/resolvers/zod";
 import type * as LabelPrimitive from "@radix-ui/react-label";
+import { Slot } from "@radix-ui/react-slot";
+import * as React from "react";
 import type {
   ControllerProps,
   FieldPath,
   FieldValues,
   UseFormProps,
 } from "react-hook-form";
-import type { ZodType } from "zod";
-import * as React from "react";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { Slot } from "@radix-ui/react-slot";
 import {
   useForm as __useForm,
   Controller,
   FormProvider,
   useFormContext,
 } from "react-hook-form";
+import type { ZodType } from "zod";
 
 import { cn } from ".";
 import { Label } from "./label";
@@ -24,7 +24,7 @@ import { Label } from "./label";
 function useForm<TSchema extends ZodType>(
   props: Omit<UseFormProps<TSchema["_input"]>, "resolver"> & {
     schema: TSchema;
-  },
+  }
 ) {
   const form = __useForm<TSchema["_input"]>({
     ...props,
@@ -44,7 +44,7 @@ interface FormFieldContextValue<
 }
 
 const FormFieldContext = React.createContext<FormFieldContextValue>(
-  {} as FormFieldContextValue,
+  {} as FormFieldContextValue
 );
 
 const FormField = <
@@ -88,7 +88,7 @@ interface FormItemContextValue {
 }
 
 const FormItemContext = React.createContext<FormItemContextValue>(
-  {} as FormItemContextValue,
+  {} as FormItemContextValue
 );
 
 const FormItem = React.forwardRef<
@@ -177,7 +177,7 @@ const FormMessage = React.forwardRef<
     <p
       ref={ref}
       id={formMessageId}
-      className={cn("text-[0.8rem] font-medium text-destructive", className)}
+      className={cn("text-[0.8rem] font-medium text-red-500", className)}
       {...props}
     >
       {body}
@@ -187,15 +187,15 @@ const FormMessage = React.forwardRef<
 FormMessage.displayName = "FormMessage";
 
 export {
-  useForm,
-  useFormField,
   Form,
-  FormItem,
-  FormLabel,
   FormControl,
   FormDescription,
-  FormMessage,
   FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+  useForm,
+  useFormField,
 };
 
 export { useFieldArray } from "react-hook-form";

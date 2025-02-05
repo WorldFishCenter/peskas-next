@@ -32,7 +32,7 @@ import type { DataType } from "@/store/modal";
 
 import { ModalEnum, modalStoreAtom } from "@/store/modal";
 import { api } from "@/trpc/react";
-import { VirtualizedCombobox } from "../virtualizer-searchbar";
+import { MultiSelect } from "../multi-select";
 
 export default function UserModal({
   data,
@@ -53,9 +53,10 @@ export default function UserModal({
       _id: user?._id?.toString() ?? undefined,
       name: user?.name ?? "",
       email: user?.email ?? "",
+      password: "",
       role: user?.role ?? "",
       status: user?.status ?? "active",
-      bmuNames: ["Ngomeni"], //user?.bmus?.map((bmu) => bmu._id.toString()) ?? [],
+      bmuNames: user?.bmus?.map((bmu) => bmu.BMU) ?? [],
     },
   });
 
@@ -64,18 +65,17 @@ export default function UserModal({
       _id: user?._id?.toString() ?? undefined,
       name: user?.name ?? "",
       email: user?.email ?? "",
+      password: "",
       role: user?.role ?? "",
       status: user?.status ?? "active",
+      bmuNames: user?.bmus?.map((bmu) => bmu.BMU) ?? [],
     });
   }, [form, user]);
 
   const upsertUser = api.user.upsert.useMutation({
     onSuccess: async () => {
       await utils.user.invalidate();
-      setModal({
-        open: false,
-        type: "",
-      });
+      setModal({ open: false, type: "" });
       toast.success("Successfully updated user");
       router.refresh();
     },
@@ -112,6 +112,13 @@ export default function UserModal({
           <form
             onSubmit={form.handleSubmit(
               (data) => {
+                if (!data._id && !data.password) {
+                  form.setError("password", {
+                    message: "Password is required for new users",
+                  });
+                  toast.error("Password is required for new users");
+                  return;
+                }
                 upsertUser.mutate(data);
               },
               (error) => {
@@ -128,7 +135,12 @@ export default function UserModal({
                 <FormItem>
                   <FormLabel>ID</FormLabel>
                   <FormControl>
-                    <Input placeholder="ID" disabled {...field} />
+                    <Input
+                      placeholder="ID"
+                      disabled
+                      {...field}
+                      className="bg-background"
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -146,6 +158,7 @@ export default function UserModal({
                       placeholder="Name"
                       {...field}
                       value={field.value ?? ""}
+                      className="bg-background"
                     />
                   </FormControl>
                   <FormMessage />
@@ -160,7 +173,33 @@ export default function UserModal({
                 <FormItem>
                   <FormLabel>Email</FormLabel>
                   <FormControl>
-                    <Input placeholder="Email" type="email" {...field} />
+                    <Input
+                      placeholder="Email"
+                      type="email"
+                      {...field}
+                      className="bg-background"
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="password"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>
+                    {user?.password ? "Set New Password" : "Password"}
+                  </FormLabel>
+                  <FormControl>
+                    <Input
+                      placeholder="Password"
+                      type="password"
+                      {...field}
+                      className="bg-background"
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -203,7 +242,8 @@ export default function UserModal({
               render={({ field, fieldState: { error } }) => (
                 <FormItem>
                   <div className={cn("flex flex-col gap-y-2")}>
-                    <VirtualizedCombobox
+                    <FormLabel>BMUs</FormLabel>
+                    <MultiSelect
                       value={field.value}
                       options={
                         bmus?.map((bmu) => ({
@@ -211,11 +251,13 @@ export default function UserModal({
                           label: bmu.BMU,
                         })) ?? []
                       }
-                      label="BMUs"
-                      searchPlaceholder="Search for a BMU"
-                      onSelect={field.onChange}
-                      required={true}
-                      isMulti={true}
+                      // label="BMUs"
+                      placeholder="Search for a BMU"
+                      // onSelect={field.onChange}
+                      onValueChange={field.onChange}
+                      // required={true}
+                      // isMulti={true}
+                      className="bg-background"
                     />
                     {error?.message ? (
                       <InputError error={error.message} />

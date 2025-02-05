@@ -229,7 +229,7 @@ export function VirtualizedCombobox({
         avoidCollisions={false}
         side="bottom"
         className={cn("p-0")}
-        style={{ width: buttonWidth, minWidth: MIN_WIDTH, zIndex: 9999 }}
+        style={{ width: buttonWidth, minWidth: MIN_WIDTH }}
         align={buttonWidth < MIN_WIDTH ? "start" : "center"}
       >
         <VirtualizedCommand

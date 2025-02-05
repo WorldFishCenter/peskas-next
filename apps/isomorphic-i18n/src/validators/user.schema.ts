@@ -11,6 +11,7 @@ export const UpsertUserSchema = z.object({
     .optional(),
   name: z.string().min(1),
   email: z.string().email(),
+  password: z.string().optional(),
   role: z.string().min(1),
   status: z.string().min(1),
   bmuNames: z.string().array(),
