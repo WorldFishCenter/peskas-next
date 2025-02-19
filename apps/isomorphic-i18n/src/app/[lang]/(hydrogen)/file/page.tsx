@@ -1,9 +1,6 @@
-import FileDashboard from '@/app/shared/file/dashboard';
-import { metaObject } from '@/config/site.config';
+'use client';
 
-export const metadata = {
-  ...metaObject('Files'),
-};
+import FileDashboard from '@/app/shared/file/dashboard';
 
 export default function File({
   params: { lang },

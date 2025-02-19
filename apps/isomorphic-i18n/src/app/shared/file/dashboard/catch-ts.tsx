@@ -12,6 +12,8 @@ import {
   YAxis,
   Line,
   ReferenceLine,
+  BarChart,
+  Bar,
 } from "recharts";
 
 import { bmusAtom } from "@/app/components/filter-selector";
@@ -540,6 +542,15 @@ export default function CatchMetricsChart({
     };
   });
 
+  // Get last 6 months of data
+  const getRecentData = () => {
+    if (!chartData.length) return [];
+    const sortedData = [...chartData].sort((a, b) => b.date - a.date);
+    return sortedData.slice(0, 6).reverse();
+  };
+
+  const recentData = getRecentData();
+
   if (loading) return <LoadingState />;
   if (!chartData || chartData.length === 0) {
     return (
@@ -574,10 +585,10 @@ export default function CatchMetricsChart({
                 Standard
               </button>
               <button
-                className={`px-3 py-1 text-sm ${localActiveTab === 'differenced' ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-700'} rounded shadow-sm transition duration-200 hover:bg-blue-600`}
-                onClick={() => handleTabChange('differenced')}
+                className={`px-3 py-1 text-sm ${localActiveTab === 'recent' ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-700'} rounded shadow-sm transition duration-200 hover:bg-blue-600`}
+                onClick={() => handleTabChange('recent')}
               >
-                Differenced
+                Recent
               </button>
             </div>
           )}
@@ -596,9 +607,9 @@ export default function CatchMetricsChart({
               <AreaChart
                 data={chartData}
                 margin={{
-                  left: 32,
-                  right: 16,
-                  bottom: 20,
+                  left: 48,
+                  right: 48,
+                  bottom: 40,
                   top: 10,
                 }}
                 className="[&_.recharts-cartesian-axis-tick-value]:fill-gray-500 [&_.recharts-cartesian-axis.yAxis]:-translate-y-3 rtl:[&_.recharts-cartesian-axis.yAxis]:-translate-x-12 [&_.recharts-cartesian-grid-vertical]:opacity-0"
@@ -625,12 +636,17 @@ export default function CatchMetricsChart({
                   type="number"
                   domain={["dataMin", "dataMax"]}
                   tickFormatter={(unixTime) => {
-                    if (fiveYearMarks.includes(unixTime)) {
-                      return new Date(unixTime).getFullYear().toString();
-                    }
-                    return "";
+                    const date = new Date(unixTime);
+                    return date.toLocaleDateString('en-US', { 
+                      month: 'short',
+                      year: '2-digit'
+                    });
                   }}
-                  ticks={fiveYearMarks}
+                  interval="preserveStartEnd"
+                  minTickGap={50}
+                  angle={-45}
+                  textAnchor="end"
+                  height={60}
                   axisLine={false}
                   tickLine={false}
                   tick={{ fontSize: 12 }}
@@ -676,7 +692,7 @@ export default function CatchMetricsChart({
           </div>
         </SimpleBar>
       )}
-      {localActiveTab === 'differenced' && (
+      {localActiveTab === 'recent' && (
         <SimpleBar>
           <div className="h-96 w-full pt-9">
             <ResponsiveContainer
@@ -684,60 +700,54 @@ export default function CatchMetricsChart({
               height="100%"
               {...(isTablet && { minWidth: "700px" })}
             >
-              <AreaChart
-                data={trendlineData}
+              <BarChart
+                data={recentData}
                 margin={{
-                  left: 32,
-                  right: 16,
-                  bottom: 20,
+                  left: 48,
+                  right: 48,
+                  bottom: 40,
                   top: 10,
                 }}
+                barCategoryGap="20%"
+                barGap={4}
                 className="[&_.recharts-cartesian-axis-tick-value]:fill-gray-500 [&_.recharts-cartesian-axis.yAxis]:-translate-y-3 rtl:[&_.recharts-cartesian-axis.yAxis]:-translate-x-12 [&_.recharts-cartesian-grid-vertical]:opacity-0"
               >
-                <defs>
-                  <linearGradient id="colorDiff" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#FC766A" stopOpacity={0.5} />
-                    <stop offset="95%" stopColor="#FC766A" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
                 <CartesianGrid strokeDasharray="8 10" strokeOpacity={0.435} />
-                <ReferenceLine 
-                  y={0} 
-                  stroke="#666666" 
-                  strokeDasharray="3 3"
-                  strokeWidth={2}
-                />
                 <XAxis
                   dataKey="date"
                   scale="time"
                   type="number"
-                  domain={["dataMin", "dataMax"]}
+                  domain={['dataMin', 'dataMax']}
                   tickFormatter={(unixTime) => {
-                    if (fiveYearMarks.includes(unixTime)) {
-                      return new Date(unixTime).getFullYear().toString();
-                    }
-                    return "";
+                    const date = new Date(unixTime);
+                    return date.toLocaleDateString('en-US', { 
+                      month: 'short',
+                      year: '2-digit'
+                    });
                   }}
-                  ticks={fiveYearMarks}
+                  interval={0}
+                  angle={-45}
+                  textAnchor="end"
+                  height={60}
                   axisLine={false}
                   tickLine={false}
                   tick={{ fontSize: 12 }}
+                  padding={{ left: 30, right: 30 }}
                 />
                 <YAxis
                   axisLine={false}
                   tickLine={false}
                   tick={CustomYAxisTick}
                   width={60}
-                  domain={['auto', 'auto']}
                   label={{
-                    value: `Difference (${selectedMetricOption?.unit})`,
+                    value: selectedMetricOption?.unit,
                     angle: -90,
-                    position: 'insideLeft',
+                    position: "insideLeft",
                     offset: -20,
                     style: {
                       fontSize: 14,
-                      fill: '#666666',
-                      textAnchor: 'middle',
+                      fill: "#666666",
+                      textAnchor: "middle",
                     },
                   }}
                 />
@@ -746,35 +756,19 @@ export default function CatchMetricsChart({
                     <CustomTooltip {...props} selectedMetric={selectedMetric} />
                   )}
                 />
-                <Area
-                  type="monotone"
-                  dataKey="difference"
-                  stroke="#5B84B1"
-                  strokeWidth={2}
-                  fillOpacity={0.75}
-                  fill="url(#colorDiff)"
-                />
-                <Area
-                  type="monotone"
-                  dataKey="trendline"
-                  stroke="#FF0000"
-                  strokeWidth={3}
-                  fillOpacity={0}
-                  isAnimationActive={false}
-                  name="Trend"
-                />
-              </AreaChart>
+                <Legend content={CustomLegend} />
+                {Object.entries(siteColors).map(([site, color]) => (
+                  <Bar
+                    key={site}
+                    dataKey={site}
+                    name={site}
+                    fill={color}
+                    opacity={visibilityState[site]?.opacity ?? 1}
+                    radius={[4, 4, 0, 0]}
+                  />
+                ))}
+              </BarChart>
             </ResponsiveContainer>
-          </div>
-          <div className="text-center mt-4">
-            <span className="text-sm font-medium">
-              Trendline Slope:{' '}
-              <span style={{ 
-                color: (trendline.displaySlope ?? 0) > 0 ? '#16a34a' : '#dc2626'
-              }}>
-                {(trendline.displaySlope ?? 0).toFixed(3)} per month
-              </span>
-            </span>
           </div>
         </SimpleBar>
       )}
