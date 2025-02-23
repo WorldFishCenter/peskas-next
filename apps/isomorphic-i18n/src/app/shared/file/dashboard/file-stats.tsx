@@ -77,13 +77,14 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
   const isCiaUser = session?.user?.groups?.some((group: { name: string }) => group.name === 'CIA');
   
   // For CIA users, we only need their BMU's data
+  // For admin without specific BMU, we fetch all BMUs data
   const { data: referenceBmuData } = api.monthlyStats.allStats.useQuery({ 
-    bmus: bmu ? [bmu] : []
+    bmus: bmu ? [bmu] : bmus
   }) as { data: StatsResponse | undefined };
   
-  // Only fetch other BMUs data if not a CIA user
+  // Only fetch other BMUs data if not a CIA user and has specific BMU
   const { data: otherBmusData } = api.monthlyStats.allStats.useQuery({ 
-    bmus: !isCiaUser && bmu ? bmus.filter(b => b !== bmu) : []
+    bmus: (!isCiaUser && bmu) ? bmus.filter(b => b !== bmu) : []
   }) as { data: StatsResponse | undefined };
 
   useEffect(() => {
@@ -104,7 +105,7 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
       const getMonthName = (dateStr: string) => {
         if (!dateStr) return '';
         const parts = dateStr.split('-');
-        if (parts.length < 2) return dateStr; // Already a month name
+        if (parts.length < 2) return dateStr;
         const year = parts[0];
         const month = parts[1];
         const date = new Date(parseInt(year), parseInt(month) - 1);
@@ -133,11 +134,9 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
               defaultPercentage = change > 0 ? `+${Math.round(change)}%` : `${Math.round(change)}%`;
               defaultIncreased = change > 0;
             }
-
           }
         }
 
-        // Set default percentage in hoveredPercentages
         if (defaultPercentage) {
           setHoveredPercentages(prev => ({
             ...prev,
@@ -153,7 +152,7 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
         const chartData = trend.map((point, index) => ({
           day: point.day,
           reference: point.sale,
-          others: !isCiaUser && otherBmusMetric ? otherBmusMetric.trend[index]?.sale || 0 : undefined,
+          others: (!isCiaUser && bmu && otherBmusMetric) ? otherBmusMetric.trend[index]?.sale || 0 : undefined,
           index,
           data: trend,
           metricId: metric.id
@@ -173,7 +172,7 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
     } finally {
       setLoading(false);
     }
-  }, [referenceBmuData, otherBmusData, t, isCiaUser]);
+  }, [referenceBmuData, otherBmusData, t, isCiaUser, bmu]);
 
   const CustomTooltip = ({ active, payload }: any) => {
     if (active && payload && payload.length) {
@@ -297,10 +296,10 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
                   <Bar
                     dataKey="reference"
                     fill="#fc3468"
-                    name={bmu || "Reference BMU"}
+                    name={bmu ? (bmu || "Reference BMU") : "All BMUs"}
                     radius={[2, 2, 0, 0]}
                   />
-                  {!isCiaUser && (
+                  {!isCiaUser && bmu && (
                     <Bar
                       dataKey="others"
                       fill="rgba(12, 82, 110, 0.4)"
