@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Badge, ActionIcon } from "rizzui";
+import { Badge, ActionIcon, Text } from "rizzui";
 import cn from "@utils/class-names";
 import MessagesDropdown from "@/layouts/messages-dropdown";
 import NotificationDropdown from "@/layouts/notification-dropdown";
@@ -16,6 +16,7 @@ import {
   PiMagnifyingGlassDuotone,
   PiSun,
   PiMoon,
+  PiMapPinDuotone,
 } from "react-icons/pi";
 import { useTheme } from "next-themes";
 import HeaderMenuLeft from "@/layouts/lithium/lithium-menu";
@@ -24,6 +25,7 @@ import StickyHeader from "@/layouts/sticky-header";
 import LanguageSwitcher from "@/app/i18n/language-switcher";
 import SearchWidget from "@/app/shared/search/search";
 import { FilterSelector } from "@/app/components/filter-selector";
+import { useSession } from "next-auth/react";
 
 function ThemeToggle() {
   const { theme, setTheme } = useTheme();
@@ -46,9 +48,25 @@ function ThemeToggle() {
     </ActionIcon>
   );
 }
+
+function ReferenceBMU() {
+  const { data: session } = useSession();
+  const userBmu = session?.user?.email ? session.user.email.split('+')[2]?.split('@')[0] : undefined;
+
+  if (!userBmu) return null;
+
+  return (
+    <div className="flex items-center gap-2 px-3 py-1.5 text-sm bg-gray-100 rounded-full">
+      <PiMapPinDuotone className="h-4 w-4 text-gray-600" />
+      <span className="font-medium text-gray-900">{userBmu}</span>
+    </div>
+  );
+}
+
 function HeaderMenuRight({ lang }: { lang?: string }) {
   return (
     <div className="ms-auto flex shrink-0 items-center gap-2 text-gray-700 xs:gap-3 xl:gap-4">
+      <ReferenceBMU />
       <FilterSelector />
       <ThemeToggle />
       <ProfileMenu
