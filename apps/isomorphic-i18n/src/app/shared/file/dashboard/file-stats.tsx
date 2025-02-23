@@ -178,22 +178,26 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
   const CustomTooltip = ({ active, payload }: any) => {
     if (active && payload && payload.length) {
       return (
-        <div className="bg-white p-2 border border-gray-200 shadow-lg rounded-lg">
-          <p className="text-xs text-gray-500 mb-1">{payload[0].payload.day}</p>
-          {payload.map((entry: any) => {
-            if (typeof entry.value !== 'number') return null;
-            return (
-              <div key={entry.dataKey} className="flex items-center gap-2">
-                <div 
-                  className="w-2 h-2 rounded-full"
-                  style={{ backgroundColor: entry.color }}
-                />
-                <p className="text-xs font-medium">
-                  {entry.name}: {Math.round(entry.value).toLocaleString()}
-                </p>
-              </div>
-            );
-          })}
+        <div className="bg-white px-2 py-1.5 border border-gray-200 shadow-lg rounded-lg min-w-[150px]">
+          <div className="flex items-center gap-4">
+            <p className="text-xs font-medium text-gray-700">{payload[0].payload.day}</p>
+            <div className="flex items-center gap-3">
+              {payload.map((entry: any) => {
+                if (typeof entry.value !== 'number') return null;
+                return (
+                  <div key={entry.dataKey} className="flex items-center gap-1.5">
+                    <div 
+                      className="w-1.5 h-1.5 rounded-full"
+                      style={{ backgroundColor: entry.color }}
+                    />
+                    <p className="text-xs font-medium text-gray-600 whitespace-nowrap">
+                      {entry.name}: {Math.round(entry.value).toLocaleString()}
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
         </div>
       );
     }
@@ -280,13 +284,13 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
             </div>
           }
           chart={
-            <div className="h-12 w-20 @[16.25rem]:h-16 @[16.25rem]:w-24 @xs:h-20 @xs:w-28">
+            <div className="h-24 w-24 @[16.25rem]:h-28 @[16.25rem]:w-32 @xs:h-32 @xs:w-36">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart 
                   data={stat.chart}
-                  margin={{ top: 0, right: 0, bottom: 0, left: 0 }}
-                  barSize={8}
-                  barGap={4}
+                  margin={{ top: 25, right: 2, bottom: 0, left: 2 }}
+                  barSize={6}
+                  barGap={2}
                   onMouseMove={handleMouseMove}
                   onMouseLeave={handleMouseLeave}
                 >
@@ -299,7 +303,7 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
                   {!isCiaUser && (
                     <Bar
                       dataKey="others"
-                      fill="#0c526e"
+                      fill="rgba(12, 82, 110, 0.4)"
                       name="Other BMUs"
                       radius={[2, 2, 0, 0]}
                     />
@@ -307,7 +311,6 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
                   <Tooltip
                     content={<CustomTooltip />}
                     cursor={false}
-                    position={{ y: -50 }}
                   />
                 </BarChart>
               </ResponsiveContainer>
