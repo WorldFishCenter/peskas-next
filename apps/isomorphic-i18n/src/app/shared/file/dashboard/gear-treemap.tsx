@@ -9,6 +9,7 @@ import { api } from "@/trpc/react";
 import { bmusAtom } from "@/app/components/filter-selector";
 import cn from "@utils/class-names";
 import { useTheme } from "next-themes";
+import MetricCard from "@components/cards/metric-card";
 
 const Chart = dynamic(() => import("react-apexcharts"), { ssr: false });
 
@@ -273,6 +274,26 @@ interface GearData {
   [key: string]: any;
 }
 
+const LoadingState = () => {
+  return (
+    <MetricCard
+      title=""
+      metric=""
+      rounded="lg"
+      chart={
+        <div className="h-24 w-24 @[16.25rem]:h-28 @[16.25rem]:w-32 @xs:h-32 @xs:w-36 flex items-center justify-center">
+          <div className="flex flex-col items-center gap-2">
+            <div className="w-8 h-8 border-4 border-gray-200 border-t-gray-500 rounded-full animate-spin" />
+            <span className="text-sm text-gray-500">Loading chart...</span>
+          </div>
+        </div>
+      }
+      chartClassName="flex flex-col w-auto h-auto text-center justify-center"
+      className="min-w-[292px] w-full max-w-full flex flex-col items-center justify-center"
+    />
+  );
+};
+
 export default function GearHeatmap({
   className,
   lang,
@@ -511,10 +532,9 @@ export default function GearHeatmap({
     },
   };
 
-  if (loading) return <div className="p-4">Loading chart...</div>;
-  if (error) return <div className="p-4 text-red-500">Error: {error}</div>;
-  if (!series || series.length === 0)
-    return <div className="p-4">No gear data available</div>;
+  if (loading) return <LoadingState />;
+  if (error) return <LoadingState />;
+  if (!series || series.length === 0) return <LoadingState />;
 
   return (
     <WidgetCard

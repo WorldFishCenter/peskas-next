@@ -14,6 +14,7 @@ import { useTranslation } from "@/app/i18n/client";
 import { api } from "@/trpc/react";
 import { bmusAtom } from "@/app/components/filter-selector";
 import { useSession } from "next-auth/react";
+import WidgetCard from "@components/cards/widget-card";
 
 type FileStatsType = {
   className?: string;
@@ -65,6 +66,26 @@ interface StatsResponse {
   };
 }
 
+const LoadingState = () => {
+  return (
+    <MetricCard
+      title=""
+      metric=""
+      rounded="lg"
+      chart={
+        <div className="h-24 w-24 @[16.25rem]:h-28 @[16.25rem]:w-32 @xs:h-32 @xs:w-36 flex items-center justify-center">
+          <div className="flex flex-col items-center gap-2">
+            <div className="w-8 h-8 border-4 border-gray-200 border-t-gray-500 rounded-full animate-spin" />
+            <span className="text-sm text-gray-500">Loading chart...</span>
+          </div>
+        </div>
+      }
+      chartClassName="flex flex-col w-auto h-auto text-center justify-center"
+      className="min-w-[292px] w-full max-w-full flex flex-col items-center justify-center"
+    />
+  );
+};
+
 export function FileStatGrid({ className, lang, bmu }: { className?: string; lang?: string; bmu?: string }) {
   const { t } = useTranslation(lang!, "common");
   const [statsData, setStatsData] = useState<StatData[]>([]);
@@ -77,14 +98,13 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
   const isCiaUser = session?.user?.groups?.some((group: { name: string }) => group.name === 'CIA');
   
   // For CIA users, we only need their BMU's data
-  // For admin without specific BMU, we fetch all BMUs data
   const { data: referenceBmuData } = api.monthlyStats.allStats.useQuery({ 
-    bmus: bmu ? [bmu] : bmus
+    bmus: bmu ? [bmu] : []
   }) as { data: StatsResponse | undefined };
   
-  // Only fetch other BMUs data if not a CIA user and has specific BMU
+  // Only fetch other BMUs data if not a CIA user
   const { data: otherBmusData } = api.monthlyStats.allStats.useQuery({ 
-    bmus: (!isCiaUser && bmu) ? bmus.filter(b => b !== bmu) : []
+    bmus: !isCiaUser && bmu ? bmus.filter(b => b !== bmu) : []
   }) as { data: StatsResponse | undefined };
 
   useEffect(() => {
@@ -105,7 +125,7 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
       const getMonthName = (dateStr: string) => {
         if (!dateStr) return '';
         const parts = dateStr.split('-');
-        if (parts.length < 2) return dateStr;
+        if (parts.length < 2) return dateStr; // Already a month name
         const year = parts[0];
         const month = parts[1];
         const date = new Date(parseInt(year), parseInt(month) - 1);
@@ -134,9 +154,11 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
               defaultPercentage = change > 0 ? `+${Math.round(change)}%` : `${Math.round(change)}%`;
               defaultIncreased = change > 0;
             }
+
           }
         }
 
+        // Set default percentage in hoveredPercentages
         if (defaultPercentage) {
           setHoveredPercentages(prev => ({
             ...prev,
@@ -152,7 +174,7 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
         const chartData = trend.map((point, index) => ({
           day: point.day,
           reference: point.sale,
-          others: (!isCiaUser && bmu && otherBmusMetric) ? otherBmusMetric.trend[index]?.sale || 0 : undefined,
+          others: !isCiaUser && otherBmusMetric ? otherBmusMetric.trend[index]?.sale || 0 : undefined,
           index,
           data: trend,
           metricId: metric.id
@@ -172,7 +194,7 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
     } finally {
       setLoading(false);
     }
-  }, [referenceBmuData, otherBmusData, t, isCiaUser, bmu]);
+  }, [referenceBmuData, otherBmusData, t, isCiaUser]);
 
   const CustomTooltip = ({ active, payload }: any) => {
     if (active && payload && payload.length) {
@@ -247,8 +269,8 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
     // Don't clear percentages on mouse leave anymore
   };
 
-  if (loading) return <div>{t("text-loading-stats")}</div>;
-  if (!statsData.length) return <div>{t("text-loading-chart")}</div>;
+  if (loading) return <LoadingState />;
+  if (!statsData.length) return <LoadingState />;
 
   return (
     <>
@@ -296,10 +318,10 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
                   <Bar
                     dataKey="reference"
                     fill="#fc3468"
-                    name={bmu ? (bmu || "Reference BMU") : "All BMUs"}
+                    name={bmu || "Reference BMU"}
                     radius={[2, 2, 0, 0]}
                   />
-                  {!isCiaUser && bmu && (
+                  {!isCiaUser && (
                     <Bar
                       dataKey="others"
                       fill="rgba(12, 82, 110, 0.4)"

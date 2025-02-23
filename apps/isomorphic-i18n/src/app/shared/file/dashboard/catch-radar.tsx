@@ -336,17 +336,21 @@ export default function CatchRadarChart({
         <ResponsiveContainer width="100%" height="100%">
           <RadarChart
             data={data}
-            margin={{ top: 20, right: 20, bottom: 20, left: 20 }}
+            margin={{ top: 10, right: 10, bottom: 10, left: 10 }}
+            className="w-full h-full"
           >
-            <PolarGrid gridType="polygon" />
+            <PolarGrid gridType="polygon" strokeWidth={0.8} />
             <PolarAngleAxis
               dataKey="month"
               tick={{ fill: "#666", fontSize: 12 }}
+              tickLine={false}
             />
             <PolarRadiusAxis
               angle={90}
               domain={activeTab === 'differenced' ? ['auto', 'auto'] : [0, 'auto']}
               tick={{ fill: "#666" }}
+              tickCount={5}
+              axisLine={false}
             />
             {Object.entries(siteColors).map(([site, color]) => {
               // In differenced mode, only show the selected BMU

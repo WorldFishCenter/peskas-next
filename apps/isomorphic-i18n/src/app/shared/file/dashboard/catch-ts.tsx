@@ -139,7 +139,7 @@ const generateColor = (index: number, site: string, referenceBmu: string | undef
 
 const LoadingState = () => {
   return (
-    <WidgetCard title="Catch Metrics">
+    <WidgetCard title="">
       <div className="h-96 w-full flex items-center justify-center">
         <div className="flex flex-col items-center gap-2">
           <div className="w-8 h-8 border-4 border-gray-200 border-t-gray-500 rounded-full animate-spin" />
@@ -593,10 +593,10 @@ export default function CatchMetricsChart({
               <AreaChart
                 data={chartData}
                 margin={{
-                  left: 48,
-                  right: 48,
-                  bottom: 40,
-                  top: 10,
+                  left: 35,
+                  right: 35,
+                  bottom: 20,
+                  top: 20,
                 }}
                 className="[&_.recharts-cartesian-axis-tick-value]:fill-gray-500 [&_.recharts-cartesian-axis.yAxis]:-translate-y-3 rtl:[&_.recharts-cartesian-axis.yAxis]:-translate-x-12 [&_.recharts-cartesian-grid-vertical]:opacity-0"
               >
@@ -689,10 +689,10 @@ export default function CatchMetricsChart({
               <BarChart
                 data={recentData}
                 margin={{
-                  left: 48,
-                  right: 48,
-                  bottom: 40,
-                  top: 10,
+                  left: 35,
+                  right: 35,
+                  bottom: 20,
+                  top: 20,
                 }}
                 barCategoryGap="20%"
                 barGap={4}
