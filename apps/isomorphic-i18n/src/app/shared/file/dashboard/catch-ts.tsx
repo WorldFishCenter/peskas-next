@@ -494,37 +494,23 @@ export default function CatchMetricsChart({
   };
 
   const calculateDifferenceData = (data: ChartDataPoint[]) => {
-    if (!bmu) return [];
-    
-    return data.map((item) => {
-      const userValue = item[bmu];
-      // Only calculate difference if the BMU has data for this period
-      if (userValue === undefined) {
-        return {
-          date: item.date,
-          difference: undefined
-        };
-      }
-
+    return data.map(item => {
+      const userValue = item[bmu || ''] || 0;
       const otherBMUs = Object.keys(item).filter(
         key => key !== "date" && key !== bmu && item[key] !== undefined
       );
-
-      // Only calculate average if there are other BMUs with data
-      if (otherBMUs.length === 0) {
-        return {
-          date: item.date,
-          difference: undefined
-        };
-      }
-
       const otherAverage = otherBMUs.reduce((sum, key) => sum + (item[key] || 0), 0) / otherBMUs.length;
+      
+      // Only return points where we have valid data
+      if (userValue === 0 && otherAverage === 0) {
+        return null;
+      }
       
       return {
         date: item.date,
         difference: userValue - otherAverage
       };
-    }).filter(item => item.difference !== undefined); // Remove periods with no difference
+    }).filter((item): item is { date: number; difference: number } => item !== null);
   };
 
   const differenceData = calculateDifferenceData(chartData);

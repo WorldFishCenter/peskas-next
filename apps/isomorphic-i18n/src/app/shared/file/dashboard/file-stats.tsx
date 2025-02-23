@@ -103,11 +103,14 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
 
       const getMonthName = (dateStr: string) => {
         if (!dateStr) return '';
-        const [year, month] = dateStr.split('-');
+        const parts = dateStr.split('-');
+        if (parts.length < 2) return dateStr; // Already a month name
+        const year = parts[0];
+        const month = parts[1];
         const date = new Date(parseInt(year), parseInt(month) - 1);
         return date.toLocaleString('default', { month: 'short' });
       };
-
+      
       const transformedStats = metrics.map(metric => {
         const referenceMetric = referenceBmuData[metric.field];
         const otherBmusMetric = otherBmusData?.[metric.field];
@@ -130,6 +133,7 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
               defaultPercentage = change > 0 ? `+${Math.round(change)}%` : `${Math.round(change)}%`;
               defaultIncreased = change > 0;
             }
+
           }
         }
 
@@ -205,11 +209,14 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
       if (currentIndex > 0 && data) {
         const getMonthName = (dateStr: string) => {
           if (!dateStr) return '';
-          const [year, month] = dateStr.split('-');
+          const parts = dateStr.split('-');
+          if (parts.length < 2) return dateStr; // Already a month name
+          const year = parts[0];
+          const month = parts[1];
           const date = new Date(parseInt(year), parseInt(month) - 1);
           return date.toLocaleString('default', { month: 'short' });
         };
-
+        
         const currentMonth = getMonthName(data[currentIndex].day);
         const prevMonth = getMonthName(data[currentIndex - 1].day);
         const monthComparison = `${prevMonth} → ${currentMonth}`;
