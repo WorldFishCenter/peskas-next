@@ -1,4 +1,5 @@
 export const routes = {
+  about: '/about',
   eCommerce: {
     dashboard: '/ecommerce',
     products: '/ecommerce/products',

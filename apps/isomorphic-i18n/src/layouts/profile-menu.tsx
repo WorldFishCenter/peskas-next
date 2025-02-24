@@ -93,7 +93,7 @@ function ProfileMenuPopover({ children }: React.PropsWithChildren<{}>) {
 }
 
 const menuItems = (session: any) => [
-  ...(hasPermission(session?.user?.groups, 'user', ["create", "read", "update", "delete"])
+  ...(session?.user?.groups && hasPermission(session.user.groups, 'user', ["create", "read", "update", "delete"])
     ? [{
       name: "text-manage-users",
       href: routes.admin.users,

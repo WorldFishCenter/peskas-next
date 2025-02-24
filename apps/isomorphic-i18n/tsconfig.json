@@ -2,7 +2,11 @@
   "compilerOptions": {
     "baseUrl": ".",
     "target": "es5",
-    "lib": ["dom", "dom.iterable", "esnext"],
+    "lib": [
+      "dom",
+      "dom.iterable",
+      "esnext"
+    ],
     "allowJs": true,
     "skipLibCheck": true,
     "strict": true,
@@ -16,15 +20,33 @@
     "jsx": "preserve",
     "incremental": true,
     "paths": {
-      "@/*": ["src/*"],
-      "@public/*": ["public/*"],
-      "@ui/*": ["../../packages/isomorphic-core/src/ui/*"],
-      "@components/*": ["../../packages/isomorphic-core/src/components/*"],
-      "@shared/*": ["../../packages/isomorphic-core/src/shared/*"],
-      "@hooks/*": ["../../packages/isomorphic-core/src/hooks/*"],
-      "@utils/*": ["../../packages/isomorphic-core/src/utils/*"],
-      "@layouts/*": ["../../packages/isomorphic-core/src/layouts/*"],
-      "@api/*": ["../../packages/api/src/*"]
+      "@/*": [
+        "src/*"
+      ],
+      "@public/*": [
+        "public/*"
+      ],
+      "@ui/*": [
+        "../../packages/isomorphic-core/src/ui/*"
+      ],
+      "@components/*": [
+        "../../packages/isomorphic-core/src/components/*"
+      ],
+      "@shared/*": [
+        "../../packages/isomorphic-core/src/shared/*"
+      ],
+      "@hooks/*": [
+        "../../packages/isomorphic-core/src/hooks/*"
+      ],
+      "@utils/*": [
+        "../../packages/isomorphic-core/src/utils/*"
+      ],
+      "@layouts/*": [
+        "../../packages/isomorphic-core/src/layouts/*"
+      ],
+      "@api/*": [
+        "../../packages/api/src/*"
+      ]
     },
     "plugins": [
       {
@@ -42,5 +64,7 @@
     "**/*.mjs",
     ".next/types/**/*.ts"
   ],
-  "exclude": ["node_modules"]
+  "exclude": [
+    "node_modules"
+  ]
 }

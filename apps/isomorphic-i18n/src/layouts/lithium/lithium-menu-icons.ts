@@ -48,6 +48,7 @@ import FlightIcon from '@components/icons/flight-icon';
 import FinancialStatisticsIcon from '@components/icons/financial-statistics';
 import BusinessIcon from '@components/icons/business';
 import SuitcaseIcon from '@components/icons/suitcase';
+import InfoIcon from '@components/icons/info';
 
 export const lithiumMenuIcons = {
   FishIcon,
@@ -100,6 +101,7 @@ export const lithiumMenuIcons = {
   BusinessIcon,
   ScheduleIcon,
   SuitcaseIcon,
+  InfoIcon,
 };
 
 export type LithiumMenuIconType = keyof typeof lithiumMenuIcons;

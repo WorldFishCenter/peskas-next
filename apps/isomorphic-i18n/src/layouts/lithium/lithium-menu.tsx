@@ -78,7 +78,7 @@ function LinkMenu({
  */
 export default function HeaderMenuLeft({ lang }: { lang?: string }) {
   const { direction } = useDirection();
-  const menuKeys: LithiumMenuItemsKeys[] = ["map"]; // Removed 'groups' from the array
+  const menuKeys: LithiumMenuItemsKeys[] = ["map", "about"]; // Reordered and removed 'catch'
 
   return (
     <NavMenu

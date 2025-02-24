@@ -23,6 +23,17 @@ export type LithiumMenuItem = {
 };
 
 export const lithiumMenuItems: LithiumMenuItem = {
+  about: {
+    name: 'About',
+    type: 'link',
+    dropdownItems: [
+      {
+        name: 'About',
+        href: '/about',
+        icon: 'InfoIcon',
+      },
+    ],
+  },
   catch: {
     name: 'sidebar-menu-overview',
     type: 'link',

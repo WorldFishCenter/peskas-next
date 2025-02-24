@@ -324,7 +324,7 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
                   {!isCiaUser && (
                     <Bar
                       dataKey="others"
-                      fill="rgba(12, 82, 110, 0.4)"
+                      fill="rgba(178, 216, 216, 0.75)"
                       name="Other BMUs"
                       radius={[2, 2, 0, 0]}
                     />
