@@ -9,6 +9,7 @@ import ProfileMenu from "@/layouts/profile-menu";
 import SettingsButton from "@/layouts/settings-button";
 import HamburgerButton from "@/layouts/hamburger-button";
 import Logo from "@components/logo";
+import KenyaFlag from "@components/icons/kenya-flag";
 import {
   PiBellSimpleRingingDuotone,
   PiChatsCircleDuotone,
@@ -89,7 +90,10 @@ export default function Header({ lang }: { lang?: string }) {
           href={"/"}
           className="me-4 hidden w-[155px] shrink-0 text-gray-800 hover:text-gray-900 lg:me-5 xl:block"
         >
-          <Logo className="max-w-[155px]" />
+          <div className="flex items-center gap-2">
+            <Logo className="max-w-[155px]" />
+            <KenyaFlag className="h-6 w-auto" />
+          </div>
         </Link>
         <HeaderMenuLeft lang={lang} />
       </div>
