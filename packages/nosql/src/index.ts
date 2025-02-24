@@ -20,25 +20,45 @@ if (!cached) {
 
 async function getDb() {
   if (process.env.NODE_ENV !== 'production') {
-    cached.conn = null
-    cached.promise = null
+    cached.conn = null;
+    cached.promise = null;
   }
 
   if (cached.conn) {
-    return cached.conn;
+    // Check if connection is ready
+    if (cached.conn.connection?.readyState === 1) {
+      return cached.conn;
+    }
+    // If not ready, clear the cache
+    cached.conn = null;
+    cached.promise = null;
   }
+
   if (!cached.promise) {
     const opts = {
-      bufferCommands: false,
+      bufferCommands: true, // Change to true to allow buffering
+      serverSelectionTimeoutMS: 5000, // Add timeout
+      connectTimeoutMS: 10000,
     };
+
     cached.promise = mongoose
       .connect(databaseUrl as string, opts)
-      .then((mongoose) => mongoose);
+      .then((mongoose) => {
+        console.log('MongoDB connected successfully');
+        return mongoose;
+      })
+      .catch((error) => {
+        console.error('MongoDB connection error:', error);
+        cached.promise = null;
+        throw error;
+      });
   }
+
   try {
     cached.conn = await cached.promise;
   } catch (e) {
     cached.promise = null;
+    console.error('Failed to establish MongoDB connection:', e);
     throw e;
   }
 

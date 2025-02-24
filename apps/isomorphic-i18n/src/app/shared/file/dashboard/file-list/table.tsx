@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useCallback } from "react";
 import { useTable } from "@hooks/use-table";
 import { Title, Tooltip } from "rizzui";
 import { useTranslation } from "@/app/i18n/client";
@@ -167,6 +167,8 @@ export default function PerformanceTable({
   const { data: performanceData, isLoading: isDataLoading } =
     api.aggregatedCatch.performance.useQuery({ bmus });
 
+  const memoizedData = useMemo(() => performanceData || [], [performanceData]);
+
   const {
     tableData,
     isLoading,
@@ -175,7 +177,11 @@ export default function PerformanceTable({
     handlePaginate,
     sortConfig,
     handleSort,
-  } = useTable(performanceData || [], pageSize);
+  } = useTable(memoizedData, pageSize);
+
+  const memoizedHandleSort = useCallback((key: string) => {
+    handleSort(key);
+  }, [handleSort]);
 
   const columns = useMemo<ColumnType[]>(
     () => [
@@ -196,7 +202,7 @@ export default function PerformanceTable({
         width: 150,
         sortable: true,
         onHeaderCell: () => ({
-          onClick: () => handleSort("bmu"),
+          onClick: () => memoizedHandleSort("bmu"),
         }),
         render: (_: unknown, row: PerformanceData) => (
           <div className="space-y-1 text-center">
@@ -226,7 +232,7 @@ export default function PerformanceTable({
         width: 180,
         sortable: true,
         onHeaderCell: () => ({
-          onClick: () => handleSort("avgEffort"),
+          onClick: () => memoizedHandleSort("avgEffort"),
         }),
         render: (_: unknown, row: PerformanceData) => (
           <div className="space-y-1 text-center">
@@ -261,7 +267,7 @@ export default function PerformanceTable({
         width: 180,
         sortable: true,
         onHeaderCell: () => ({
-          onClick: () => handleSort("avgCPUE"),
+          onClick: () => memoizedHandleSort("avgCPUE"),
         }),
         render: (_: unknown, row: PerformanceData) => (
           <div className="space-y-1 text-center">
@@ -294,7 +300,7 @@ export default function PerformanceTable({
         width: 180,
         sortable: true,
         onHeaderCell: () => ({
-          onClick: () => handleSort("avgCPUA"),
+          onClick: () => memoizedHandleSort("avgCPUA"),
         }),
         render: (_: unknown, row: PerformanceData) => (
           <div className="space-y-1 text-center">
@@ -327,7 +333,7 @@ export default function PerformanceTable({
         width: 180,
         sortable: true,
         onHeaderCell: () => ({
-          onClick: () => handleSort("avgRPUE"),
+          onClick: () => memoizedHandleSort("avgRPUE"),
         }),
         render: (_: unknown, row: PerformanceData) => (
           <div className="space-y-1 text-center">
@@ -360,7 +366,7 @@ export default function PerformanceTable({
         width: 180,
         sortable: true,
         onHeaderCell: () => ({
-          onClick: () => handleSort("avgRPUA"),
+          onClick: () => memoizedHandleSort("avgRPUA"),
         }),
         render: (_: unknown, row: PerformanceData) => (
           <div className="space-y-1 text-center">
@@ -374,7 +380,7 @@ export default function PerformanceTable({
         ),
       }
     ],
-    [t, sortConfig, handleSort]
+    [t, sortConfig, memoizedHandleSort]
   );
 
   return (
