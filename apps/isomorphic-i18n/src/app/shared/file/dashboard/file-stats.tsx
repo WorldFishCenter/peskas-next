@@ -94,22 +94,24 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
   const [bmus] = useAtom(bmusAtom);
   const { data: session } = useSession();
 
-  // Determine if the user is part of the CIA group
+  // Determine if the user is part of the CIA group or Admin group
   const isCiaUser = session?.user?.groups?.some((group: { name: string }) => group.name === 'CIA');
+  const isAdminUser = session?.user?.groups?.some((group: { name: string }) => group.name === 'Admin');
   
+  // For admin users, we want all BMUs data together
   // For CIA users, we only need their BMU's data
-  const { data: referenceBmuData } = api.monthlyStats.allStats.useQuery({ 
-    bmus: bmu ? [bmu] : []
+  const { data: statsData1 } = api.monthlyStats.allStats.useQuery({ 
+    bmus: isAdminUser ? bmus : (bmu ? [bmu] : [])
   }) as { data: StatsResponse | undefined };
   
-  // Only fetch other BMUs data if not a CIA user
-  const { data: otherBmusData } = api.monthlyStats.allStats.useQuery({ 
-    bmus: !isCiaUser && bmu ? bmus.filter(b => b !== bmu) : []
+  // Only fetch other BMUs data if not a CIA user and not an admin user
+  const { data: statsData2 } = api.monthlyStats.allStats.useQuery({ 
+    bmus: (!isCiaUser && !isAdminUser && bmu) ? bmus.filter(b => b !== bmu) : []
   }) as { data: StatsResponse | undefined };
 
   useEffect(() => {
-    if (!referenceBmuData) {
-      setLoading(false);
+    if (!statsData1) {
+      setLoading(true);
       return;
     }
 
@@ -133,8 +135,8 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
       };
       
       const transformedStats = metrics.map(metric => {
-        const referenceMetric = referenceBmuData[metric.field];
-        const otherBmusMetric = otherBmusData?.[metric.field];
+        const referenceMetric = statsData1[metric.field];
+        const otherBmusMetric = statsData2?.[metric.field];
         const trend = referenceMetric.trend;
 
         // Calculate default percentage change between last two months
@@ -174,7 +176,8 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
         const chartData = trend.map((point, index) => ({
           day: point.day,
           reference: point.sale,
-          others: !isCiaUser && otherBmusMetric ? otherBmusMetric.trend[index]?.sale || 0 : undefined,
+          // Only include others for non-admin users
+          others: !isAdminUser && !isCiaUser && otherBmusMetric ? otherBmusMetric.trend[index]?.sale || 0 : undefined,
           index,
           data: trend,
           metricId: metric.id
@@ -194,7 +197,7 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
     } finally {
       setLoading(false);
     }
-  }, [referenceBmuData, otherBmusData, t, isCiaUser]);
+  }, [statsData1, statsData2, t, isCiaUser, isAdminUser]);
 
   const CustomTooltip = ({ active, payload }: any) => {
     if (active && payload && payload.length) {
@@ -318,10 +321,10 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
                   <Bar
                     dataKey="reference"
                     fill="#fc3468"
-                    name={bmu || "Reference BMU"}
+                    name={isAdminUser ? "All BMUs" : (bmu || "Reference BMU")}
                     radius={[2, 2, 0, 0]}
                   />
-                  {!isCiaUser && (
+                  {(!isCiaUser && !isAdminUser) && (
                     <Bar
                       dataKey="others"
                       fill="rgba(178, 216, 216, 0.75)"
