@@ -15,6 +15,7 @@ export const UpsertUserSchema = z.object({
   role: z.string().min(1),
   status: z.string().min(1),
   bmuNames: z.array(z.object({ value: z.string(), label: z.string() })),
+  userBmu: z.object({ value: z.string(), label: z.string() }).optional(),
 });
 
 // generate form types from zod validation schema

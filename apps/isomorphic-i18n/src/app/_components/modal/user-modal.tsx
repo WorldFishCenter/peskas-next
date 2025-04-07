@@ -61,6 +61,10 @@ export default function UserModal({
           value: bmu._id.toString(),
           label: bmu.BMU,
         })) ?? [],
+      userBmu: user?.userBmu ? {
+        value: user.userBmu._id?.toString() ?? "",
+        label: user.userBmu.BMU ?? "",
+      } : undefined,
     },
   });
 
@@ -77,6 +81,10 @@ export default function UserModal({
           value: bmu._id.toString(),
           label: bmu.BMU,
         })) ?? [],
+      userBmu: user?.userBmu ? {
+        value: user.userBmu._id?.toString() ?? "",
+        label: user.userBmu.BMU ?? "",
+      } : undefined,
     });
   }, [form, user]);
 
@@ -266,6 +274,37 @@ export default function UserModal({
                       onSelect={field.onChange}
                       required={true}
                       isMulti={true}
+                    />
+                    {error?.message ? (
+                      <InputError error={error.message} />
+                    ) : null}
+                  </div>
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="userBmu"
+              render={({ field, fieldState: { error } }) => (
+                <FormItem>
+                  <div className={cn("flex flex-col gap-y-2")}>
+                    <FormLabel>User BMU</FormLabel>
+                    <VirtualizedCombobox
+                      value={field.value ? [{
+                        value: field.value.value,
+                        label: field.value.label,
+                      }] : []}
+                      options={
+                        bmus?.map((bmu) => ({
+                          value: bmu._id.toString(),
+                          label: bmu.BMU,
+                        })) ?? []
+                      }
+                      searchPlaceholder="Search for a BMU"
+                      onSelect={(value) => field.onChange(value[0])}
+                      required={false}
+                      isMulti={false}
                     />
                     {error?.message ? (
                       <InputError error={error.message} />
