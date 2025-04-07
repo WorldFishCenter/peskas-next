@@ -27,6 +27,20 @@ import LanguageSwitcher from "@/app/i18n/language-switcher";
 import SearchWidget from "@/app/shared/search/search";
 import { FilterSelector } from "@/app/components/filter-selector";
 import { useSession } from "next-auth/react";
+import type { TBmu } from "@repo/nosql/schema/bmu";
+
+type SerializedBmu = {
+  _id: string;
+  BMU: string;
+  group: string;
+}
+
+type CustomSession = {
+  user?: {
+    bmus?: Omit<TBmu, "lat" | "lng" | "treatments">[];
+    userBmu?: SerializedBmu;
+  }
+}
 
 function ThemeToggle() {
   const { theme, setTheme } = useTheme();
@@ -51,8 +65,8 @@ function ThemeToggle() {
 }
 
 function ReferenceBMU() {
-  const { data: session } = useSession();
-  const userBmu = session?.user?.email ? session.user.email.split('+')[2]?.split('@')[0] : undefined;
+  const { data: session } = useSession() as { data: CustomSession | null };
+  const userBmu = session?.user?.userBmu?.BMU;
 
   if (!userBmu) return null;
 

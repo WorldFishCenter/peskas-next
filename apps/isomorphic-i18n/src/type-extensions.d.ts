@@ -1,6 +1,13 @@
 import type { DefaultSession } from "next-auth";
 import type { DefaultJWT } from "next-auth/jwt";
 import { TPermission, TGroup } from "@repo/nosql/schema/auth"
+import { TBmu } from "@repo/nosql/schema/bmu"
+
+type SerializedBmu = {
+  _id: string;
+  BMU: string;
+  group: string;
+}
 
 /**
  * Module augmentation for `next-auth` types. Allows us to add custom properties to the `session`
@@ -13,7 +20,9 @@ declare module "next-auth" {
   interface Session extends DefaultSession {
     user:
       | (DefaultSession["user"] & {
-          groups: TGroup[]
+          groups: TGroup[];
+          bmus: TBmu[];
+          userBmu?: SerializedBmu;
         })
       | undefined;
   }
@@ -24,6 +33,7 @@ declare module "next-auth" {
     maxAge: number;
     groups: TGroup[];
     bmus: TBmu[];
+    userBmu?: SerializedBmu;
   }
 }
 

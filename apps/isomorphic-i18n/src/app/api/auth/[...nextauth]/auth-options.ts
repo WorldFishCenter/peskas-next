@@ -29,6 +29,7 @@ export const authOptions: NextAuthOptions = {
         token.maxAge = user.maxAge;
         token.groups = user.groups;
         token.bmus = user.bmus;
+        token.userBmu = user.userBmu;
       }
       return token;
     },
@@ -52,6 +53,7 @@ export const authOptions: NextAuthOptions = {
           email: token.email,
           groups: token.groups,
           bmus: token.bmus,
+          userBmu: token.userBmu,
         },
       };
     },
@@ -87,6 +89,10 @@ export const authOptions: NextAuthOptions = {
                 path: "bmus",
                 select: { BMU: true, group: true },
               },
+              {
+                path: "userBmu",
+                select: { BMU: true, group: true },
+              },
             ])
             .lean();
           if (!user) throw new UserNotFoundError();
@@ -105,8 +111,17 @@ export const authOptions: NextAuthOptions = {
              * Otherwise 1 day only.
              */
             const maxAge = rememberMe ? 30 * 24 * 60 * 60 : 24 * 60 * 60;
+            
+            // Ensure userBmu is properly serialized
+            const serializedUserBmu = user.userBmu ? {
+              _id: user.userBmu._id.toString(),
+              BMU: user.userBmu.BMU,
+              group: user.userBmu.group
+            } : undefined;
+
             return {
               ...pick(user, ["id", "email", "groups", "bmus", "name"]),
+              userBmu: serializedUserBmu,
               maxAge,
             };
           }

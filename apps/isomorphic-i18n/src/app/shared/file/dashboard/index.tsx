@@ -11,9 +11,16 @@ import CatchRadarChart from "@/app/shared/file/dashboard/catch-radar";
 
 type MetricKey = "mean_effort" | "mean_cpue" | "mean_cpua" | "mean_rpue" | "mean_rpua";
 
+type SerializedBmu = {
+  _id: string;
+  BMU: string;
+  group: string;
+}
+
 type CustomSession = {
   user?: {
-    bmus?: Omit<TBmu, "lat" | "lng" | "treatments">[]
+    bmus?: Omit<TBmu, "lat" | "lng" | "treatments">[];
+    userBmu?: SerializedBmu;
   } & DefaultSession["user"]
 }
 
@@ -23,8 +30,8 @@ export default function FileDashboard({ lang }: { lang?: string }) {
   const [activeTab, setActiveTab] = useState('standard');
   const { data: session } = useSession() as { data: CustomSession | null };
 
-  // Extract BMU from user's email
-  const userBmu = session?.user?.email ? session.user.email.split('+')[2]?.split('@')[0] : undefined;
+  // Use userBmu from session
+  const userBmu = session?.user?.userBmu?.BMU;
 
   useEffect(() => {
     if (userBmu) {
