@@ -40,19 +40,36 @@ export const UserTable = ({
 const columns: TableOptions<RouterOutputs["user"]["all"][number]>["columns"] = [
   {
     accessorKey: "name",
+    meta: { name: "Name", align: "center" },
     header: Header,
-    cell: (cell) => <Cell {...cell} />,
+    cell: (cell) => <Cell {...cell} className="text-center" />,
   },
   {
     accessorKey: "email",
     accessorFn: (row) => row.email,
-    meta: { name: "Email" },
+    meta: { name: "Email", align: "center" },
     header: Header,
-    cell: (cell) => <Cell {...cell} />,
+    cell: (cell) => <Cell {...cell} className="text-center" />,
+  },
+  {
+    accessorKey: "userBmu",
+    meta: { name: "User BMU", align: "center" },
+    header: Header,
+    cell: ({ row }) => {
+      return (
+        <div className="flex items-center justify-center">
+          {row.original.userBmu ? (
+            <span className="inline-flex items-center rounded-full border border-blue-200 bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700">
+              {row.original.userBmu.BMU}
+            </span>
+          ) : null}
+        </div>
+      );
+    },
   },
   {
     accessorKey: "role",
-    meta: { name: "Role" },
+    meta: { name: "Role", align: "center" },
     header: Header,
     cell: ({ row }) => {
       const roleStyles = {
@@ -65,7 +82,7 @@ const columns: TableOptions<RouterOutputs["user"]["all"][number]>["columns"] = [
       } as const;
 
       return (
-        <div className="flex items-center justify-start">
+        <div className="flex items-center justify-center">
           {row.original.groups.map((group) => (
             <span
               key={group._id}
@@ -75,7 +92,6 @@ const columns: TableOptions<RouterOutputs["user"]["all"][number]>["columns"] = [
             >
               {group.name}
             </span>
-
           ))}
         </div>
       );
@@ -83,7 +99,7 @@ const columns: TableOptions<RouterOutputs["user"]["all"][number]>["columns"] = [
   },
   {
     accessorKey: "status",
-    meta: { name: "Status" },
+    meta: { name: "Status", align: "center" },
     header: Header,
     cell: ({ row }) => {
       const statusStyles = {
@@ -97,7 +113,7 @@ const columns: TableOptions<RouterOutputs["user"]["all"][number]>["columns"] = [
       } as const;
 
       return (
-        <div className="flex items-center justify-start">
+        <div className="flex items-center justify-center">
           <span
             className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${
               statusStyles[row.original.status as keyof typeof statusStyles]
@@ -112,8 +128,8 @@ const columns: TableOptions<RouterOutputs["user"]["all"][number]>["columns"] = [
   {
     accessorKey: "created_at",
     accessorFn: (row) => row.created_at?.toLocaleDateString(),
-    meta: { name: "Created At" },
+    meta: { name: "Created At", align: "center" },
     header: Header,
-    cell: Cell,
+    cell: (cell) => <Cell {...cell} className="text-center" />,
   },
 ];

@@ -99,6 +99,10 @@ export const userRouter = createTRPCRouter({
           path: "bmus",
           select: { BMU: true, group: true },
         },
+        {
+          path: "userBmu",
+          select: { BMU: true, group: true },
+        },
       ])
       .lean();
 
@@ -128,6 +132,12 @@ export const userRouter = createTRPCRouter({
         ...bmu,
         _id: bmu._id.toString(),
       })),
+      ...(user.userBmu && {
+        userBmu: {
+          ...user.userBmu,
+          _id: user.userBmu._id.toString(),
+        },
+      }),
     }));
   }),
   byId: protectedProcedure
@@ -145,6 +155,10 @@ export const userRouter = createTRPCRouter({
           },
           {
             path: "bmus",
+            select: { BMU: true, group: true },
+          },
+          {
+            path: "userBmu",
             select: { BMU: true, group: true },
           },
         ])
