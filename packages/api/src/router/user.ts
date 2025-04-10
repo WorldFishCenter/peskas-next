@@ -221,7 +221,11 @@ export const userRouter = createTRPCRouter({
       await mail.sendTemplateMessages(Templates.resetPassword, {
         to: user.email,
         subject: "Reset your password",
-        resetLink: `${process.env.NEXT_PUBLIC_URL ?? "http://localhost:3001"}/en/reset-password/${reset_token}`,
+        resetLink: `${
+          process.env.NODE_ENV === 'production'
+            ? 'https://peskas-next-umber.vercel.app'
+            : process.env.NEXT_PUBLIC_URL ?? 'http://localhost:3001'
+        }/en/reset-password/${reset_token}`,
       });
     }),
   resetPassword: publicProcedure

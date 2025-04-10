@@ -11,7 +11,7 @@ enum MODE {
 
 export const siteConfig = {
   title: 'Peskas | Kenya',
-  description: `Isomorphic the ultimate React TypeScript Admin Template. Streamline your admin dashboard development with our feature-rich, responsive, and highly customizable solution. Boost productivity and create stunning admin interfaces effortlessly.`,
+  description: `Kenya small scale monitoring dashboard`,
   logo: logoImg,
   icon: logoIconImg,
   mode: MODE.LIGHT,
