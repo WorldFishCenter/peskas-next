@@ -74,6 +74,7 @@ interface TooltipProps {
   separator?: string;
   selectedMetric: MetricKey;
   selectedMetricOption: MetricOption | undefined;
+  visibilityState?: VisibilityState;
 }
 
 interface VisibilityState {
@@ -140,6 +141,18 @@ const generateColor = (index: number, site: string, referenceBmu: string | undef
     "#0891b2", // Teal
   ];
   return colors[index % colors.length];
+};
+
+// Get positive and negative colors for each site
+const getBarColor = (baseColor: string, isPositive: boolean): string => {
+  // For positive values, use the original color
+  if (isPositive) {
+    return baseColor;
+  }
+  
+  // For negative values, use a darker shade of the color
+  // This creates better visual distinction while maintaining the color identity
+  return baseColor === "#fc3468" ? "#d71e50" : baseColor;
 };
 
 const LoadingState = () => {
@@ -287,7 +300,6 @@ const CustomTooltip = ({
   label,
   selectedMetric,
 }: TooltipProps) => {
-  // Removed selectedMetricOption from props
   if (active && payload?.length) {
     const date = new Date(label as number);
 
@@ -309,7 +321,7 @@ const CustomTooltip = ({
               <span className="font-medium">
                 {entry.name || entry.dataKey}:
               </span>{" "}
-              {entry.value?.toFixed(1) ?? "N/A"} {/* Removed the unit here */}
+              {entry.value?.toFixed(1) ?? "N/A"}
             </p>
           </div>
         ))}
@@ -394,12 +406,27 @@ export default function CatchMetricsChart({
     // Don't toggle visibility for the average line
     if (site === "average") return;
     
-    setVisibilityState((prev) => ({
-      ...prev,
-      [site]: {
+    setVisibilityState((prev) => {
+      // Create a copy of the previous state
+      const newState = { ...prev };
+      
+      // Toggle the clicked site
+      newState[site] = {
         opacity: prev[site]?.opacity === 1 ? 0.2 : 1,
-      },
-    }));
+      };
+      
+      // For Recent tab, we need to handle the Positive/Negative variants too
+      if (localActiveTab === 'recent' && !isCiaUser) {
+        // Also update the positive and negative variants
+        const positiveKey = `${site}Positive`;
+        const negativeKey = `${site}Negative`;
+        
+        newState[positiveKey] = { opacity: newState[site].opacity };
+        newState[negativeKey] = { opacity: newState[site].opacity };
+      }
+      
+      return newState;
+    });
   };
 
   const handleTabChange = (tab: string) => {
@@ -441,6 +468,14 @@ export default function CatchMetricsChart({
         }),
         {}
       );
+      
+      // For Recent tab, add visibility for positive and negative variants
+      if (localActiveTab === 'recent' && !isCiaUser) {
+        uniqueSites.forEach(site => {
+          initialVisibility[`${site}Positive`] = { opacity: initialVisibility[site].opacity };
+          initialVisibility[`${site}Negative`] = { opacity: initialVisibility[site].opacity };
+        });
+      }
       
       // Only add average visibility for non-CIA users
       if (!isCiaUser) {
@@ -597,14 +632,47 @@ export default function CatchMetricsChart({
     };
   });
 
-  // Get last 6 months of data
+  // Get last 6 months of data with comparison to average
   const getRecentData = () => {
     if (!chartData.length) return [];
+    
     const sortedData = [...chartData].sort((a, b) => b.date - a.date);
-    return sortedData.slice(0, 6).reverse();
+    const lastSixMonths = sortedData.slice(0, 6).reverse();
+    
+    // For CIA users who don't have access to average, just return the data as is
+    if (isCiaUser) return lastSixMonths;
+    
+    // For regular users, transform the data to show difference from average
+    return lastSixMonths.map(item => {
+      const result: { [key: string]: any } = { date: item.date };
+      
+      // For each BMU, calculate the difference from average
+      Object.entries(item).forEach(([key, value]) => {
+        if (key !== 'date' && key !== 'average' && value !== undefined) {
+          const average = item.average || 0;
+          result[key] = parseFloat((value - average).toFixed(2));
+        }
+      });
+      
+      return result;
+    });
   };
 
   const recentData = getRecentData();
+
+  // Update visibility state when changing tabs
+  useEffect(() => {
+    if (localActiveTab === 'recent' && !isCiaUser) {
+      // Make sure all BMUs have proper visibility state
+      const newVisibilityState = { ...visibilityState };
+      Object.keys(siteColors).forEach(site => {
+        if (site !== 'average' && !newVisibilityState[site]) {
+          newVisibilityState[site] = { opacity: site === bmu ? 1 : 0.2 };
+        }
+      });
+      setVisibilityState(newVisibilityState);
+    }
+  }, [localActiveTab, isCiaUser, siteColors, bmu]);
 
   if (loading) return <LoadingState />;
   if (!chartData || chartData.length === 0) {
@@ -724,9 +792,66 @@ export default function CatchMetricsChart({
                   }}
                 />
                 <Tooltip
-                  content={(props: any) => (
-                    <CustomTooltip {...props} selectedMetric={selectedMetric} />
-                  )}
+                  content={(props: any) => {
+                    if (!props.active || !props.payload) return null;
+                    
+                    const date = new Date(props.label as number);
+                    
+                    return (
+                      <div className="bg-white p-4 border border-gray-200 shadow-lg rounded-lg">
+                        <p className="text-sm font-medium text-gray-600 mb-2">
+                          {date.toLocaleDateString("en-US", {
+                            month: "long",
+                            year: "numeric",
+                          })}
+                        </p>
+                        {/* Show average first if it exists */}
+                        {!isCiaUser && (
+                          <div className="flex items-center gap-2 mb-1">
+                            <div
+                              className="w-2 h-2 rounded-full"
+                              style={{ backgroundColor: "#000000" }}
+                            />
+                            <p className="text-sm">
+                              <span className="font-medium">
+                                Average of all BMUs:
+                              </span>{" "}
+                              {typeof props.payload[0]?.payload?.average === 'number' 
+                                ? props.payload[0].payload.average.toFixed(1) 
+                                : "N/A"}
+                            </p>
+                          </div>
+                        )}
+                        
+                        {/* Show all BMUs */}
+                        {Object.entries(siteColors)
+                          .filter(([site]) => site !== "average") // Skip average since we added it separately
+                          .map(([site, color]) => {
+                            // Find the value for this site in the payload
+                            const entry = props.payload?.find((p: any) => p.dataKey === site);
+                            const value = entry?.value;
+                            
+                            // Skip if value is undefined (not in the data)
+                            if (value === undefined) return null;
+                            
+                            return (
+                              <div key={site} className="flex items-center gap-2">
+                                <div
+                                  className="w-2 h-2 rounded-full"
+                                  style={{ backgroundColor: color }}
+                                />
+                                <p className="text-sm">
+                                  <span className="font-medium">
+                                    {site}:
+                                  </span>{" "}
+                                  {typeof value === 'number' ? value.toFixed(1) : value}
+                                </p>
+                              </div>
+                            );
+                          }).filter(Boolean)}
+                      </div>
+                    );
+                  }}
                 />
                 <Legend content={CustomLegend} />
                 {Object.entries(siteColors)
@@ -773,7 +898,7 @@ export default function CatchMetricsChart({
               height="100%"
               {...(isTablet && { minWidth: "700px" })}
             >
-              <ComposedChart
+              <BarChart
                 data={recentData}
                 margin={{
                   left: 35,
@@ -813,7 +938,9 @@ export default function CatchMetricsChart({
                   tick={CustomYAxisTick}
                   width={60}
                   label={{
-                    value: selectedMetricOption?.unit,
+                    value: isCiaUser 
+                      ? selectedMetricOption?.unit 
+                      : `Difference from average (${selectedMetricOption?.unit})`,
                     angle: -90,
                     position: "insideLeft",
                     offset: -20,
@@ -825,40 +952,77 @@ export default function CatchMetricsChart({
                   }}
                 />
                 <Tooltip
-                  content={(props: any) => (
-                    <CustomTooltip {...props} selectedMetric={selectedMetric} />
-                  )}
+                  content={(props: any) => {
+                    if (!props.active || !props.payload) return null;
+                    
+                    const date = new Date(props.label as number);
+                    
+                    return (
+                      <div className="bg-white p-4 border border-gray-200 shadow-lg rounded-lg">
+                        <p className="text-sm font-medium text-gray-600 mb-2">
+                          {date.toLocaleDateString("en-US", {
+                            month: "long",
+                            year: "numeric",
+                          })}
+                        </p>
+                        {/* Show all BMUs */}
+                        {Object.entries(siteColors)
+                          .filter(([site]) => site !== "average") // Skip average
+                          .map(([site, color]) => {
+                            // Find the value for this site in the payload
+                            const entry = props.payload?.find((p: {dataKey: string}) => p.dataKey === site);
+                            const value = entry?.value;
+                            
+                            // Skip if value is undefined (not in the data)
+                            if (value === undefined) return null;
+                            
+                            return (
+                              <div key={site} className="flex items-center gap-2">
+                                <div
+                                  className="w-2 h-2 rounded-full"
+                                  style={{ backgroundColor: color }}
+                                />
+                                <p className="text-sm">
+                                  <span className="font-medium">
+                                    {site}:
+                                  </span>{" "}
+                                  {typeof value === 'number' ? value.toFixed(1) : value}
+                                </p>
+                              </div>
+                            );
+                          }).filter(Boolean)}
+                      </div>
+                    );
+                  }}
                 />
                 <Legend content={CustomLegend} />
+                {!isCiaUser && (
+                  <ReferenceLine 
+                    y={0} 
+                    stroke="#666" 
+                    strokeWidth={1} 
+                    strokeDasharray="3 3"
+                  />
+                )}
+                
                 {Object.entries(siteColors)
-                  .filter(([site]) => site !== "average") // Skip average since we added it as a line
+                  .filter(([site]) => site !== "average") // Skip average
                   .map(([site, color]) => (
                     <Bar
                       key={site}
                       dataKey={site}
                       name={site}
                       fill={color}
+                      // Simple opacity based on visibility state
                       opacity={visibilityState[site]?.opacity ?? 1}
-                      radius={[4, 4, 0, 0]}
+                      // Use isAnimationActive={false} to prevent transition issues
+                      isAnimationActive={false}
+                      // Shape corners based on positive/negative values
+                      // But do it simply without custom shapes
+                      radius={isCiaUser ? [4, 4, 4, 4] : [4, 4, 4, 4]}
                     />
                   ))}
-                {/* Add average line to barchart as well - only for non-CIA users */}
-                {!isCiaUser && (
-                  <Line
-                    key="average"
-                    type="monotone"
-                    dataKey="average"
-                    name="Average of all BMUs"
-                    stroke="#000000"
-                    strokeWidth={3}
-                    dot={false}
-                    activeDot={{ r: 6, strokeWidth: 0 }}
-                    strokeDasharray="5 5"
-                    legendType="none" // Hide from auto-generated legend
-                    isAnimationActive={false}
-                  />
-                )}
-              </ComposedChart>
+              </BarChart>
             </ResponsiveContainer>
           </div>
         </SimpleBar>
