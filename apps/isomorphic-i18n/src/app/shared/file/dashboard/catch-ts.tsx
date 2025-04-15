@@ -14,6 +14,7 @@ import {
   ReferenceLine,
   BarChart,
   Bar,
+  ComposedChart,
 } from "recharts";
 
 import { bmusAtom } from "@/app/components/filter-selector";
@@ -30,6 +31,7 @@ type MetricKey = "mean_effort" | "mean_cpue" | "mean_cpua" | "mean_rpue" | "mean
 
 interface ChartDataPoint {
   date: number;
+  average?: number;
   [key: string]: number | undefined;
 }
 
@@ -124,6 +126,9 @@ const METRIC_OPTIONS: MetricOption[] = [
 const generateColor = (index: number, site: string, referenceBmu: string | undefined): string => {
   if (site === referenceBmu) {
     return "#fc3468"; // Red color for reference BMU
+  }
+  if (site === "average") {
+    return "#000000"; // Black color for average line
   }
   const colors = [
     "#0c526e", // Dark blue
@@ -386,6 +391,9 @@ export default function CatchMetricsChart({
   const { data: monthlyData } = api.aggregatedCatch.monthly.useQuery({ bmus });
 
   const handleLegendClick = (site: string) => {
+    // Don't toggle visibility for the average line
+    if (site === "average") return;
+    
     setVisibilityState((prev) => ({
       ...prev,
       [site]: {
@@ -403,10 +411,12 @@ export default function CatchMetricsChart({
     if (!monthlyData) return;
 
     try {
+      // Get unique sites from the data
       const uniqueSites = Array.from(
         new Set(monthlyData.map((item: ApiDataPoint) => item.landing_site))
       );
 
+      // Create color mapping for sites
       const newSiteColors = uniqueSites.reduce<Record<string, string>>(
         (acc, site, index) => ({
           ...acc,
@@ -414,20 +424,40 @@ export default function CatchMetricsChart({
         }),
         {}
       );
+      
+      // Only add average for non-CIA users
+      if (!isCiaUser) {
+        // Add color for average line
+        newSiteColors["average"] = generateColor(0, "average", undefined);
+      }
+      
       setSiteColors(newSiteColors);
 
       // Set visibility state based on user's BMU
-      setVisibilityState(
-        uniqueSites.reduce<VisibilityState>(
-          (acc, site) => ({
-            ...acc,
-            [site as string]: { opacity: site === bmu ? 1 : 0.2 },
-          }),
-          {}
-        )
+      const initialVisibility = uniqueSites.reduce<VisibilityState>(
+        (acc, site) => ({
+          ...acc,
+          [site as string]: { opacity: site === bmu ? 1 : 0.2 },
+        }),
+        {}
       );
+      
+      // Only add average visibility for non-CIA users
+      if (!isCiaUser) {
+        // Always show average line
+        initialVisibility["average"] = { opacity: 1 };
+      }
+      
+      setVisibilityState(initialVisibility);
 
-      const groupedData = monthlyData.reduce<Record<string, ChartDataPoint>>(
+      // Filter data from 2023 onwards
+      const filteredData = monthlyData.filter((item: ApiDataPoint) => {
+        const year = new Date(item.date).getFullYear();
+        return year >= 2023;
+      });
+
+      // Group data by date
+      const groupedData = filteredData.reduce<Record<string, ChartDataPoint>>(
         (acc, item: ApiDataPoint) => {
           const date = new Date(item.date).getTime();
           if (!acc[date]) {
@@ -444,6 +474,24 @@ export default function CatchMetricsChart({
         },
         {}
       );
+
+      // Calculate average value for each date point - only for non-CIA users
+      if (!isCiaUser) {
+        Object.keys(groupedData).forEach(dateKey => {
+          const dateData = groupedData[dateKey];
+          const values = Object.entries(dateData)
+            .filter(([key, value]) => key !== "date" && value !== undefined)
+            .map(([_, value]) => value as number);
+          
+          if (values.length > 0) {
+            const avg = values.reduce((sum, val) => sum + val, 0) / values.length;
+            groupedData[dateKey].average = parseFloat(avg.toFixed(2));
+          } else {
+            // Ensure we have an average property even if it's 0
+            groupedData[dateKey].average = 0;
+          }
+        });
+      }
 
       const processedData = Object.values(groupedData).sort(
         (a, b) => a.date - b.date
@@ -471,9 +519,30 @@ export default function CatchMetricsChart({
   }, [monthlyData, selectedMetric, bmu]);
 
   const CustomLegend = ({ payload }: any) => {
+    // Filter out the auto-generated average entry from the payload
+    // This prevents duplicate average entries in the legend
+    const customPayload = payload?.filter((entry: any) => entry.dataKey !== "average");
+    
     return (
       <div className="flex flex-wrap gap-4 justify-center mt-2">
-        {payload?.map((entry: any) => (
+        {/* Average entry first - only show for non-CIA users */}
+        {!isCiaUser && (
+          <div
+            key="average"
+            className="flex items-center gap-2 cursor-default select-none"
+          >
+            <div
+              className="w-3 h-3 rounded-full"
+              style={{
+                backgroundColor: "#000000",
+              }}
+            />
+            <span className="text-sm font-medium">Average of all BMUs</span>
+          </div>
+        )}
+        
+        {/* Other BMUs */}
+        {customPayload?.map((entry: any) => (
           <div
             key={entry.value}
             className="flex items-center gap-2 cursor-pointer select-none transition-all duration-200"
@@ -590,7 +659,7 @@ export default function CatchMetricsChart({
               height="100%"
               {...(isTablet && { minWidth: "700px" })}
             >
-              <AreaChart
+              <ComposedChart
                 data={chartData}
                 margin={{
                   left: 35,
@@ -660,20 +729,38 @@ export default function CatchMetricsChart({
                   )}
                 />
                 <Legend content={CustomLegend} />
-                {Object.entries(siteColors).map(([site, color]) => (
-                  <Area
-                    key={site}
+                {Object.entries(siteColors)
+                  .filter(([site]) => site !== "average") // Skip average since we added it separately
+                  .map(([site, color]) => (
+                    <Area
+                      key={site}
+                      type="monotone"
+                      dataKey={site}
+                      name={site}
+                      stroke={color}
+                      strokeWidth={2}
+                      fillOpacity={visibilityState[site]?.opacity ?? 1}
+                      strokeOpacity={visibilityState[site]?.opacity ?? 1}
+                      fill={`url(#${site}_gradient)`}
+                    />
+                  ))}
+                {/* Add average line on top of everything else - only for non-CIA users */}
+                {!isCiaUser && (
+                  <Line
+                    key="average"
                     type="monotone"
-                    dataKey={site}
-                    name={site}
-                    stroke={color}
-                    strokeWidth={2}
-                    fillOpacity={visibilityState[site]?.opacity ?? 1}
-                    strokeOpacity={visibilityState[site]?.opacity ?? 1}
-                    fill={`url(#${site}_gradient)`}
+                    dataKey="average"
+                    name="Average of all BMUs"
+                    stroke="#000000"
+                    strokeWidth={3}
+                    dot={false}
+                    activeDot={{ r: 6, strokeWidth: 0 }}
+                    strokeDasharray="5 5"
+                    legendType="none" // Hide from auto-generated legend
+                    isAnimationActive={false}
                   />
-                ))}
-              </AreaChart>
+                )}
+              </ComposedChart>
             </ResponsiveContainer>
           </div>
         </SimpleBar>
@@ -686,7 +773,7 @@ export default function CatchMetricsChart({
               height="100%"
               {...(isTablet && { minWidth: "700px" })}
             >
-              <BarChart
+              <ComposedChart
                 data={recentData}
                 margin={{
                   left: 35,
@@ -743,17 +830,35 @@ export default function CatchMetricsChart({
                   )}
                 />
                 <Legend content={CustomLegend} />
-                {Object.entries(siteColors).map(([site, color]) => (
-                  <Bar
-                    key={site}
-                    dataKey={site}
-                    name={site}
-                    fill={color}
-                    opacity={visibilityState[site]?.opacity ?? 1}
-                    radius={[4, 4, 0, 0]}
+                {Object.entries(siteColors)
+                  .filter(([site]) => site !== "average") // Skip average since we added it as a line
+                  .map(([site, color]) => (
+                    <Bar
+                      key={site}
+                      dataKey={site}
+                      name={site}
+                      fill={color}
+                      opacity={visibilityState[site]?.opacity ?? 1}
+                      radius={[4, 4, 0, 0]}
+                    />
+                  ))}
+                {/* Add average line to barchart as well - only for non-CIA users */}
+                {!isCiaUser && (
+                  <Line
+                    key="average"
+                    type="monotone"
+                    dataKey="average"
+                    name="Average of all BMUs"
+                    stroke="#000000"
+                    strokeWidth={3}
+                    dot={false}
+                    activeDot={{ r: 6, strokeWidth: 0 }}
+                    strokeDasharray="5 5"
+                    legendType="none" // Hide from auto-generated legend
+                    isAnimationActive={false}
                   />
-                ))}
-              </BarChart>
+                )}
+              </ComposedChart>
             </ResponsiveContainer>
           </div>
         </SimpleBar>
