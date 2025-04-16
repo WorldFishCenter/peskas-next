@@ -297,12 +297,22 @@ export default function CatchMetricsChart({
             />
           </div>
           <div className="hidden sm:block text-base font-medium text-gray-800 mx-auto">
-            {localActiveTab === 'trends' || localActiveTab === 'standard' 
-              ? 'Monthly Trends Over Time'
-              : localActiveTab === 'comparison' || localActiveTab === 'recent'
-                ? 'Performance vs. Average' 
-                : 'Yearly Summary'
-            }
+            <div className="text-center">
+              {localActiveTab === 'trends' || localActiveTab === 'standard' 
+                ? 'Monthly Trends Over Time'
+                : localActiveTab === 'comparison' || localActiveTab === 'recent'
+                  ? 'Performance vs. Average' 
+                  : 'Yearly Summary'
+              }
+            </div>
+            <div className="text-xs text-gray-500 text-center mt-1">
+              {localActiveTab === 'trends' || localActiveTab === 'standard' 
+                ? 'Shows how metrics change month by month'
+                : localActiveTab === 'comparison' || localActiveTab === 'recent'
+                  ? 'Shows values compared to 6-month average' 
+                  : 'Shows average values per year'
+              }
+            </div>
           </div>
           {!isCiaUser && (
             <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
@@ -331,13 +341,23 @@ export default function CatchMetricsChart({
       className={className}
     >
       {/* Mobile-only title - shows on small screens */}
-      <div className="sm:hidden text-center text-base font-medium text-gray-800 mb-4">
-        {localActiveTab === 'trends' || localActiveTab === 'standard' 
-          ? 'Monthly Trends Over Time'
-          : localActiveTab === 'comparison' || localActiveTab === 'recent'
-            ? 'Performance vs. Average' 
-            : 'Yearly Summary'
-        }
+      <div className="sm:hidden text-center mb-4">
+        <div className="text-base font-medium text-gray-800">
+          {localActiveTab === 'trends' || localActiveTab === 'standard' 
+            ? 'Monthly Trends Over Time'
+            : localActiveTab === 'comparison' || localActiveTab === 'recent'
+              ? 'Performance vs. Average' 
+              : 'Yearly Summary'
+          }
+        </div>
+        <div className="text-xs text-gray-500 mt-1">
+          {localActiveTab === 'trends' || localActiveTab === 'standard' 
+            ? 'Shows how metrics change month by month'
+            : localActiveTab === 'comparison' || localActiveTab === 'recent'
+              ? 'Shows values compared to 6-month average' 
+              : 'Shows average values per year'
+          }
+        </div>
       </div>
       
       {/* Trends Chart */}
