@@ -296,6 +296,14 @@ export default function CatchMetricsChart({
               selectedMetricOption={selectedMetricOption}
             />
           </div>
+          <div className="hidden sm:block text-base font-medium text-gray-800 mx-auto">
+            {localActiveTab === 'trends' || localActiveTab === 'standard' 
+              ? 'Monthly Trends Over Time'
+              : localActiveTab === 'comparison' || localActiveTab === 'recent'
+                ? 'Performance vs. Average' 
+                : 'Yearly Summary'
+            }
+          </div>
           {!isCiaUser && (
             <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
               <button
@@ -322,6 +330,16 @@ export default function CatchMetricsChart({
       }
       className={className}
     >
+      {/* Mobile-only title - shows on small screens */}
+      <div className="sm:hidden text-center text-base font-medium text-gray-800 mb-4">
+        {localActiveTab === 'trends' || localActiveTab === 'standard' 
+          ? 'Monthly Trends Over Time'
+          : localActiveTab === 'comparison' || localActiveTab === 'recent'
+            ? 'Performance vs. Average' 
+            : 'Yearly Summary'
+        }
+      </div>
+      
       {/* Trends Chart */}
       {(localActiveTab === 'trends' || localActiveTab === 'standard') && (
         <SimpleBar>
