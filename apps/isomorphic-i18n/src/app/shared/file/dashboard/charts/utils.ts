@@ -35,15 +35,15 @@ export const calculateTrendline = (data: { date: number; difference?: number }[]
   if (data.length === 0) return { slope: 0, intercept: 0 };
 
   // Calculate means
-  const meanX = data.reduce((sum, point) => sum + point.date, 0) / data.length;
-  const meanY = data.reduce((sum, point) => sum + (point.difference ?? 0), 0) / data.length;
+  const meanX = data.reduce((sum: number, point) => sum + point.date, 0) / data.length;
+  const meanY = data.reduce((sum: number, point) => sum + (point.difference ?? 0), 0) / data.length;
 
   // Calculate slope using covariance and variance
-  const numerator = data.reduce((sum, point) => {
+  const numerator = data.reduce((sum: number, point) => {
     return sum + (point.date - meanX) * ((point.difference ?? 0) - meanY);
   }, 0);
 
-  const denominator = data.reduce((sum, point) => {
+  const denominator = data.reduce((sum: number, point) => {
     return sum + Math.pow(point.date - meanX, 2);
   }, 0);
 
@@ -96,13 +96,13 @@ export const getRecentData = (chartData: ChartDataPoint[], isCiaUser: boolean) =
       .filter(value => value !== undefined && value !== null);
     
     if (values.length > 0) {
-      const sum = values.reduce((acc, val) => acc + (val as number), 0);
+      const sum = values.reduce((acc: number, val) => acc + (val as number), 0);
       bmuSixMonthAverages[bmu as string] = sum / values.length;
     }
   });
   
   // Overall average across all BMUs for the 6-month period
-  const overallAverage = Object.values(bmuSixMonthAverages).reduce((sum, avg) => sum + avg, 0) / 
+  const overallAverage = Object.values(bmuSixMonthAverages).reduce((sum: number, avg) => sum + avg, 0) / 
                          Object.values(bmuSixMonthAverages).length || 0;
   
   // For each month, calculate the difference from the 6-month average
@@ -198,7 +198,7 @@ export const getAnnualData = (chartData: ChartDataPoint[], isCiaUser: boolean, s
         .filter(val => val > 0); // Only consider positive values
         
       if (bmuValues.length > 0) {
-        yearResult.average = bmuValues.reduce((sum, val) => sum + val, 0) / bmuValues.length;
+        yearResult.average = bmuValues.reduce((sum: number, val) => sum + val, 0) / bmuValues.length;
       } else {
         yearResult.average = 0;
       }
