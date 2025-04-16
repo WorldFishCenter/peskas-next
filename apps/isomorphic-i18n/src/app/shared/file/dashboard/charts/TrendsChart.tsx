@@ -139,11 +139,12 @@ export default function TrendsChart({
               type="monotone"
               dataKey="average"
               stroke="#000000"
-              strokeWidth={2}
+              strokeWidth={4}
               fill="none"
               dot={false}
               activeDot={{ r: 6, strokeWidth: 0 }}
               strokeOpacity={visibilityState["average"]?.opacity}
+              strokeDasharray="5 5"
             />
           )}
           
