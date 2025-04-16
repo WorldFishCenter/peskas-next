@@ -126,29 +126,40 @@ const LoadingState = () => {
   );
 };
 
-const CustomLegend = ({ payload, visibilityState, handleLegendClick }: any) => (
-  <div className="flex flex-wrap gap-2 justify-center mx-auto max-w-full">
-    {payload?.map((entry: any, index: number) => (
-      <div
-        key={entry.value}
-        className={cn(
-          "flex items-center gap-1 px-2 py-1 rounded cursor-pointer select-none transition-all duration-200",
-          "hover:bg-gray-50",
-          visibilityState[entry.dataKey]?.opacity === 1 
-            ? "opacity-100" 
-            : "opacity-40 hover:opacity-75"
-        )}
-        onClick={() => handleLegendClick(entry.dataKey)}
-      >
-        <div
-          className="w-3 h-3 rounded-full transition-all duration-200"
-          style={{ backgroundColor: entry.color }}
-        />
-        <span className="text-xs font-medium">{entry.value}</span>
-      </div>
-    ))}
-  </div>
-);
+const CustomLegend = ({ payload, visibilityState, handleLegendClick, siteColors, localActiveTab }: any) => {
+  // Helper function to safely get the site key from an entry
+  const getSiteKey = (entry: any): string => {
+    return entry.dataKey || entry.value || entry.name || '';
+  };
+  
+  // Helper function to safely get opacity
+  const getOpacity = (entry: any): number => {
+    const key = getSiteKey(entry);
+    return visibilityState[key]?.opacity ?? 1;
+  };
+
+  return (
+    <div className="flex flex-wrap gap-2 justify-center mt-2">
+      {payload?.map((entry: any) => {
+        const siteKey = getSiteKey(entry);
+        return (
+          <div
+            key={siteKey || entry.value || Math.random().toString()}
+            className="flex items-center gap-2 cursor-pointer select-none transition-all duration-200"
+            onClick={() => handleLegendClick(siteKey)}
+            style={{ opacity: getOpacity(entry) }}
+          >
+            <div
+              className="w-3 h-3 rounded-full transition-all duration-200"
+              style={{ backgroundColor: entry.color }}
+            />
+            <span className="text-sm font-medium">{entry.value}</span>
+          </div>
+        );
+      })}
+    </div>
+  );
+};
 
 export default function CatchRadarChart({
   className,
@@ -459,6 +470,8 @@ export default function CatchRadarChart({
                     {...props}
                     visibilityState={visibilityState}
                     handleLegendClick={handleLegendClick}
+                    siteColors={siteColors}
+                    localActiveTab={activeTab}
                   />
                 )}
                 verticalAlign="bottom"
