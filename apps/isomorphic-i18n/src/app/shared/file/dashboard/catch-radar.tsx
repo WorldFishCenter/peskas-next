@@ -17,6 +17,7 @@ import { bmusAtom } from "@/app/components/filter-selector";
 import { useTranslation } from "@/app/i18n/client";
 import { api } from "@/trpc/react";
 import cn from "@utils/class-names";
+import { useSession } from "next-auth/react";
 
 type MetricKey =
   | "mean_effort"
@@ -115,7 +116,7 @@ const CustomTooltip = ({ active, payload, metric }: any) => {
 
 const LoadingState = () => {
   return (
-    <WidgetCard title="Catch Metrics">
+    <WidgetCard title="">
       <div className="h-96 w-full flex items-center justify-center">
         <div className="flex flex-col items-center gap-2">
           <div className="w-8 h-8 border-4 border-gray-200 border-t-gray-500 rounded-full animate-spin" />
@@ -176,6 +177,10 @@ export default function CatchRadarChart({
 }) {
   const { t } = useTranslation(lang!);
   const [bmus] = useAtom(bmusAtom);
+  const { data: session } = useSession();
+  
+  // Determine if the user is part of the CIA group
+  const isCiaUser = session?.user?.groups?.some((group: { name: string }) => group.name === 'CIA');
 
   const [data, setData] = useState<RadarData[]>([]);
   const [loading, setLoading] = useState(true);
@@ -396,91 +401,109 @@ export default function CatchRadarChart({
   }
 
   return (
-    <WidgetCard 
+    <WidgetCard
       title={getMetricLabel(selectedMetric)}
-      className={cn(className)}
+      className={cn("h-full", className)}
     >
-      <div className="h-96 w-full">
-        <ResponsiveContainer width="100%" height="100%">
-          <RadarChart
-            data={data}
-            margin={{ top: 0, right: 0, bottom: 0, left: 0 }}
-            className="w-full h-full"
-            outerRadius="95%"
-            cx="50%"
-            cy="47%"
-          >
-            <PolarGrid 
-              gridType="polygon" 
-              strokeWidth={0.5} 
-              stroke="#e2e8f0" 
-              strokeDasharray="3 3"
-            />
-            <PolarAngleAxis
-              dataKey={data[0]?.monthDisplay ? "monthDisplay" : "month"}
-              tick={{ fill: "#64748b", fontSize: 11, fontWeight: 400 }}
-              tickLine={false}
-              stroke="#cbd5e1"
-              strokeWidth={0.5}
-            />
-            <PolarRadiusAxis
-              angle={90}
-              domain={activeTab === 'differenced' ? ['auto', 'auto'] : [0, 'auto']}
-              tick={{ fill: "#64748b", fontSize: 10 }}
-              tickCount={5}
-              axisLine={false}
-              stroke="#cbd5e1"
-              strokeDasharray="3 3"
-              strokeWidth={0.5}
-            />
-            {Object.entries(siteColors).map(([site, color]) => {
-              // In differenced mode, only show the selected BMU
-              if (activeTab === 'differenced' && site !== bmu) {
-                return null;
-              }
-              const opacity = visibilityState[site]?.opacity ?? 1;
-              return (
-                <Radar
-                  key={site}
-                  name={site}
-                  dataKey={site}
-                  stroke={activeTab === 'differenced' ? "#fc3468" : color}
-                  fill={activeTab === 'differenced' ? "#fc3468" : color}
-                  fillOpacity={opacity * 0.35}
-                  strokeOpacity={opacity}
-                  strokeWidth={2}
-                  dot
-                  activeDot={{ r: 6, strokeWidth: 0 }}
-                  animationBegin={0}
-                  animationDuration={1000}
-                  animationEasing="ease-out"
-                />
-              );
-            })}
-            <Tooltip
-              content={(props) => (
-                <CustomTooltip {...props} metric={selectedMetric} />
-              )}
-              wrapperStyle={{ outline: 'none' }}
-            />
-            {activeTab !== 'differenced' && (
-              <Legend
-                content={(props) => (
-                  <CustomLegend
-                    {...props}
-                    visibilityState={visibilityState}
-                    handleLegendClick={handleLegendClick}
-                    siteColors={siteColors}
-                    localActiveTab={activeTab}
-                  />
-                )}
-                verticalAlign="bottom"
-                align="center"
-                wrapperStyle={{ position: 'absolute', bottom: '-15px', left: 0, right: 0 }}
+      <div className="h-96 w-full flex items-center justify-center">
+        {/* Error state */}
+        {error && (
+          <div className="text-sm text-gray-500 flex items-center justify-center h-full">
+            {error}
+          </div>
+        )}
+
+        {/* Loading state */}
+        {loading && !error && (
+          <div className="flex items-center justify-center h-full">
+            <div className="w-8 h-8 border-4 border-gray-200 border-t-gray-500 rounded-full animate-spin" />
+          </div>
+        )}
+
+        {/* Render chart if data is available */}
+        {!loading && !error && data.length > 0 && (
+          <ResponsiveContainer width="100%" height="100%">
+            <RadarChart
+              data={data}
+              margin={{ top: 0, right: 0, bottom: 0, left: 0 }}
+              className="w-full h-full"
+              outerRadius="95%"
+              cx="50%"
+              cy="47%"
+            >
+              <PolarGrid 
+                gridType="polygon" 
+                strokeWidth={0.5} 
+                stroke="#e2e8f0" 
+                strokeDasharray="3 3"
               />
-            )}
-          </RadarChart>
-        </ResponsiveContainer>
+              <PolarAngleAxis
+                dataKey={data[0]?.monthDisplay ? "monthDisplay" : "month"}
+                tick={{ fill: "#64748b", fontSize: 11, fontWeight: 400 }}
+                tickLine={false}
+                stroke="#cbd5e1"
+                strokeWidth={0.5}
+              />
+              <PolarRadiusAxis
+                angle={90}
+                domain={activeTab === 'differenced' ? ['auto', 'auto'] : [0, 'auto']}
+                tick={{ fill: "#64748b", fontSize: 10 }}
+                tickCount={5}
+                axisLine={false}
+                stroke="#cbd5e1"
+                strokeDasharray="3 3"
+                strokeWidth={0.5}
+              />
+              {Object.entries(siteColors).map(([site, color]) => {
+                // In differenced mode, only show the selected BMU
+                if (activeTab === 'differenced' && site !== bmu) {
+                  return null;
+                }
+                const opacity = visibilityState[site]?.opacity ?? 1;
+                return (
+                  <Radar
+                    key={site}
+                    name={site}
+                    dataKey={site}
+                    stroke={activeTab === 'differenced' ? "#fc3468" : color}
+                    fill={activeTab === 'differenced' ? "#fc3468" : color}
+                    fillOpacity={opacity * 0.35}
+                    strokeOpacity={opacity}
+                    strokeWidth={2}
+                    dot
+                    activeDot={{ r: 6, strokeWidth: 0 }}
+                    animationBegin={0}
+                    animationDuration={1000}
+                    animationEasing="ease-out"
+                  />
+                );
+              })}
+              <Tooltip
+                content={(props) => (
+                  <CustomTooltip {...props} metric={selectedMetric} />
+                )}
+                wrapperStyle={{ outline: 'none' }}
+              />
+              {activeTab !== 'differenced' && (
+                <Legend
+                  content={(props) => (
+                    <CustomLegend
+                      {...props}
+                      visibilityState={visibilityState}
+                      handleLegendClick={handleLegendClick}
+                      siteColors={siteColors}
+                      localActiveTab={activeTab}
+                      isCiaUser={isCiaUser}
+                    />
+                  )}
+                  verticalAlign="bottom"
+                  align="center"
+                  wrapperStyle={{ position: 'absolute', bottom: '-15px', left: 0, right: 0 }}
+                />
+              )}
+            </RadarChart>
+          </ResponsiveContainer>
+        )}
       </div>
     </WidgetCard>
   );

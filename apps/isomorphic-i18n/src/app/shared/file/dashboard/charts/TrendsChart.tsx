@@ -11,6 +11,7 @@ import {
 import { format } from "date-fns";
 import { ChartDataPoint, MetricOption, VisibilityState } from "./types";
 import { CustomYAxisTick } from "./components";
+import { useTranslation } from "@/app/i18n/client";
 
 interface TrendsChartProps {
   chartData: ChartDataPoint[];
@@ -33,6 +34,8 @@ export default function TrendsChart({
   fiveYearMarks,
   CustomLegend,
 }: TrendsChartProps) {
+  const { t } = useTranslation("common");
+  
   // Format date for X-axis ticks
   const formatDate = (timestamp: number) => {
     const date = new Date(timestamp);
@@ -88,7 +91,7 @@ export default function TrendsChart({
                     style={{ backgroundColor: entry.color }}
                   />
                   <p className="text-sm">
-                    <span className="font-medium">{entry.dataKey}:</span>{" "}
+                    <span className="font-medium">{entry.dataKey === "average" ? t("text-average-of-all-bmus") : entry.dataKey}:</span>{" "}
                     {entry.value?.toFixed(1)}
                   </p>
                 </div>
@@ -145,6 +148,7 @@ export default function TrendsChart({
               activeDot={{ r: 6, strokeWidth: 0 }}
               strokeOpacity={visibilityState["average"]?.opacity}
               strokeDasharray="5 5"
+              name={t("text-average-of-all-bmus")}
             />
           )}
           

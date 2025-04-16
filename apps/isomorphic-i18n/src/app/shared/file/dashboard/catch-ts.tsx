@@ -307,6 +307,10 @@ const CustomTooltip = ({
   visibilityState,
 }: TooltipProps) => {
   const { data: session } = useSession();
+  
+  // Determine if the user is part of the CIA group
+  const isCiaUser = session?.user?.groups?.some((group: { name: string }) => group.name === 'CIA');
+  
   if (active && payload?.length) {
     const date = new Date(label as number);
 
@@ -319,7 +323,7 @@ const CustomTooltip = ({
           })}
         </p>
         {/* Show average for non-CIA users */}
-        {session?.user?.groups?.some((group: { name: string }) => group.name !== 'CIA') && (
+        {!isCiaUser && payload[0]?.payload?.average !== undefined && (
           <div className="flex items-center gap-2 mb-2">
             <div
               className="w-2 h-2 rounded-full"
@@ -515,11 +519,11 @@ export default function CatchMetricsChart({
 
       // Set visibility state based on user's BMU
       const initialVisibility = uniqueSites.reduce<VisibilityState>(
-        (acc, site) => ({
-          ...acc,
-          [site as string]: { opacity: site === bmu ? 1 : 0.2 },
-        }),
-        {}
+          (acc, site) => ({
+            ...acc,
+            [site as string]: { opacity: site === bmu ? 1 : 0.2 },
+          }),
+          {}
       );
       
       // For Comparison tab, add visibility for positive and negative variants
@@ -943,82 +947,33 @@ export default function CatchMetricsChart({
                   }}
                 />
                 <Tooltip
-                  content={(props: any) => {
-                    if (!props.active || !props.payload) return null;
-                    
-                    const date = new Date(props.label as number);
-                    
-                    return (
-                      <div className="bg-white p-4 border border-gray-200 shadow-lg rounded-lg">
-                        <p className="text-sm font-medium text-gray-600 mb-2">
-                          {date.toLocaleDateString("en-US", {
-                            month: "long",
-                            year: "numeric",
-                          })}
-                        </p>
-                        {/* Show average for non-CIA users */}
-                        {!isCiaUser && props.payload[0]?.payload?.average !== undefined ? (
-                          <div className="flex items-center gap-2 mb-2">
-                            <div
-                              className="w-2 h-2 rounded-full"
-                              style={{ backgroundColor: "#000000" }}
-                            />
-                            <p className="text-sm">
-                              <span className="font-medium">
-                                Average of all BMUs:
-                              </span>{" "}
-                              {typeof props.payload[0]?.payload?.average === 'number' 
-                                ? props.payload[0].payload.average.toFixed(1) 
-                                : "N/A"}
-                            </p>
-                          </div>
-                        ) : null}
-                        {/* Show all BMUs */}
-                        {Object.entries(siteColors)
-                          .filter(([site]) => site !== "average") // Skip average since we added it separately
-                          .map(([site, color]) => {
-                            // Find the value for this site in the payload
-                            const entry = props.payload?.find((p: any) => p.dataKey === site);
-                            const value = entry?.value;
-                            
-                            // Skip if value is undefined (not in the data)
-                            if (value === undefined) return null;
-                            
-                            return (
-                              <div key={site} className="flex items-center gap-2">
-                                <div
-                                  className="w-2 h-2 rounded-full"
-                                  style={{ backgroundColor: color }}
-                                />
-                                <p className="text-sm">
-                                  <span className="font-medium">
-                                    {site}:
-                                  </span>{" "}
-                                  {typeof value === 'number' ? value.toFixed(1) : value}
-                                </p>
-                              </div>
-                            );
-                          }).filter(Boolean)}
-                      </div>
-                    );
+                  content={(props) => {
+                    // Add necessary props
+                    const customProps = {
+                      ...props,
+                      selectedMetric,
+                      selectedMetricOption,
+                    };
+                    // @ts-ignore - casting tooltip props
+                    return <CustomTooltip {...customProps} />;
                   }}
                 />
                 <Legend content={CustomLegend} />
                 {Object.entries(siteColors)
                   .filter(([site]) => site !== "average") // Skip average since we added it separately
                   .map(([site, color]) => (
-                    <Area
-                      key={site}
-                      type="monotone"
-                      dataKey={site}
-                      name={site}
-                      stroke={color}
-                      strokeWidth={2}
-                      fillOpacity={visibilityState[site]?.opacity ?? 1}
-                      strokeOpacity={visibilityState[site]?.opacity ?? 1}
-                      fill={`url(#${site}_gradient)`}
-                    />
-                  ))}
+                  <Area
+                    key={site}
+                    type="monotone"
+                    dataKey={site}
+                    name={site}
+                    stroke={color}
+                    strokeWidth={2}
+                    fillOpacity={visibilityState[site]?.opacity ?? 1}
+                    strokeOpacity={visibilityState[site]?.opacity ?? 1}
+                    fill={`url(#${site}_gradient)`}
+                  />
+                ))}
                 {/* Only add the average line for the Trends tab and non-CIA users */}
                 {!isCiaUser && (String(localActiveTab) === 'trends' || String(localActiveTab) === 'standard') && (
                   <Line
@@ -1104,64 +1059,15 @@ export default function CatchMetricsChart({
                   }}
                 />
                 <Tooltip
-                  content={(props: any) => {
-                    if (!props.active || !props.payload) return null;
-                    
-                    const date = new Date(props.label);
-                    
-                    return (
-                      <div className="bg-white p-4 border border-gray-200 shadow-lg rounded-lg">
-                        <p className="text-sm font-medium text-gray-600 mb-2">
-                          {date.toLocaleDateString("en-US", {
-                            month: "long",
-                            year: "numeric",
-                          })}
-                        </p>
-                        {/* Show average for non-CIA users */}
-                        {!isCiaUser && props.payload[0]?.payload?.average !== undefined ? (
-                          <div className="flex items-center gap-2 mb-2">
-                            <div
-                              className="w-2 h-2 rounded-full"
-                              style={{ backgroundColor: "#000000" }}
-                            />
-                            <p className="text-sm">
-                              <span className="font-medium">
-                                Average of all BMUs:
-                              </span>{" "}
-                              {typeof props.payload[0]?.payload?.average === 'number' 
-                                ? props.payload[0].payload.average.toFixed(1) 
-                                : "N/A"}
-                            </p>
-                          </div>
-                        ) : null}
-                        {/* Show all BMUs */}
-                        {Object.entries(siteColors)
-                          .filter(([site]) => site !== "average") // Skip average
-                          .map(([site, color]) => {
-                            // Find the value for this site in the payload
-                            const entry = props.payload?.find((p: {dataKey: string}) => p.dataKey === site);
-                            const value = entry?.value;
-                            
-                            // Skip if value is undefined (not in the data)
-                            if (value === undefined) return null;
-                            
-                            return (
-                              <div key={site} className="flex items-center gap-2">
-                                <div
-                                  className="w-2 h-2 rounded-full"
-                                  style={{ backgroundColor: color }}
-                                />
-                                <p className="text-sm">
-                                  <span className="font-medium">
-                                    {site}:
-                                  </span>{" "}
-                                  {typeof value === 'number' ? value.toFixed(1) : value}
-                                </p>
-                              </div>
-                            );
-                          }).filter(Boolean)}
-                      </div>
-                    );
+                  content={(props) => {
+                    // Add necessary props
+                    const customProps = {
+                      ...props,
+                      selectedMetric,
+                      selectedMetricOption,
+                    };
+                    // @ts-ignore - casting tooltip props
+                    return <CustomTooltip {...customProps} />;
                   }}
                 />
                 <Legend content={CustomLegend} />
@@ -1249,44 +1155,15 @@ export default function CatchMetricsChart({
                   }}
                 />
                 <Tooltip
-                  content={(props: any) => {
-                    if (!props.active || !props.payload) return null;
-                    
-                    const date = new Date(props.label);
-                    
-                    return (
-                      <div className="bg-white p-4 border border-gray-200 shadow-lg rounded-lg">
-                        <p className="text-sm font-medium text-gray-600 mb-2">
-                          {date.getFullYear()}
-                        </p>
-                        {/* Show all BMUs */}
-                        {Object.entries(siteColors)
-                          .filter(([site]) => site !== "average") // Skip average
-                          .map(([site, color]) => {
-                            // Find the value for this site in the payload
-                            const entry = props.payload?.find((p: {dataKey: string}) => p.dataKey === site);
-                            const value = entry?.value;
-                            
-                            // Skip if value is undefined (not in the data)
-                            if (value === undefined) return null;
-                            
-                            return (
-                              <div key={site} className="flex items-center gap-2">
-                                <div
-                                  className="w-2 h-2 rounded-full"
-                                  style={{ backgroundColor: color }}
-                                />
-                                <p className="text-sm">
-                                  <span className="font-medium">
-                                    {site}:
-                                  </span>{" "}
-                                  {typeof value === 'number' ? value.toFixed(1) : value}
-                                </p>
-                              </div>
-                            );
-                          }).filter(Boolean)}
-                      </div>
-                    );
+                  content={(props) => {
+                    // Add necessary props
+                    const customProps = {
+                      ...props,
+                      selectedMetric,
+                      selectedMetricOption,
+                    };
+                    // @ts-ignore - casting tooltip props
+                    return <CustomTooltip {...customProps} />;
                   }}
                 />
                 <Legend content={CustomLegend} />
@@ -1310,16 +1187,16 @@ export default function CatchMetricsChart({
                 {Object.entries(siteColors)
                   .filter(([site]) => site !== "average") // Skip average
                   .map(([site, color]) => (
-                    <Bar
-                      key={site}
-                      dataKey={site}
-                      name={site}
-                      fill={color}
-                      opacity={visibilityState[site]?.opacity ?? 1}
+                  <Bar
+                    key={site}
+                    dataKey={site}
+                    name={site}
+                    fill={color}
+                    opacity={visibilityState[site]?.opacity ?? 1}
                       isAnimationActive={false}
-                      radius={[4, 4, 0, 0]}
-                    />
-                  ))}
+                    radius={[4, 4, 0, 0]}
+                  />
+                ))}
               </BarChart>
             </ResponsiveContainer>
           </div>

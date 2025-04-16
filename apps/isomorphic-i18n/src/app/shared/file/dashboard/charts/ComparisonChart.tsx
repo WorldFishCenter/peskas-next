@@ -13,6 +13,7 @@ import { format } from "date-fns";
 import { ChartDataPoint, MetricOption, VisibilityState } from "./types";
 import { CustomYAxisTick } from "./components";
 import { getBarColor } from "./utils";
+import { useTranslation } from "@/app/i18n/client";
 
 interface ComparisonChartProps {
   chartData: ChartDataPoint[];
@@ -31,6 +32,8 @@ export default function ComparisonChart({
   isTablet,
   CustomLegend,
 }: ComparisonChartProps) {
+  const { t } = useTranslation("common");
+  
   // Format date for X-axis ticks
   const formatDate = (timestamp: number) => {
     const date = new Date(timestamp);
@@ -70,7 +73,7 @@ export default function ComparisonChart({
                       style={{ backgroundColor: entry.color }}
                     />
                     <p className="text-sm">
-                      <span className="font-medium">{baseSite}:</span>{" "}
+                      <span className="font-medium">{baseSite === "average" ? t("text-average-of-all-bmus") : baseSite}:</span>{" "}
                       <span className={isPositive ? "text-green-600" : "text-red-600"}>
                         {prefix}{entry.value?.toFixed(1)}
                       </span>

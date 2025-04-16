@@ -894,5 +894,20 @@
   "text-metrics-catch-rate": "Catch Rate",
   "text-metrics-catch-density": "Catch Density",
   "text-metrics-fisher-revenue": "Fisher Revenue",
-  "text-metrics-area-revenue": "Area Revenue"
+  "text-metrics-area-revenue": "Area Revenue",
+  "text-monthly-trends-over-time": "Monthly Trends Over Time",
+  "text-performance-vs-average": "Performance vs Average",
+  "text-yearly-summary": "Yearly Summary",
+  "text-trends-explanation": "Shows how metrics change month by month",
+  "text-comparison-explanation": "Shows values compared to the average of 6 months",
+  "text-yearly-explanation": "Shows average values for each year",
+  "text-average-of-all-bmus": "Average of all BMUs",
+  "text-trends-tab": "Trends",
+  "text-comparison-tab": "Comparison",
+  "text-annual-tab": "Annual",
+  "text-unit-fishers-km2-day": "fishers/km²/day",
+  "text-unit-kg-fisher-day": "kg/fisher/day",
+  "text-unit-kg-km2-day": "kg/km²/day",
+  "text-unit-kes-fisher-day": "KES/fisher/day",
+  "text-unit-kes-km2-day": "KES/km²/day"
 }

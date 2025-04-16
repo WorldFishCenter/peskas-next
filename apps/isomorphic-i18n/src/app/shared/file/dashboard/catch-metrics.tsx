@@ -36,12 +36,13 @@ interface CatchMetricsChartProps {
 }
 
 const LoadingState = () => {
+  const { t } = useTranslation("common");
   return (
     <WidgetCard title="">
       <div className="h-96 w-full flex items-center justify-center">
         <div className="flex flex-col items-center gap-2">
           <div className="w-8 h-8 border-4 border-gray-200 border-t-gray-500 rounded-full animate-spin" />
-          <span className="text-sm text-gray-500">Loading chart...</span>
+          <span className="text-sm text-gray-500">{t("text-loading")}</span>
         </div>
       </div>
     </WidgetCard>
@@ -277,9 +278,9 @@ export default function CatchMetricsChart({
   if (loading) return <LoadingState />;
   if (!chartData || chartData.length === 0) {
     return (
-      <WidgetCard title="Catch Metrics">
+      <WidgetCard title={t("text-metrics-catch")}>
         <div className="h-96 w-full flex items-center justify-center">
-          <span className="text-sm text-gray-500">No data available</span>
+          <span className="text-sm text-gray-500">{t("text-no-data")}</span>
         </div>
       </WidgetCard>
     );
@@ -299,18 +300,18 @@ export default function CatchMetricsChart({
           <div className="hidden sm:block text-base font-medium text-gray-800 mx-auto">
             <div className="text-center">
               {localActiveTab === 'trends' || localActiveTab === 'standard' 
-                ? 'Monthly Trends Over Time'
+                ? t("text-monthly-trends-over-time")
                 : localActiveTab === 'comparison' || localActiveTab === 'recent'
-                  ? 'Performance vs. Average' 
-                  : 'Yearly Summary'
+                  ? t("text-performance-vs-average") 
+                  : t("text-yearly-summary")
               }
             </div>
             <div className="text-xs text-gray-500 text-center mt-1">
               {localActiveTab === 'trends' || localActiveTab === 'standard' 
-                ? 'Shows how metrics change month by month'
+                ? t("text-trends-explanation")
                 : localActiveTab === 'comparison' || localActiveTab === 'recent'
-                  ? 'Shows values compared to 6-month average' 
-                  : 'Shows average values per year'
+                  ? t("text-comparison-explanation") 
+                  : t("text-yearly-explanation")
               }
             </div>
           </div>
@@ -320,42 +321,42 @@ export default function CatchMetricsChart({
                 className={`px-4 py-2 text-sm rounded-md transition duration-200 ${localActiveTab === 'trends' ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'} w-full sm:w-auto`}
                 onClick={() => handleTabChange('trends')}
               >
-                Trends
+                {t("text-trends-tab")}
               </button>
               <button
                 className={`px-4 py-2 text-sm rounded-md transition duration-200 ${localActiveTab === 'comparison' ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'} w-full sm:w-auto`}
                 onClick={() => handleTabChange('comparison')}
               >
-                Comparison
+                {t("text-comparison-tab")}
               </button>
               <button
                 className={`px-4 py-2 text-sm rounded-md transition duration-200 ${localActiveTab === 'annual' ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'} w-full sm:w-auto`}
                 onClick={() => handleTabChange('annual')}
               >
-                Annual
+                {t("text-annual-tab")}
               </button>
             </div>
           )}
         </div>
       }
-      className={className}
+      className="h-full"
     >
       {/* Mobile-only title - shows on small screens */}
       <div className="sm:hidden text-center mb-4">
         <div className="text-base font-medium text-gray-800">
           {localActiveTab === 'trends' || localActiveTab === 'standard' 
-            ? 'Monthly Trends Over Time'
+            ? t("text-monthly-trends-over-time")
             : localActiveTab === 'comparison' || localActiveTab === 'recent'
-              ? 'Performance vs. Average' 
-              : 'Yearly Summary'
+              ? t("text-performance-vs-average") 
+              : t("text-yearly-summary")
           }
         </div>
         <div className="text-xs text-gray-500 mt-1">
           {localActiveTab === 'trends' || localActiveTab === 'standard' 
-            ? 'Shows how metrics change month by month'
+            ? t("text-trends-explanation")
             : localActiveTab === 'comparison' || localActiveTab === 'recent'
-              ? 'Shows values compared to 6-month average' 
-              : 'Shows average values per year'
+              ? t("text-comparison-explanation") 
+              : t("text-yearly-explanation")
           }
         </div>
       </div>

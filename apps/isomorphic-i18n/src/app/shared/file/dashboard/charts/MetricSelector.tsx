@@ -23,6 +23,24 @@ export default function MetricSelector({
     revenue: METRIC_OPTIONS.filter((m) => m.category === "revenue"),
   };
 
+  // Helper function to get the unit translation key
+  const getUnitTranslationKey = (unit: string) => {
+    switch (unit) {
+      case 'fishers/km²/day':
+        return 'text-unit-fishers-km2-day';
+      case 'kg/fisher/day':
+        return 'text-unit-kg-fisher-day';
+      case 'kg/km²/day':
+        return 'text-unit-kg-km2-day';
+      case 'KES/fisher/day':
+        return 'text-unit-kes-fisher-day';
+      case 'KES/km²/day':
+        return 'text-unit-kes-km2-day';
+      default:
+        return '';
+    }
+  };
+
   return (
     <div className="flex flex-col gap-1 w-full">
       <div className="flex items-center w-full">
@@ -39,11 +57,11 @@ export default function MetricSelector({
             >
               <div className="flex flex-col items-start">
                 <span className="text-base sm:text-sm font-medium">
-                  {selectedMetricOption?.label}
+                  {t(`text-metrics-${selectedMetricOption?.label.toLowerCase().replace(/ /g, "-")}`)}
                 </span>
                 {selectedMetricOption?.unit && (
                   <span className="text-xs text-gray-500 font-normal mt-0.5">
-                    ({selectedMetricOption.unit})
+                    ({selectedMetricOption.unit && t(getUnitTranslationKey(selectedMetricOption.unit))})
                   </span>
                 )}
               </div>
@@ -92,7 +110,7 @@ export default function MetricSelector({
                       <div className="flex flex-col">
                         <span className="font-medium">{t(`text-metrics-${option.label.toLowerCase().replace(/ /g, "-")}`)}</span>
                         <span className="text-xs text-gray-500 mt-0.5">
-                          {option.unit}
+                          {option.unit && t(getUnitTranslationKey(option.unit))}
                         </span>
                       </div>
                     </button>
@@ -128,7 +146,7 @@ export default function MetricSelector({
                       <div className="flex flex-col">
                         <span className="font-medium">{t(`text-metrics-${option.label.toLowerCase().replace(/ /g, "-")}`)}</span>
                         <span className="text-xs text-gray-500 mt-0.5">
-                          {option.unit}
+                          {option.unit && t(getUnitTranslationKey(option.unit))}
                         </span>
                       </div>
                     </button>

@@ -11,6 +11,7 @@ import {
 import { format } from "date-fns";
 import { ChartDataPoint, MetricOption, VisibilityState } from "./types";
 import { CustomYAxisTick } from "./components";
+import { useTranslation } from "@/app/i18n/client";
 
 interface AnnualChartProps {
   chartData: ChartDataPoint[];
@@ -31,6 +32,8 @@ export default function AnnualChart({
   isTablet,
   CustomLegend,
 }: AnnualChartProps) {
+  const { t } = useTranslation("common");
+  
   // Format date for X-axis ticks (year only)
   const formatDate = (timestamp: number) => {
     const date = new Date(timestamp);
@@ -65,7 +68,7 @@ export default function AnnualChart({
                     style={{ backgroundColor: entry.color }}
                   />
                   <p className="text-sm">
-                    <span className="font-medium">{entry.dataKey}:</span>{" "}
+                    <span className="font-medium">{entry.dataKey === "average" ? t("text-average-of-all-bmus") : entry.dataKey}:</span>{" "}
                     {entry.value?.toFixed(1)}
                   </p>
                 </div>
@@ -125,7 +128,7 @@ export default function AnnualChart({
           {!isCiaUser && (
             <Bar
               dataKey="average"
-              name="Average"
+              name={t("text-average-of-all-bmus")}
               fill="#000000"
               stroke="#000000"
               strokeWidth={1}
