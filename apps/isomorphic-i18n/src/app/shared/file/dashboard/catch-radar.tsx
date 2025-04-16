@@ -27,7 +27,9 @@ type MetricKey =
 
 interface RadarData {
   month: string;
-  [key: string]: number | string;
+  year?: number;
+  monthDisplay?: string;
+  [key: string]: number | string | undefined;
 }
 
 interface MetricInfo {
@@ -88,20 +90,23 @@ const CustomTooltip = ({ active, payload, metric }: any) => {
     return (
       <div className="bg-white p-4 border border-gray-200 rounded-lg shadow-lg">
         <p className="text-sm font-medium text-gray-600 mb-2">
-          {payload[0]?.payload?.month ?? ""}
+          {payload[0]?.payload?.monthDisplay || 
+            payload[0]?.payload?.month || ""}
         </p>
-        {payload.map((entry: any) => (
-          <div key={entry.dataKey} className="flex items-center gap-2">
-            <div
-              className="w-2 h-2 rounded-full"
-              style={{ backgroundColor: entry.color }}
-            />
-            <p className="text-sm">
-              <span className="font-medium">{entry.name}:</span>{" "}
-              {entry.value?.toFixed(1) ?? "N/A"} {metricInfo.unit}
-            </p>
-          </div>
-        ))}
+        <div className="space-y-1.5">
+          {payload.map((entry: any) => (
+            <div key={entry.dataKey} className="flex items-center gap-2">
+              <div
+                className="w-3 h-3 rounded-full"
+                style={{ backgroundColor: entry.color }}
+              />
+              <p className="text-sm">
+                <span className="font-medium">{entry.name}:</span>{" "}
+                <span className="font-semibold">{entry.value?.toFixed(1) ?? "N/A"}</span>
+              </p>
+            </div>
+          ))}
+        </div>
       </div>
     );
   }
@@ -122,22 +127,24 @@ const LoadingState = () => {
 };
 
 const CustomLegend = ({ payload, visibilityState, handleLegendClick }: any) => (
-  <div className="flex flex-wrap gap-4 justify-center mt-2">
-    {payload?.map((entry: any) => (
+  <div className="flex flex-wrap gap-2 justify-center mx-auto max-w-full">
+    {payload?.map((entry: any, index: number) => (
       <div
         key={entry.value}
         className={cn(
-          "flex items-center gap-2 cursor-pointer select-none transition-all duration-200",
-          "hover:opacity-80"
+          "flex items-center gap-1 px-2 py-1 rounded cursor-pointer select-none transition-all duration-200",
+          "hover:bg-gray-50",
+          visibilityState[entry.dataKey]?.opacity === 1 
+            ? "opacity-100" 
+            : "opacity-40 hover:opacity-75"
         )}
-        style={{ opacity: visibilityState[entry.dataKey]?.opacity ?? 1 }}
         onClick={() => handleLegendClick(entry.dataKey)}
       >
         <div
           className="w-3 h-3 rounded-full transition-all duration-200"
           style={{ backgroundColor: entry.color }}
         />
-        <span className="text-sm font-medium">{entry.value}</span>
+        <span className="text-xs font-medium">{entry.value}</span>
       </div>
     ))}
   </div>
@@ -236,13 +243,49 @@ export default function CatchRadarChart({
           );
         setVisibilityState(newVisibilityState);
 
-        let processedData = [...meanCatch]
+        // Filter for data from 2023 onwards
+        // The data structure might not have a direct year field, or it might be in a different format
+        // First, let's check if we have any year fields in the data
+        const hasYearField = meanCatch.some(item => item.year !== undefined);
+        
+        let filteredMeanCatch = [...meanCatch];
+        
+        if (hasYearField) {
+          // If year field exists, filter by it
+          filteredMeanCatch = meanCatch.filter(item => {
+            const year = item.year ? Number(item.year) : 0;
+            return year >= 2023;
+          });
+          
+          // If filtering removed all data, use the original data
+          if (filteredMeanCatch.length === 0) {
+            console.warn("No data found from 2023 onwards, showing all available data");
+            filteredMeanCatch = [...meanCatch];
+          }
+        } else {
+          // If there's no year field, we can't filter by year
+          console.warn("Year field not found in data, showing all available data");
+        }
+
+        let processedData = [...filteredMeanCatch]
           .sort(
             (a, b) =>
               MONTH_ORDER.indexOf(a.month) - MONTH_ORDER.indexOf(b.month)
           )
           .map((item) => {
-            const completeItem: RadarData = { month: item.month };
+            const completeItem: RadarData = { 
+              month: item.month,
+              // Preserve year field if it exists
+              ...(item.year !== undefined && { year: Number(item.year) })
+            };
+            
+            // Format the month to include year if available
+            if (item.year !== undefined) {
+              completeItem.monthDisplay = `${item.month} ${item.year}`;
+            } else {
+              completeItem.monthDisplay = item.month;
+            }
+            
             uniqueSites.forEach((site) => {
               completeItem[site] =
                 (item as Record<string, number | string>)[site] !== undefined
@@ -346,25 +389,38 @@ export default function CatchRadarChart({
       title={getMetricLabel(selectedMetric)}
       className={cn(className)}
     >
-      <div className="h-96 w-full pt-9">
+      <div className="h-96 w-full">
         <ResponsiveContainer width="100%" height="100%">
           <RadarChart
             data={data}
-            margin={{ top: 10, right: 10, bottom: 10, left: 10 }}
+            margin={{ top: 0, right: 0, bottom: 0, left: 0 }}
             className="w-full h-full"
+            outerRadius="95%"
+            cx="50%"
+            cy="47%"
           >
-            <PolarGrid gridType="polygon" strokeWidth={0.8} />
+            <PolarGrid 
+              gridType="polygon" 
+              strokeWidth={0.5} 
+              stroke="#e2e8f0" 
+              strokeDasharray="3 3"
+            />
             <PolarAngleAxis
-              dataKey="month"
-              tick={{ fill: "#666", fontSize: 12 }}
+              dataKey={data[0]?.monthDisplay ? "monthDisplay" : "month"}
+              tick={{ fill: "#64748b", fontSize: 11, fontWeight: 400 }}
               tickLine={false}
+              stroke="#cbd5e1"
+              strokeWidth={0.5}
             />
             <PolarRadiusAxis
               angle={90}
               domain={activeTab === 'differenced' ? ['auto', 'auto'] : [0, 'auto']}
-              tick={{ fill: "#666" }}
+              tick={{ fill: "#64748b", fontSize: 10 }}
               tickCount={5}
               axisLine={false}
+              stroke="#cbd5e1"
+              strokeDasharray="3 3"
+              strokeWidth={0.5}
             />
             {Object.entries(siteColors).map(([site, color]) => {
               // In differenced mode, only show the selected BMU
@@ -379,8 +435,14 @@ export default function CatchRadarChart({
                   dataKey={site}
                   stroke={activeTab === 'differenced' ? "#fc3468" : color}
                   fill={activeTab === 'differenced' ? "#fc3468" : color}
-                  fillOpacity={opacity * 0.25}
+                  fillOpacity={opacity * 0.35}
                   strokeOpacity={opacity}
+                  strokeWidth={2}
+                  dot
+                  activeDot={{ r: 6, strokeWidth: 0 }}
+                  animationBegin={0}
+                  animationDuration={1000}
+                  animationEasing="ease-out"
                 />
               );
             })}
@@ -388,6 +450,7 @@ export default function CatchRadarChart({
               content={(props) => (
                 <CustomTooltip {...props} metric={selectedMetric} />
               )}
+              wrapperStyle={{ outline: 'none' }}
             />
             {activeTab !== 'differenced' && (
               <Legend
@@ -398,6 +461,9 @@ export default function CatchRadarChart({
                     handleLegendClick={handleLegendClick}
                   />
                 )}
+                verticalAlign="bottom"
+                align="center"
+                wrapperStyle={{ position: 'absolute', bottom: '-15px', left: 0, right: 0 }}
               />
             )}
           </RadarChart>
