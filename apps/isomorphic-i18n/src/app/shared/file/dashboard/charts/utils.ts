@@ -70,15 +70,57 @@ export const getRecentData = (chartData: ChartDataPoint[], isCiaUser: boolean) =
   // For CIA users who don't have access to average, just return the data as is
   if (isCiaUser) return lastSixMonths;
   
-  // For regular users, transform the data to show difference from average
-  const result = lastSixMonths.map(item => {
-    const result: { [key: string]: any } = { date: item.date };
+  // Check if we only have one BMU (excluding 'date' and 'average')
+  const firstDataPoint = lastSixMonths[0] || {};
+  const bmuKeys = Object.keys(firstDataPoint).filter(key => 
+    key !== 'date' && key !== 'average'
+  );
+  
+  // Count BMUs with actual values in the dataset
+  const activeBMUs = new Set();
+  lastSixMonths.forEach(item => {
+    bmuKeys.forEach(key => {
+      if (item[key] !== undefined && item[key] !== null) {
+        activeBMUs.add(key);
+      }
+    });
+  });
+  
+  // Calculate 6-month average for each BMU
+  const bmuSixMonthAverages: Record<string, number> = {};
+  
+  // Calculate averages only for active BMUs
+  activeBMUs.forEach(bmu => {
+    const values = lastSixMonths
+      .map(item => item[bmu as string])
+      .filter(value => value !== undefined && value !== null);
     
-    // For each BMU, calculate the difference from average
-    Object.entries(item).forEach(([key, value]) => {
-      if (key !== 'date' && key !== 'average' && value !== undefined) {
-        const average = item.average || 0;
-        result[key] = parseFloat((value - average).toFixed(2));
+    if (values.length > 0) {
+      const sum = values.reduce((acc, val) => acc + (val as number), 0);
+      bmuSixMonthAverages[bmu as string] = sum / values.length;
+    }
+  });
+  
+  // Overall average across all BMUs for the 6-month period
+  const overallAverage = Object.values(bmuSixMonthAverages).reduce((sum, avg) => sum + avg, 0) / 
+                         Object.values(bmuSixMonthAverages).length || 0;
+  
+  // For each month, calculate the difference from the 6-month average
+  const result = lastSixMonths.map(item => {
+    const result: { [key: string]: any } = { 
+      date: item.date,
+      // Add the average property to indicate we're showing relative values
+      average: overallAverage 
+    };
+    
+    // For each BMU, calculate the difference from its 6-month average
+    activeBMUs.forEach(bmuKey => {
+      const key = bmuKey as string;
+      const value = item[key];
+      
+      if (value !== undefined && value !== null) {
+        const bmuAverage = bmuSixMonthAverages[key] || 0;
+        result[key] = parseFloat((value - bmuAverage).toFixed(2));
       }
     });
     

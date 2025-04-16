@@ -87,7 +87,15 @@ export default function ComparisonChart({
 
   // Generate bars for each BMU
   const renderBars = () => {
-    const sites = Object.keys(siteColors).filter(site => site !== "average");
+    // Filter out "average" and any sites with zero opacity
+    const sites = Object.keys(siteColors)
+      .filter(site => site !== "average")
+      .filter(site => visibilityState[site]?.opacity !== 0);
+    
+    // If there are no sites with non-zero opacity, the chart will be empty
+    if (sites.length === 0) {
+      return null;
+    }
     
     return sites.flatMap((site) => [
       <Bar
@@ -100,7 +108,7 @@ export default function ComparisonChart({
         maxBarSize={40}
         radius={[2, 2, 0, 0]}
         stackId={site}
-        hide={visibilityState[site]?.opacity === 0}
+        hide={false}
         fillOpacity={visibilityState[site]?.opacity}
         isAnimationActive={false}
       />
