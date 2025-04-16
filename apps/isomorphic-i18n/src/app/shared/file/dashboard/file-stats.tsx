@@ -90,6 +90,7 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
   const { t } = useTranslation(lang!, "common");
   const [statsData, setStatsData] = useState<StatData[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [hoveredPercentages, setHoveredPercentages] = useState<{[key: string]: {percentage: string, increased: boolean, monthComparison: string}}>({});
   const [bmus] = useAtom(bmusAtom);
   const { data: session } = useSession();
@@ -100,16 +101,44 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
   
   // For admin users, we want all BMUs data together
   // For CIA users, we only need their BMU's data
-  const { data: statsData1 } = api.monthlyStats.allStats.useQuery({ 
-    bmus: isAdminUser ? bmus : (bmu ? [bmu] : [])
-  }) as { data: StatsResponse | undefined };
+  const { data: statsData1, isLoading: isLoading1, error: error1 } = api.monthlyStats.allStats.useQuery({ 
+    bmus: isAdminUser ? bmus : (bmu ? [bmu] : bmus) // Fallback to all bmus if bmu is not provided
+  }, {
+    retry: 3,
+    retryDelay: 1000,
+    staleTime: 1000 * 60 * 5, // 5 minutes
+  }) as { data: StatsResponse | undefined, isLoading: boolean, error: any };
   
   // Only fetch other BMUs data if not a CIA user and not an admin user
-  const { data: statsData2 } = api.monthlyStats.allStats.useQuery({ 
+  const { data: statsData2, isLoading: isLoading2, error: error2 } = api.monthlyStats.allStats.useQuery({ 
     bmus: (!isCiaUser && !isAdminUser && bmu) ? bmus.filter(b => b !== bmu) : []
-  }) as { data: StatsResponse | undefined };
+  }, {
+    retry: 3,
+    retryDelay: 1000,
+    staleTime: 1000 * 60 * 5, // 5 minutes
+    enabled: !isCiaUser && !isAdminUser && !!bmu,
+  }) as { data: StatsResponse | undefined, isLoading: boolean, error: any };
 
   useEffect(() => {
+    // Set loading state based on API query states
+    setLoading(isLoading1 || isLoading2);
+    
+    // Set error state if any API calls failed
+    if (error1 || error2) {
+      console.error("API error:", error1 || error2);
+      setError("Failed to load statistics data");
+      setLoading(false);
+      return;
+    }
+    
+    // Handle case when no data is returned
+    if (!isLoading1 && !statsData1) {
+      console.warn("No statistics data available");
+      setError("No statistics data available");
+      setLoading(false);
+      return;
+    }
+
     if (!statsData1) {
       setLoading(true);
       return;
@@ -135,9 +164,10 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
       };
       
       const transformedStats = metrics.map(metric => {
-        const referenceMetric = statsData1[metric.field];
+        // Safely access properties with fallbacks for missing data
+        const referenceMetric = statsData1?.[metric.field] || { current: 0, percentage: 0, trend: [] };
         const otherBmusMetric = statsData2?.[metric.field];
-        const trend = referenceMetric.trend;
+        const trend = referenceMetric.trend || [];
 
         // Calculate default percentage change between last two months
         let defaultPercentage = '';
@@ -156,7 +186,6 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
               defaultPercentage = change > 0 ? `+${Math.round(change)}%` : `${Math.round(change)}%`;
               defaultIncreased = change > 0;
             }
-
           }
         }
 
@@ -172,12 +201,12 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
           }));
         }
 
-        // Transform the trend data
+        // Transform the trend data with safety checks for undefined values
         const chartData = trend.map((point, index) => ({
-          day: point.day,
-          reference: point.sale,
+          day: point.day || '',
+          reference: point.sale || 0,
           // Only include others for non-admin users
-          others: !isAdminUser && !isCiaUser && otherBmusMetric ? otherBmusMetric.trend[index]?.sale || 0 : undefined,
+          others: !isAdminUser && !isCiaUser && otherBmusMetric?.trend?.[index]?.sale || 0,
           index,
           data: trend,
           metricId: metric.id
@@ -186,18 +215,20 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
         return {
           id: metric.id,
           title: metric.title,
-          metric: Math.round(referenceMetric.current).toLocaleString(),
+          metric: Math.round(referenceMetric.current || 0).toLocaleString(),
           chart: chartData
         };
       });
 
       setStatsData(transformedStats);
+      setError(null);
     } catch (error) {
       console.error("Error transforming data:", error);
+      setError("Error processing statistics data");
     } finally {
       setLoading(false);
     }
-  }, [statsData1, statsData2, t, isCiaUser, isAdminUser]);
+  }, [statsData1, statsData2, isLoading1, isLoading2, error1, error2, t, isCiaUser, isAdminUser, bmus, bmu]);
 
   const CustomTooltip = ({ active, payload }: any) => {
     if (active && payload && payload.length) {
@@ -273,7 +304,8 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
   };
 
   if (loading) return <LoadingState />;
-  if (!statsData.length) return <LoadingState />;
+  if (error) return <div className="min-w-[292px] w-full p-4 text-center text-gray-500">{error}</div>;
+  if (!statsData.length) return <div className="min-w-[292px] w-full p-4 text-center text-gray-500">No data available</div>;
 
   return (
     <>

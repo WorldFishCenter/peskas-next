@@ -69,6 +69,10 @@ interface TooltipProps {
     name?: string;
     dataKey: string | number;
     color: string;
+    payload?: {
+      average?: number;
+      [key: string]: any;
+    };
   }>;
   label?: string | number;
   separator?: string;
@@ -299,7 +303,10 @@ const CustomTooltip = ({
   payload,
   label,
   selectedMetric,
+  selectedMetricOption,
+  visibilityState,
 }: TooltipProps) => {
+  const { data: session } = useSession();
   if (active && payload?.length) {
     const date = new Date(label as number);
 
@@ -311,6 +318,24 @@ const CustomTooltip = ({
             year: "numeric",
           })}
         </p>
+        {/* Show average for non-CIA users */}
+        {session?.user?.groups?.some((group: { name: string }) => group.name !== 'CIA') && (
+          <div className="flex items-center gap-2 mb-2">
+            <div
+              className="w-2 h-2 rounded-full"
+              style={{ backgroundColor: "#000000" }}
+            />
+            <p className="text-sm">
+              <span className="font-medium">
+                Average of all BMUs:
+              </span>{" "}
+              {typeof payload[0]?.payload?.average === 'number' 
+                ? payload[0].payload.average.toFixed(1) 
+                : "N/A"}
+            </p>
+          </div>
+        )}
+        {/* Show all BMUs */}
         {payload.map((entry) => (
           <div key={entry.dataKey} className="flex items-center gap-2">
             <div
@@ -931,9 +956,9 @@ export default function CatchMetricsChart({
                             year: "numeric",
                           })}
                         </p>
-                        {/* Show average first if it exists */}
-                        {!isCiaUser && (
-                          <div className="flex items-center gap-2 mb-1">
+                        {/* Show average for non-CIA users */}
+                        {!isCiaUser && props.payload[0]?.payload?.average !== undefined ? (
+                          <div className="flex items-center gap-2 mb-2">
                             <div
                               className="w-2 h-2 rounded-full"
                               style={{ backgroundColor: "#000000" }}
@@ -947,8 +972,7 @@ export default function CatchMetricsChart({
                                 : "N/A"}
                             </p>
                           </div>
-                        )}
-                        
+                        ) : null}
                         {/* Show all BMUs */}
                         {Object.entries(siteColors)
                           .filter(([site]) => site !== "average") // Skip average since we added it separately
@@ -1093,6 +1117,23 @@ export default function CatchMetricsChart({
                             year: "numeric",
                           })}
                         </p>
+                        {/* Show average for non-CIA users */}
+                        {!isCiaUser && props.payload[0]?.payload?.average !== undefined ? (
+                          <div className="flex items-center gap-2 mb-2">
+                            <div
+                              className="w-2 h-2 rounded-full"
+                              style={{ backgroundColor: "#000000" }}
+                            />
+                            <p className="text-sm">
+                              <span className="font-medium">
+                                Average of all BMUs:
+                              </span>{" "}
+                              {typeof props.payload[0]?.payload?.average === 'number' 
+                                ? props.payload[0].payload.average.toFixed(1) 
+                                : "N/A"}
+                            </p>
+                          </div>
+                        ) : null}
                         {/* Show all BMUs */}
                         {Object.entries(siteColors)
                           .filter(([site]) => site !== "average") // Skip average
