@@ -26,6 +26,14 @@ import cn from "@utils/class-names";
 import { ActionIcon, Popover } from "rizzui";
 import { useSession } from "next-auth/react";
 
+// Add local formatNumber function to replace the import
+const formatNumber = (num: number, precision = 0): string => {
+  if (isNaN(num)) return '0';
+  return num.toLocaleString(undefined, {
+    minimumFractionDigits: precision,
+    maximumFractionDigits: precision
+  });
+};
 
 type MetricKey = "mean_effort" | "mean_cpue" | "mean_cpua" | "mean_rpue" | "mean_rpua";
 
@@ -298,67 +306,6 @@ const MetricSelector = ({
   );
 };
 
-const CustomTooltip = ({
-  active,
-  payload,
-  label,
-  selectedMetric,
-  selectedMetricOption,
-  visibilityState,
-}: TooltipProps) => {
-  const { data: session } = useSession();
-  
-  // Determine if the user is part of the CIA group
-  const isCiaUser = session?.user?.groups?.some((group: { name: string }) => group.name === 'CIA');
-  
-  if (active && payload?.length) {
-    const date = new Date(label as number);
-
-    return (
-      <div className="bg-white p-4 border border-gray-200 shadow-lg rounded-lg">
-        <p className="text-sm font-medium text-gray-600 mb-2">
-          {date.toLocaleDateString("en-US", {
-            month: "long",
-            year: "numeric",
-          })}
-        </p>
-        {/* Show average for non-CIA users */}
-        {!isCiaUser && payload[0]?.payload?.average !== undefined && (
-          <div className="flex items-center gap-2 mb-2">
-            <div
-              className="w-2 h-2 rounded-full"
-              style={{ backgroundColor: "#000000" }}
-            />
-            <p className="text-sm">
-              <span className="font-medium">
-                Average of all BMUs:
-              </span>{" "}
-              {typeof payload[0]?.payload?.average === 'number' 
-                ? payload[0].payload.average.toFixed(1) 
-                : "N/A"}
-            </p>
-          </div>
-        )}
-        {/* Show all BMUs */}
-        {payload.map((entry) => (
-          <div key={entry.dataKey} className="flex items-center gap-2">
-            <div
-              className="w-2 h-2 rounded-full"
-              style={{ backgroundColor: entry.color }}
-            />
-            <p className="text-sm">
-              <span className="font-medium">
-                {entry.name || entry.dataKey}:
-              </span>{" "}
-              {entry.value?.toFixed(1) ?? "N/A"}
-            </p>
-          </div>
-        ))}
-      </div>
-    );
-  }
-  return null;
-};
 function CustomYAxisTick({ x = 0, y = 0, payload = { value: 0 } }: TickProps) {
   return (
     <g transform={`translate(${x},${y})`}>
@@ -419,6 +366,11 @@ export default function CatchMetricsChart({
   const [fiveYearMarks, setFiveYearMarks] = useState<number[]>([]);
   const [visibilityState, setVisibilityState] = useState<VisibilityState>({});
   const [siteColors, setSiteColors] = useState<Record<string, string>>({});
+  const [selectedPoint, setSelectedPoint] = useState<{
+    date: string;
+    values: {name: string; value: number; color: string}[];
+    average?: number;
+  } | null>(null);
 
   // Map old tab names to new ones for backwards compatibility
   const getNewTabName = (oldTab: string) => {
@@ -823,6 +775,45 @@ export default function CatchMetricsChart({
     }
   }, [chartData, getAnnualData]);
 
+  // Add a handler for clicks on chart elements
+  const handleChartClick = (data: any) => {
+    if (!data || !data.activePayload || data.activePayload.length === 0) return;
+    
+    // Extract date and format it
+    const payload = data.activePayload[0].payload;
+    const date = new Date(payload.date);
+    const formattedDate = date.toLocaleDateString('en-US', { 
+      month: 'short',
+      year: '2-digit'
+    });
+    
+    // Extract values for each visible site
+    const values = data.activePayload
+      .filter((entry: any) => 
+        entry.value && 
+        typeof entry.value === 'number' && 
+        entry.dataKey !== 'average'
+      )
+      .map((entry: any) => ({
+        name: entry.name || entry.dataKey,
+        value: entry.value,
+        color: entry.color
+      }))
+      .sort((a: any, b: any) => {
+        // Put the reference BMU first, then sort alphabetically
+        if (a.name === bmu) return -1;
+        if (b.name === bmu) return 1;
+        return a.name.localeCompare(b.name);
+      });
+    
+    // Set the selected point
+    setSelectedPoint({
+      date: formattedDate,
+      values,
+      average: payload.average
+    });
+  };
+
   if (loading) return <LoadingState />;
   if (!chartData || chartData.length === 0) {
     return (
@@ -838,6 +829,53 @@ export default function CatchMetricsChart({
     (m) => m.value === selectedMetric
   );
 
+  // Create data panel component
+  const DataPanel = () => {
+    if (!selectedPoint) {
+      // Create empty panel with placeholder content for consistent layout
+      return (
+        <div className="mt-2 bg-gray-50 p-2 rounded-md border border-gray-100 text-xs h-[80px] flex flex-col justify-between">
+          <div className="font-medium text-gray-700 border-b border-gray-100 pb-1">
+            Select a data point
+          </div>
+          <div className="text-center text-gray-400 py-2">
+            Click on the chart to view details
+          </div>
+        </div>
+      );
+    }
+    
+    return (
+      <div className="mt-2 bg-gray-50 p-2 rounded-md border border-gray-100 text-xs min-h-[80px]">
+        <div className="font-medium text-gray-700 border-b border-gray-100 pb-1 mb-1">
+          {selectedPoint.date}
+        </div>
+        <div className="flex flex-col gap-0.5">
+          {selectedPoint.values.map(item => (
+            <div key={item.name} className="flex items-center justify-between">
+              <div className="flex items-center gap-1">
+                <div
+                  className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+                  style={{ backgroundColor: item.color }}
+                />
+                <span className="font-medium">{item.name}</span>
+              </div>
+              <span>{Math.round(item.value).toLocaleString()}</span>
+            </div>
+          ))}
+          
+          {!isCiaUser && selectedPoint.average !== undefined && (
+            <div className="mt-0.5 pt-0.5 border-t border-gray-100 flex items-center justify-between">
+              <span className="text-gray-500">Average</span>
+              <span className="font-medium text-gray-700">
+                {Math.round(selectedPoint.average).toLocaleString()}
+              </span>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
 
   return (
     <WidgetCard
@@ -891,6 +929,7 @@ export default function CatchMetricsChart({
                   top: 20,
                 }}
                 className="[&_.recharts-cartesian-axis-tick-value]:fill-gray-500 [&_.recharts-cartesian-axis.yAxis]:-translate-y-3 rtl:[&_.recharts-cartesian-axis.yAxis]:-translate-x-12 [&_.recharts-cartesian-grid-vertical]:opacity-0"
+                onClick={handleChartClick}
               >
                 <defs>
                   {Object.entries(siteColors).map(([site, color]) => (
@@ -946,18 +985,6 @@ export default function CatchMetricsChart({
                     },
                   }}
                 />
-                <Tooltip
-                  content={(props) => {
-                    // Add necessary props
-                    const customProps = {
-                      ...props,
-                      selectedMetric,
-                      selectedMetricOption,
-                    };
-                    // @ts-ignore - casting tooltip props
-                    return <CustomTooltip {...customProps} />;
-                  }}
-                />
                 <Legend content={CustomLegend} />
                 {Object.entries(siteColors)
                   .filter(([site]) => site !== "average") // Skip average since we added it separately
@@ -993,6 +1020,7 @@ export default function CatchMetricsChart({
               </ComposedChart>
             </ResponsiveContainer>
           </div>
+          <DataPanel />
         </SimpleBar>
       )}
       {(localActiveTab === 'comparison' || localActiveTab === 'recent') && (
@@ -1014,6 +1042,7 @@ export default function CatchMetricsChart({
                 barSize={15}
                 barGap={1}
                 className="[&_.recharts-cartesian-axis-tick-value]:fill-gray-500 [&_.recharts-cartesian-axis.yAxis]:-translate-y-3 rtl:[&_.recharts-cartesian-axis.yAxis]:-translate-x-12 [&_.recharts-cartesian-grid-vertical]:opacity-0"
+                onClick={handleChartClick}
               >
                 <CartesianGrid strokeDasharray="8 10" strokeOpacity={0.435} />
                 <XAxis
@@ -1058,18 +1087,6 @@ export default function CatchMetricsChart({
                     },
                   }}
                 />
-                <Tooltip
-                  content={(props) => {
-                    // Add necessary props
-                    const customProps = {
-                      ...props,
-                      selectedMetric,
-                      selectedMetricOption,
-                    };
-                    // @ts-ignore - casting tooltip props
-                    return <CustomTooltip {...customProps} />;
-                  }}
-                />
                 <Legend content={CustomLegend} />
                 {!isCiaUser && (
                   <ReferenceLine 
@@ -1099,6 +1116,7 @@ export default function CatchMetricsChart({
               </BarChart>
             </ResponsiveContainer>
           </div>
+          <DataPanel />
         </SimpleBar>
       )}
       {localActiveTab === 'annual' && (
@@ -1120,6 +1138,7 @@ export default function CatchMetricsChart({
                 barSize={30}
                 barGap={2}
                 className="[&_.recharts-cartesian-axis-tick-value]:fill-gray-500 [&_.recharts-cartesian-axis.yAxis]:-translate-y-3 rtl:[&_.recharts-cartesian-axis.yAxis]:-translate-x-12 [&_.recharts-cartesian-grid-vertical]:opacity-0"
+                onClick={handleChartClick}
               >
                 <CartesianGrid strokeDasharray="8 10" strokeOpacity={0.435} />
                 <XAxis
@@ -1152,18 +1171,6 @@ export default function CatchMetricsChart({
                       fill: "#666666",
                       textAnchor: "middle",
                     },
-                  }}
-                />
-                <Tooltip
-                  content={(props) => {
-                    // Add necessary props
-                    const customProps = {
-                      ...props,
-                      selectedMetric,
-                      selectedMetricOption,
-                    };
-                    // @ts-ignore - casting tooltip props
-                    return <CustomTooltip {...customProps} />;
                   }}
                 />
                 <Legend content={CustomLegend} />
@@ -1200,6 +1207,7 @@ export default function CatchMetricsChart({
               </BarChart>
             </ResponsiveContainer>
           </div>
+          <DataPanel />
         </SimpleBar>
       )}
     </WidgetCard>

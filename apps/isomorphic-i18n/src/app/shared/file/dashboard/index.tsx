@@ -35,11 +35,11 @@ export default function FileDashboard({ lang }: { lang?: string }) {
 
   return (
     <div className="w-full">
-      <div className="mb-6">
+      {/* <div className="mb-6">
         <h2 className="text-xl sm:text-2xl font-semibold text-gray-900">
           {t("text-file-dashboard-title")}
         </h2>
-      </div>
+      </div> */}
 
       <div className="grid grid-cols-1 gap-5 xl:gap-6">
         <FileStats lang={lang} bmu={userBmu} />
