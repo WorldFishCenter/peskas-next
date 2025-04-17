@@ -94,32 +94,82 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
   const [hoveredPercentages, setHoveredPercentages] = useState<{[key: string]: {percentage: string, increased: boolean, monthComparison: string}}>({});
   const [selectedMonth, setSelectedMonth] = useState<string | null>(null);
   const [comparisonValues, setComparisonValues] = useState<{[key: string]: {reference: number, others?: number, date: string}}>({});
-  const [bmus] = useAtom(bmusAtom);
+  const [bmusAtomValue] = useAtom(bmusAtom);
   const { data: session } = useSession();
 
-  // Determine if the user is part of the CIA group or Admin group
-  const isCiaUser = session?.user?.groups?.some((group: { name: string }) => group.name === 'CIA');
-  const isAdminUser = session?.user?.groups?.some((group: { name: string }) => group.name === 'Admin');
+  // FIXED: Force non-admin mode for testing
+  // Check groups array exists before trying to use some()
+  const hasGroups = Array.isArray(session?.user?.groups);
+  const isCiaUser = hasGroups && session?.user?.groups?.some((group: { name: string }) => group.name === 'CIA');
+  const isAdminUser = hasGroups && session?.user?.groups?.some((group: { name: string }) => group.name === 'Admin');
+  
+  // Log the user's role for debugging
+  console.log('User Session Debug:', {
+    hasSession: !!session,
+    hasGroups: hasGroups,
+    groups: session?.user?.groups,
+    isAdmin: isAdminUser,
+    isCia: isCiaUser,
+    userBmu: session?.user?.userBmu
+  });
+  
+  // IMPORTANT: Directly use the bmu prop with fallback
+  const activeBmu = bmu || session?.user?.userBmu?.BMU || "Vipingo";
+  
+  // FORCE NON-ADMIN BEHAVIOR: Always show user's BMU (for debugging)
+  const forceShowUserBmu = true;
+  
+  // Use forceShowUserBmu to ensure we always use the user's BMU name 
+  const displayName = (isAdminUser && !forceShowUserBmu) ? "All BMUs" : activeBmu;
+  
+  // Split queries to ensure we get both user BMU and comparison data
+  const userBmuQuery = (isAdminUser && !forceShowUserBmu) ? bmusAtomValue : [activeBmu];
+  const otherBmusQuery = (isAdminUser && !forceShowUserBmu) ? [] : bmusAtomValue.filter(site => site !== activeBmu);
+  
+  console.log('BMU Debug:', {
+    bmuProp: bmu,
+    activeBmu,
+    userBmuFromSession: session?.user?.userBmu?.BMU,
+    isAdmin: isAdminUser,
+    isCia: isCiaUser,
+    forceShowUserBmu, 
+    userBmuQuery,
+    otherBmusQuery
+  });
   
   // For admin users, we want all BMUs data together
-  // For CIA users, we only need their BMU's data
+  // For regular users, we need their specific BMU data
   const { data: statsData1, isLoading: isLoading1, error: error1 } = api.monthlyStats.allStats.useQuery({ 
-    bmus: isAdminUser ? bmus : (bmu ? [bmu] : bmus) // Fallback to all bmus if bmu is not provided
+    bmus: userBmuQuery
   }, {
     retry: 3,
     retryDelay: 1000,
     staleTime: 1000 * 60 * 5, // 5 minutes
   }) as { data: StatsResponse | undefined, isLoading: boolean, error: any };
   
-  // Only fetch other BMUs data if not a CIA user and not an admin user
+  // For non-admin users, we also fetch all other BMUs data to show comparison
   const { data: statsData2, isLoading: isLoading2, error: error2 } = api.monthlyStats.allStats.useQuery({ 
-    bmus: (!isCiaUser && !isAdminUser && bmu) ? bmus.filter(b => b !== bmu) : []
+    bmus: otherBmusQuery
   }, {
     retry: 3,
     retryDelay: 1000,
     staleTime: 1000 * 60 * 5, // 5 minutes
-    enabled: !isCiaUser && !isAdminUser && !!bmu,
+    enabled: (forceShowUserBmu || !isAdminUser) && otherBmusQuery.length > 0,
   }) as { data: StatsResponse | undefined, isLoading: boolean, error: any };
+
+  // Monitor API responses
+  useEffect(() => {
+    console.log('API Responses:', {
+      statsData1,
+      statsData2,
+      isLoading1,
+      isLoading2,
+      error1,
+      error2,
+      userQuery: userBmuQuery,
+      otherQuery: otherBmusQuery
+    });
+  }, [statsData1, statsData2, isLoading1, isLoading2, error1, error2, isAdminUser, bmusAtomValue, activeBmu]);
 
   useEffect(() => {
     // Set loading state based on API query states
@@ -212,7 +262,7 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
             ...prev,
             [metric.id]: {
               reference: Math.round(lastPoint.sale || 0),
-              others: !isAdminUser && !isCiaUser ? Math.round(lastOthersPoint?.sale || 0) : undefined,
+              others: !isAdminUser && lastOthersPoint ? Math.round(lastOthersPoint?.sale || 0) : undefined,
               date: getMonthName(lastPoint.day)
             }
           }));
@@ -223,7 +273,7 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
           day: point.day || '',
           reference: point.sale || 0,
           // Only include others for non-admin users
-          others: !isAdminUser && !isCiaUser && otherBmusMetric?.trend?.[index]?.sale || 0,
+          others: !isAdminUser && otherBmusMetric?.trend?.[index] ? (otherBmusMetric?.trend?.[index]?.sale || 0) : undefined,
           index,
           data: trend,
           metricId: metric.id
@@ -245,7 +295,7 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
     } finally {
       setLoading(false);
     }
-  }, [statsData1, statsData2, isLoading1, isLoading2, error1, error2, t, isCiaUser, isAdminUser, bmus, bmu]);
+  }, [statsData1, statsData2, isLoading1, isLoading2, error1, error2, t, isCiaUser, isAdminUser, bmusAtomValue, activeBmu]);
 
   const handleBarClick = (data: any) => {
     if (!data || !data.activePayload || data.activePayload.length === 0) return;
@@ -259,7 +309,7 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
       ...prev,
       [metricId]: {
         reference: Math.round(entry.payload.reference),
-        others: (!isAdminUser && !isCiaUser) ? Math.round(entry.payload.others || 0) : undefined,
+        others: (!isAdminUser) ? Math.round(entry.payload.others || 0) : undefined,
         date: getMonthName(day)
       }
     }));
@@ -317,7 +367,7 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
           ...prev,
           [entry.payload.metricId]: {
             reference: Math.round(entry.payload.reference),
-            others: (!isAdminUser && !isCiaUser) ? Math.round(entry.payload.others || 0) : undefined,
+            others: (!isAdminUser) ? Math.round(entry.payload.others || 0) : undefined,
             date: currentMonth
           }
         }));
@@ -376,9 +426,9 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
             <div className="flex items-center gap-3 text-2xs mt-2 mb-0.5">
               <div className="flex items-center gap-1">
                 <div className="w-1.5 h-1.5 rounded-full bg-[#fc3468]" />
-                <span>Kenyatta</span>
+                <span>{displayName}</span>
               </div>
-              {(!isCiaUser && !isAdminUser) && (
+              {(forceShowUserBmu || !isAdminUser) && (
                 <div className="flex items-center gap-1">
                   <div className="w-1.5 h-1.5 rounded-full bg-[rgba(178,216,216,0.75)]" />
                   <span>Other BMUs</span>
@@ -407,12 +457,12 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
                 <Bar
                   dataKey="reference"
                   fill="#fc3468"
-                  name={isAdminUser ? "All BMUs" : (bmu || "Kenyatta")}
+                  name={displayName}
                   radius={[2, 2, 0, 0]}
                   maxBarSize={7}
                   minPointSize={3}
                 />
-                {(!isCiaUser && !isAdminUser) && (
+                {(forceShowUserBmu || !isAdminUser) && (
                   <Bar
                     dataKey="others"
                     fill="rgba(178, 216, 216, 0.75)"
@@ -429,10 +479,10 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
           {/* Current Values */}
           <div className="px-3 py-2 border-t border-gray-100 bg-gray-50/30 flex justify-between text-xs">
             <div className="flex flex-col">
-              <span className="text-2xs text-gray-500">Kenyatta</span>
+              <span className="text-2xs text-gray-500">{displayName}</span>
               <span className="font-medium">{comparisonValues[stat.id]?.reference || "-"}</span>
             </div>
-            {(!isCiaUser && !isAdminUser) && (
+            {(forceShowUserBmu || !isAdminUser) && (
               <div className="flex flex-col">
                 <span className="text-2xs text-gray-500">Other BMUs</span>
                 <span className="font-medium">{comparisonValues[stat.id]?.others || "-"}</span>
