@@ -1,6 +1,7 @@
 import WidgetCard from "@components/cards/widget-card";
 import { useAtom } from "jotai";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
+import React, { createContext, useContext, useMemo } from "react";
 
 import { bmusAtom } from "@/app/components/filter-selector";
 import { useTranslation } from "@/app/i18n/client";
@@ -24,6 +25,33 @@ import CustomLegend from "./charts/CustomLegend";
 import TrendsChart from "./charts/TrendsChart";
 import ComparisonChart from "./charts/ComparisonChart";
 import AnnualChart from "./charts/AnnualChart";
+
+// Create a more robust language context that includes both the language code and translations
+const LanguageContext = createContext<{
+  lang: string | null;
+  translations: Record<string, string>;
+}>({
+  lang: null,
+  translations: {},
+});
+
+// Create a provider component with memoized values to prevent re-renders
+const LanguageProvider = ({ lang, children }: { lang: string | undefined, children: React.ReactNode }) => {
+  // Create a memoized value for the context to prevent unnecessary re-renders
+  const contextValue = useMemo(() => ({
+    lang: lang || null,
+    translations: {},
+  }), [lang]);
+
+  return (
+    <LanguageContext.Provider value={contextValue}>
+      {children}
+    </LanguageContext.Provider>
+  );
+};
+
+// Create a hook to access the language
+const useLanguageContext = () => useContext(LanguageContext);
 
 interface CatchMetricsChartProps {
   className?: string;
@@ -77,7 +105,7 @@ export default function CatchMetricsChart({
   const [recentData, setRecentData] = useState<ChartDataPoint[]>([]);
 
   const isTablet = useMedia("(max-width: 800px)", false);
-  const { t } = useTranslation("common");
+  const { t, i18n } = useTranslation("common");
   const [bmus] = useAtom(bmusAtom);
   const { data: session } = useSession();
 
@@ -93,6 +121,13 @@ export default function CatchMetricsChart({
       setLocalActiveTab(newTabName);
     }
   }, [activeTab]);
+
+  // Ensure language is maintained during tab changes
+  useEffect(() => {
+    if (lang && i18n.language !== lang) {
+      i18n.changeLanguage(lang);
+    }
+  }, [lang, i18n, localActiveTab]);
 
   const handleLegendClick = (site: string) => {
     // Don't toggle visibility for the average line
@@ -122,10 +157,30 @@ export default function CatchMetricsChart({
   };
 
   const handleTabChange = (tab: string) => {
+    // Create a snapshot of the current state to preserve it
+    const currentLanguage = i18n.language;
+    const currentResources = i18n.getResourceBundle(currentLanguage, 'common');
+    
+    // Set a data attribute on document to immediately communicate language
+    if (typeof document !== 'undefined') {
+      document.documentElement.setAttribute('data-language', currentLanguage);
+      document.documentElement.setAttribute('data-language-ready', 'true');
+    }
+    
     setLocalActiveTab(tab);
     // Map back to old names when calling parent callback for backwards compatibility
     const oldTabName = tab === 'trends' ? 'standard' : tab === 'comparison' ? 'recent' : tab;
-    onTabChange?.(oldTabName);
+    
+    // Call parent's onTabChange handler if provided
+    if (onTabChange) {
+      onTabChange(oldTabName);
+      
+      // Ensure language is maintained after tab change by immediately re-applying it
+      // This is important to avoid the flash of English content
+      if (currentLanguage && i18n.language !== currentLanguage) {
+        i18n.changeLanguage(currentLanguage);
+      }
+    }
   };
 
   // Update visibility state when changing tabs
@@ -361,77 +416,80 @@ export default function CatchMetricsChart({
         </div>
       </div>
       
-      {/* Trends Chart */}
-      {(localActiveTab === 'trends' || localActiveTab === 'standard') && (
-        <SimpleBar>
-          <TrendsChart
-            chartData={chartData}
-            selectedMetricOption={selectedMetricOption}
-            siteColors={siteColors}
-            visibilityState={visibilityState}
-            isCiaUser={!!isCiaUser}
-            isTablet={isTablet}
-            fiveYearMarks={fiveYearMarks}
-            CustomLegend={(props) => (
-              <CustomLegend 
-                {...props} 
-                handleLegendClick={handleLegendClick} 
-                siteColors={siteColors}
-                visibilityState={visibilityState}
-                isCiaUser={!!isCiaUser}
-                localActiveTab={localActiveTab}
-              />
-            )}
-          />
-        </SimpleBar>
-      )}
-      
-      {/* Comparison Chart */}
-      {(localActiveTab === 'comparison' || localActiveTab === 'recent') && (
-        <SimpleBar>
-          <ComparisonChart
-            chartData={recentData}
-            selectedMetricOption={selectedMetricOption}
-            siteColors={siteColors}
-            visibilityState={visibilityState}
-            isTablet={isTablet}
-            CustomLegend={(props) => (
-              <CustomLegend 
-                {...props} 
-                handleLegendClick={handleLegendClick} 
-                siteColors={siteColors}
-                visibilityState={visibilityState}
-                isCiaUser={!!isCiaUser}
-                localActiveTab={localActiveTab}
-              />
-            )}
-          />
-        </SimpleBar>
-      )}
-      
-      {/* Annual Chart */}
-      {localActiveTab === 'annual' && (
-        <SimpleBar>
-          <AnnualChart
-            chartData={annualData}
-            selectedMetricOption={selectedMetricOption}
-            siteColors={siteColors}
-            visibilityState={visibilityState}
-            isCiaUser={!!isCiaUser}
-            isTablet={isTablet}
-            CustomLegend={(props) => (
-              <CustomLegend 
-                {...props} 
-                handleLegendClick={handleLegendClick} 
-                siteColors={siteColors}
-                visibilityState={visibilityState}
-                isCiaUser={!!isCiaUser}
-                localActiveTab={localActiveTab}
-              />
-            )}
-          />
-        </SimpleBar>
-      )}
+      {/* Wrap all chart components in LanguageProvider */}
+      <LanguageProvider lang={lang}>
+        {/* Trends Chart */}
+        {(localActiveTab === 'trends' || localActiveTab === 'standard') && (
+          <SimpleBar>
+            <TrendsChart
+              chartData={chartData}
+              selectedMetricOption={selectedMetricOption}
+              siteColors={siteColors}
+              visibilityState={visibilityState}
+              isCiaUser={!!isCiaUser}
+              isTablet={isTablet}
+              fiveYearMarks={fiveYearMarks}
+              CustomLegend={(props) => (
+                <CustomLegend 
+                  {...props} 
+                  handleLegendClick={handleLegendClick} 
+                  siteColors={siteColors}
+                  visibilityState={visibilityState}
+                  isCiaUser={!!isCiaUser}
+                  localActiveTab={localActiveTab}
+                />
+              )}
+            />
+          </SimpleBar>
+        )}
+        
+        {/* Comparison Chart */}
+        {(localActiveTab === 'comparison' || localActiveTab === 'recent') && (
+          <SimpleBar>
+            <ComparisonChart
+              chartData={recentData}
+              selectedMetricOption={selectedMetricOption}
+              siteColors={siteColors}
+              visibilityState={visibilityState}
+              isTablet={isTablet}
+              CustomLegend={(props) => (
+                <CustomLegend 
+                  {...props} 
+                  handleLegendClick={handleLegendClick} 
+                  siteColors={siteColors}
+                  visibilityState={visibilityState}
+                  isCiaUser={!!isCiaUser}
+                  localActiveTab={localActiveTab}
+                />
+              )}
+            />
+          </SimpleBar>
+        )}
+        
+        {/* Annual Chart */}
+        {localActiveTab === 'annual' && (
+          <SimpleBar>
+            <AnnualChart
+              chartData={annualData}
+              selectedMetricOption={selectedMetricOption}
+              siteColors={siteColors}
+              visibilityState={visibilityState}
+              isCiaUser={!!isCiaUser}
+              isTablet={isTablet}
+              CustomLegend={(props) => (
+                <CustomLegend 
+                  {...props} 
+                  handleLegendClick={handleLegendClick} 
+                  siteColors={siteColors}
+                  visibilityState={visibilityState}
+                  isCiaUser={!!isCiaUser}
+                  localActiveTab={localActiveTab}
+                />
+              )}
+            />
+          </SimpleBar>
+        )}
+      </LanguageProvider>
     </WidgetCard>
   );
 } 

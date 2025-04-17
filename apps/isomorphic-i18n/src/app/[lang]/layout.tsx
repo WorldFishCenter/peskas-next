@@ -13,6 +13,8 @@ import { dir } from "i18next";
 import { languages } from "../i18n/settings";
 import { GlobalFilterProvider } from "../components/global-filter-provider";
 import { TRPCReactProvider } from "@/trpc/react";
+import LanguageInitializer from "../i18n/language-initializer";
+import Script from "next/script";
 
 const NextProgress = dynamic(() => import("@components/next-progress"), {
   ssr: false,
@@ -46,6 +48,7 @@ export default async function RootLayout({
             <AuthProvider session={session}>
               <ThemeProvider>
                 <NextProgress />
+                <LanguageInitializer lang={lang} />
                 {children}
                 <Toaster />
                 <GlobalDrawer />

@@ -909,5 +909,13 @@
   "text-unit-kg-fisher-day": "kg/fisher/day",
   "text-unit-kg-km2-day": "kg/km²/day",
   "text-unit-kes-fisher-day": "KES/fisher/day",
-  "text-unit-kes-km2-day": "KES/km²/day"
+  "text-unit-kes-km2-day": "KES/km²/day",
+  "text-loading-chart": "Loading chart...",
+  "text-failed-to-fetch-data": "Failed to fetch data",
+  "text-no-data-available": "No data available",
+  "text-no-bmu-data-available": "No BMU data available",
+  "text-error-processing-data": "Error processing data",
+  "text-no-bmus-selected": "No BMUs selected",
+  "text-error": "Error",
+  "text-na": "N/A"
 }

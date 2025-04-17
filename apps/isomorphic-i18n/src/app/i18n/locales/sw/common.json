@@ -766,5 +766,14 @@
   "text-unit-kg-fisher-day": "kg/mvuvi/siku",
   "text-unit-kg-km2-day": "kg/km²/siku",
   "text-unit-kes-fisher-day": "KES/mvuvi/siku",
-  "text-unit-kes-km2-day": "KES/km²/siku"
+  "text-unit-kes-km2-day": "KES/km²/siku",
+  
+  "text-loading-chart": "Inapakia chati...",
+  "text-failed-to-fetch-data": "Imeshindwa kupata data",
+  "text-no-data-available": "Hakuna data inayopatikana",
+  "text-no-bmu-data-available": "Hakuna data ya BMU inayopatikana",
+  "text-error-processing-data": "Hitilafu katika kuchakata data",
+  "text-no-bmus-selected": "Hakuna BMUs zilizochaguliwa",
+  "text-error": "Hitilafu",
+  "text-na": "Haipo"
 }

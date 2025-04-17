@@ -26,7 +26,9 @@ i18next
     ...getOptions(),
     lng: undefined, // let detect the language on client side
     detection: {
-      order: ["path", "htmlTag", "cookie", "navigator"],
+      order: ["localStorage", "path", "htmlTag", "cookie", "navigator"],
+      lookupLocalStorage: "selectedLanguage", // Use our custom localStorage key first
+      caches: ['localStorage'], // Store language in localStorage
     },
     preload: runsOnServerSide ? getOptions().supportedLngs : [],
   });
@@ -34,14 +36,31 @@ i18next
 export function useTranslation(lang: string, ns?: string, options?: object) {
   const ret = useTranslationOrg(ns, options);
   const { i18n } = ret;
+  
   if (runsOnServerSide && i18n.resolvedLanguage !== lang) {
     i18next.changeLanguage(lang);
   } else {
     // eslint-disable-next-line react-hooks/rules-of-hooks
     useEffect(() => {
-      if (i18n.resolvedLanguage === lang) return;
-      i18n.changeLanguage(lang);
+      // Check both passed language and localStorage
+      const storedLang = typeof window !== 'undefined' ? 
+        localStorage.getItem('selectedLanguage') : null;
+      
+      // Determine which language to use (URL or localStorage)
+      // Priority: URL language parameter > localStorage > current i18n language
+      const targetLang = (lang && ['en', 'sw'].includes(lang)) ? 
+        lang : (storedLang && ['en', 'sw'].includes(storedLang)) ? 
+          storedLang : i18n.resolvedLanguage || 'en';
+      
+      if (i18n.resolvedLanguage !== targetLang) {
+        i18n.changeLanguage(targetLang);
+        // Store selection in localStorage for persistence
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('selectedLanguage', targetLang);
+        }
+      }
     }, [lang, i18n]);
   }
+  
   return ret;
 }

@@ -34,7 +34,7 @@ interface RadarData {
 }
 
 interface MetricInfo {
-  label: string;
+  translationKey: string;
   unit: string;
 }
 
@@ -43,15 +43,17 @@ interface VisibilityState {
 }
 
 const METRIC_INFO: Record<MetricKey, MetricInfo> = {
-  mean_effort: { label: "Effort", unit: "fishers/km²/day" },
-  mean_cpue: { label: "Catch Rate", unit: "kg/fisher/day" },
-  mean_cpua: { label: "Catch Density", unit: "kg/km²/day" },
-  mean_rpue: { label: "Fisher Revenue", unit: "KSH/fisher/day" },
-  mean_rpua: { label: "Area Revenue", unit: "KSH/km²/day" },
+  mean_effort: { translationKey: "text-metrics-effort", unit: "fishers/km²/day" },
+  mean_cpue: { translationKey: "text-metrics-catch-rate", unit: "kg/fisher/day" },
+  mean_cpua: { translationKey: "text-metrics-catch-density", unit: "kg/km²/day" },
+  mean_rpue: { translationKey: "text-metrics-fisher-revenue", unit: "KSH/fisher/day" },
+  mean_rpua: { translationKey: "text-metrics-area-revenue", unit: "KSH/km²/day" },
 };
 
-const getMetricLabel = (metric: string): string => {
-  return METRIC_INFO[metric as MetricKey]?.label || "Catch Metrics";
+const getMetricLabel = (metric: string, t: any): string => {
+  const metricKey = metric as MetricKey;
+  const translationKey = METRIC_INFO[metricKey]?.translationKey || "text-metrics-catch";
+  return t(translationKey);
 };
 
 const MONTH_ORDER = [
@@ -85,7 +87,7 @@ const generateColor = (index: number, site: string, referenceBmu: string | undef
   return colors[index % colors.length];
 };
 
-const CustomTooltip = ({ active, payload, metric }: any) => {
+const CustomTooltip = ({ active, payload, metric, t }: any) => {
   if (active && payload && payload.length) {
     const metricInfo = METRIC_INFO[metric as MetricKey];
     return (
@@ -103,7 +105,7 @@ const CustomTooltip = ({ active, payload, metric }: any) => {
               />
               <p className="text-sm">
                 <span className="font-medium">{entry.name}:</span>{" "}
-                <span className="font-semibold">{entry.value?.toFixed(1) ?? "N/A"}</span>
+                <span className="font-semibold">{entry.value?.toFixed(1) ?? t("text-na")}</span>
               </p>
             </div>
           ))}
@@ -114,13 +116,13 @@ const CustomTooltip = ({ active, payload, metric }: any) => {
   return null;
 };
 
-const LoadingState = () => {
+const LoadingState = ({ t }: { t: any }) => {
   return (
     <WidgetCard title="">
       <div className="h-96 w-full flex items-center justify-center">
         <div className="flex flex-col items-center gap-2">
           <div className="w-8 h-8 border-4 border-gray-200 border-t-gray-500 rounded-full animate-spin" />
-          <span className="text-sm text-gray-500">Loading chart...</span>
+          <span className="text-sm text-gray-500">{t("text-loading-chart")}</span>
         </div>
       </div>
     </WidgetCard>
@@ -175,7 +177,7 @@ export default function CatchRadarChart({
   bmu?: string;
   activeTab?: string;
 }) {
-  const { t } = useTranslation(lang!);
+  const { t } = useTranslation(lang!, "common");
   const [bmus] = useAtom(bmusAtom);
   const { data: session } = useSession();
   
@@ -203,10 +205,10 @@ export default function CatchRadarChart({
   useEffect(() => {
     if (queryError) {
       console.error('Error fetching radar data:', queryError);
-      setError('Failed to fetch data');
+      setError(t('text-failed-to-fetch-data'));
       setLoading(false);
     }
-  }, [queryError]);
+  }, [queryError, t]);
 
   useEffect(() => {
     // Set loading state when dependencies change
@@ -221,7 +223,7 @@ export default function CatchRadarChart({
     const processData = async () => {
       try {
         if (!Array.isArray(meanCatch) || meanCatch.length === 0) {
-          setError("No data available");
+          setError(t("text-no-data-available"));
           return;
         }
 
@@ -236,7 +238,7 @@ export default function CatchRadarChart({
 
         // If no sites found, show error
         if (uniqueSites.length === 0) {
-          setError("No BMU data available");
+          setError(t("text-no-bmu-data-available"));
           return;
         }
 
@@ -352,22 +354,22 @@ export default function CatchRadarChart({
         setError(null);
       } catch (e) {
         console.error("Error processing data:", e);
-        setError("Error processing data");
+        setError(t("text-error-processing-data"));
       } finally {
         setLoading(false);
       }
     };
 
     processData();
-  }, [meanCatch, selectedMetric, activeTab, bmu, isFetching]);
+  }, [meanCatch, selectedMetric, activeTab, bmu, isFetching, t]);
 
   // Remove the separate bmus effect since we handle loading in the main effect
   useEffect(() => {
     if (!bmus || bmus.length === 0) {
-      setError("No BMUs selected");
+      setError(t("text-no-bmus-selected"));
       setLoading(false);
     }
-  }, [bmus]);
+  }, [bmus, t]);
 
   const handleLegendClick = (site: string) => {
     setVisibilityState((prev) => ({
@@ -378,13 +380,13 @@ export default function CatchRadarChart({
     }));
   };
 
-  if (loading || isFetching) return <LoadingState />;
+  if (loading || isFetching) return <LoadingState t={t} />;
 
   if (error) {
     return (
-      <WidgetCard title={getMetricLabel(selectedMetric)}>
+      <WidgetCard title={getMetricLabel(selectedMetric, t)}>
         <div className="h-96 w-full flex items-center justify-center">
-          <span className="text-sm text-gray-500">Error: {error}</span>
+          <span className="text-sm text-gray-500">{t("text-error")}: {error}</span>
         </div>
       </WidgetCard>
     );
@@ -392,9 +394,9 @@ export default function CatchRadarChart({
 
   if (!data || data.length === 0) {
     return (
-      <WidgetCard title={getMetricLabel(selectedMetric)}>
+      <WidgetCard title={getMetricLabel(selectedMetric, t)}>
         <div className="h-96 w-full flex items-center justify-center">
-          <span className="text-sm text-gray-500">No data available</span>
+          <span className="text-sm text-gray-500">{t("text-no-data-available")}</span>
         </div>
       </WidgetCard>
     );
@@ -402,7 +404,7 @@ export default function CatchRadarChart({
 
   return (
     <WidgetCard
-      title={getMetricLabel(selectedMetric)}
+      title={getMetricLabel(selectedMetric, t)}
       className={cn("h-full", className)}
     >
       <div className="h-96 w-full flex items-center justify-center">
@@ -480,7 +482,7 @@ export default function CatchRadarChart({
               })}
               <Tooltip
                 content={(props) => (
-                  <CustomTooltip {...props} metric={selectedMetric} />
+                  <CustomTooltip {...props} metric={selectedMetric} t={t} />
                 )}
                 wrapperStyle={{ outline: 'none' }}
               />

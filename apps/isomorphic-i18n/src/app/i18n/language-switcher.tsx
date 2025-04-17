@@ -4,9 +4,11 @@ import { SWFlag } from "@components/icons/language/SWFlag";
 import { USFlag } from "@components/icons/language/USFlag";
 import { Listbox, Transition } from "@headlessui/react";
 import cn from "@utils/class-names";
+import { useRouter, usePathname } from "next/navigation";
 import { useState } from "react";
 import { PiCaretDownBold } from "react-icons/pi";
 import { useTranslation } from "./client";
+import { setDocumentLanguage, fixUrlLanguage } from "./utils";
 
 type LanguageMenuProps = {
   id: string;
@@ -42,6 +44,9 @@ export default function LanguageSwitcher({
   variant?: "text" | "icon";
 }) {
   const { i18n, t } = useTranslation(lang);
+  const router = useRouter();
+  const pathname = usePathname();
+  
   const options = languageMenu;
   const currentSelectedItem = lang
     ? options.find((o) => o.value === lang) ?? options[0]
@@ -50,7 +55,24 @@ export default function LanguageSwitcher({
 
   function handleItemClick(values: any) {
     setSelectedItem(values);
-    i18n.changeLanguage(values.value); // Change language without reloading
+    
+    // Change language in i18n context
+    i18n.changeLanguage(values.value);
+    
+    // Store the language preference in localStorage - this is the key part
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('i18nextLng', values.value);
+      localStorage.setItem('selectedLanguage', values.value);
+      
+      // Update the HTML lang attribute for immediate effect
+      document.documentElement.lang = values.value;
+    }
+    
+    // Update URL without causing a full page reload
+    if (pathname && typeof window !== 'undefined') {
+      const newPath = pathname.replace(/^\/(en|sw)/, `/${values.value}`);
+      window.history.pushState(null, '', newPath);
+    }
   }
 
   return (

@@ -12,6 +12,7 @@ import { format } from "date-fns";
 import { ChartDataPoint, MetricOption, VisibilityState } from "./types";
 import { CustomYAxisTick } from "./components";
 import { useTranslation } from "@/app/i18n/client";
+import { useCallback, useEffect, useRef } from "react";
 
 interface AnnualChartProps {
   chartData: ChartDataPoint[];
@@ -32,8 +33,38 @@ export default function AnnualChart({
   isTablet,
   CustomLegend,
 }: AnnualChartProps) {
-  const { t } = useTranslation("common");
+  // Check if there's a parent language context we should use
+  const contextLang = document.documentElement.getAttribute('data-language');
+  const isLangReady = document.documentElement.getAttribute('data-language-ready') === 'true';
+  const { t, i18n } = useTranslation("common");
   
+  // Keep a reference to translation state
+  const translationsRef = useRef<Record<string, string>>({});
+  
+  // Pre-load critical translations to avoid flicker
+  useEffect(() => {
+    // Cache the most commonly used translations
+    if (contextLang) {
+      const averageText = t("text-average-of-all-bmus");
+      translationsRef.current = {
+        ...translationsRef.current,
+        "text-average-of-all-bmus": averageText,
+      };
+    }
+  }, [contextLang, t]);
+  
+  // Sync with the parent language if needed - higher priority
+  useEffect(() => {
+    if (contextLang && isLangReady && i18n.language !== contextLang) {
+      i18n.changeLanguage(contextLang);
+    }
+  }, [contextLang, i18n, isLangReady]);
+  
+  // Helper to get cached translation or fall back to t function
+  const getTranslation = useCallback((key: string) => {
+    return translationsRef.current[key] || t(key);
+  }, [t]);
+
   // Format date for X-axis ticks (year only)
   const formatDate = (timestamp: number) => {
     const date = new Date(timestamp);
@@ -68,7 +99,7 @@ export default function AnnualChart({
                     style={{ backgroundColor: entry.color }}
                   />
                   <p className="text-sm">
-                    <span className="font-medium">{entry.dataKey === "average" ? t("text-average-of-all-bmus") : entry.dataKey}:</span>{" "}
+                    <span className="font-medium">{entry.dataKey === "average" ? getTranslation("text-average-of-all-bmus") : entry.dataKey}:</span>{" "}
                     {entry.value?.toFixed(1)}
                   </p>
                 </div>
