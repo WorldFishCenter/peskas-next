@@ -131,7 +131,7 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
   // For admin users, we want all BMUs data together
   // For CIA users, we only need their BMU's data
   const { data: statsData1, isLoading: isLoading1, error: error1 } = api.monthlyStats.allStats.useQuery({ 
-    bmus: isAdminUser ? bmus : (bmu ? [bmu] : bmus)
+    bmus: isAdminUser ? bmus : (bmu ? [bmu] : bmus) // Fallback to all bmus if bmu is not provided
   }, {
     retry: 3,
     retryDelay: 1000,
@@ -148,7 +148,7 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
     enabled: !isCiaUser && !isAdminUser && !!bmu,
   }) as { data: StatsResponse | undefined, isLoading: boolean, error: any };
 
-  // Monitor API responses (keeping the refactor-charts monitoring code)
+  // Monitor API responses (keeping this from refactor-charts for debugging)
   useEffect(() => {
     console.log('API Responses:', {
       statsData1,
