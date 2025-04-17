@@ -124,15 +124,24 @@ export default function ComparisonChart({
         <BarChart
           data={chartData}
           margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
+          barGap={0}
+          barCategoryGap={200}
+          barSize={30}
         >
-          <CartesianGrid strokeDasharray="3 3" vertical={false} />
+          <CartesianGrid 
+            strokeDasharray="3 3" 
+            vertical={false}
+            stroke="#e2e8f0" 
+            strokeOpacity={0.7}
+          />
           <XAxis
             dataKey="date"
             tickFormatter={formatDate}
-            tickCount={isTablet ? 3 : 6}
-            tickMargin={10}
             axisLine={false}
             tick={{ fontSize: 12 }}
+            minTickGap={15}
+            padding={{ left: 20, right: 20 }}
+            interval="preserveStartEnd"
           />
           <YAxis
             tickFormatter={(value) => value.toFixed(1)}
@@ -142,6 +151,18 @@ export default function ComparisonChart({
           />
           <Tooltip content={<CustomTooltip />} />
           <ReferenceLine y={0} stroke="#000" strokeWidth={1} />
+          
+          {/* Add vertical delimiters for each month */}
+          {chartData.map((item) => (
+            <ReferenceLine 
+              key={`vline-${item.date}`}
+              x={item.date}
+              stroke="#e2e8f0"
+              strokeWidth={1}
+              strokeOpacity={0.7}
+              strokeDasharray="3 3"
+            />
+          ))}
           
           {renderBars()}
           

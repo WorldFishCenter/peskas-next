@@ -106,6 +106,8 @@ export default function AnnualChart({
         <BarChart
           data={chartData}
           margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
+          barGap={2}
+          barCategoryGap={100}
         >
           <CartesianGrid strokeDasharray="3 3" vertical={false} />
           <XAxis
@@ -123,20 +125,6 @@ export default function AnnualChart({
           <Tooltip content={<CustomTooltip />} />
           
           {renderBars()}
-          
-          {/* Add average bar for non-CIA users */}
-          {!isCiaUser && (
-            <Bar
-              dataKey="average"
-              name={t("text-average-of-all-bmus")}
-              fill="#000000"
-              stroke="#000000"
-              strokeWidth={1}
-              maxBarSize={40}
-              radius={[2, 2, 0, 0]}
-              fillOpacity={visibilityState["average"]?.opacity}
-            />
-          )}
           
           {CustomLegend && <Legend content={(props) => <CustomLegend {...props} />} />}
         </BarChart>

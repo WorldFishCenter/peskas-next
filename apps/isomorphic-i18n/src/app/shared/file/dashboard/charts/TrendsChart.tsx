@@ -7,6 +7,7 @@ import {
   XAxis,
   YAxis,
   Legend,
+  ReferenceLine,
 } from "recharts";
 import { format } from "date-fns";
 import { ChartDataPoint, MetricOption, VisibilityState } from "./types";
@@ -133,6 +134,28 @@ export default function TrendsChart({
           />
           <CartesianGrid strokeDasharray="3 3" vertical={false} />
           <Tooltip content={<CustomTooltip />} />
+          
+          {/* Add vertical reference lines at the beginning of each year */}
+          {chartData
+            .reduce((yearMarkers, item) => {
+              const year = new Date(item.date).getFullYear();
+              // Check if we already have a marker for this year
+              if (!yearMarkers.some(marker => new Date(marker.date).getFullYear() === year)) {
+                yearMarkers.push(item);
+              }
+              return yearMarkers;
+            }, [] as ChartDataPoint[])
+            .map((yearStart) => (
+              <ReferenceLine
+                key={`year-${yearStart.date}`}
+                x={yearStart.date}
+                stroke="#94a3b8"
+                strokeWidth={1}
+                strokeOpacity={0.7}
+                strokeDasharray="3 3"
+              />
+            ))
+          }
           
           {renderAreas()}
           
