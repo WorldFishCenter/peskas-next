@@ -322,7 +322,7 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
       const currentIndex = entry.payload.index;
       const data = entry.payload.data;
       
-      if (currentIndex > 0 && data) {
+      if (currentIndex >= 0 && data) {
         const getMonthName = (dateStr: string) => {
           if (!dateStr) return '';
           const parts = dateStr.split('-');
@@ -333,35 +333,38 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
           return date.toLocaleString('default', { month: 'short' });
         };
         
-        const currentMonth = getMonthName(data[currentIndex].day);
-        const prevMonth = getMonthName(data[currentIndex - 1].day);
-        const monthComparison = `${prevMonth} → ${currentMonth}`;
-        
-        const previousValue = data[currentIndex - 1].sale;
-        if (previousValue && previousValue !== 0) {
-          const change = ((entry.value - previousValue) / previousValue) * 100;
-          if (!isNaN(change)) {
-            const percentage = change > 0 ? `+${Math.round(change)}%` : `${Math.round(change)}%`;
-            setHoveredPercentages(prev => ({
-              ...prev,
-              [entry.payload.metricId]: {
-                percentage,
-                increased: change > 0,
-                monthComparison
-              }
-            }));
-          }
-        }
-        
-        // Update comparison values
+        // Update comparison values for current point (even if it's the first point)
         setComparisonValues(prev => ({
           ...prev,
           [entry.payload.metricId]: {
             reference: Math.round(entry.payload.reference),
             others: (!isAdminUser && !isCiaUser) ? Math.round(entry.payload.others || 0) : undefined,
-            date: currentMonth
+            date: getMonthName(entry.payload.day)
           }
         }));
+        
+        // Only calculate percentage change if we have a previous point to compare
+        if (currentIndex > 0) {
+          const currentMonth = getMonthName(data[currentIndex].day);
+          const prevMonth = getMonthName(data[currentIndex - 1].day);
+          const monthComparison = `${prevMonth} → ${currentMonth}`;
+          
+          const previousValue = data[currentIndex - 1].sale;
+          if (previousValue && previousValue !== 0) {
+            const change = ((entry.value - previousValue) / previousValue) * 100;
+            if (!isNaN(change)) {
+              const percentage = change > 0 ? `+${Math.round(change)}%` : `${Math.round(change)}%`;
+              setHoveredPercentages(prev => ({
+                ...prev,
+                [entry.payload.metricId]: {
+                  percentage,
+                  increased: change > 0,
+                  monthComparison
+                }
+              }));
+            }
+          }
+        }
       }
     }
   };
@@ -405,7 +408,11 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
             
             {/* Metric and Period */}
             <div className="flex items-baseline gap-2 mt-0.5">
-              <Text className="text-xl font-bold text-gray-900">{stat.metric}</Text>
+              <Text className="text-xl font-bold text-gray-900">
+                {comparisonValues[stat.id]?.reference ? 
+                  comparisonValues[stat.id].reference.toLocaleString() : 
+                  stat.metric}
+              </Text>
               {hoveredPercentages[stat.id] && (
                 <span className="text-2xs text-gray-500">
                   {hoveredPercentages[stat.id].monthComparison}
