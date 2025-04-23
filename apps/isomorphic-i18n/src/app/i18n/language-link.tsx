@@ -101,8 +101,27 @@ const LanguageLink = forwardRef<HTMLAnchorElement, LinkProps>(
         !rawHref.startsWith('/_next')) {
       
       // For path routes, ensure language prefix
-      // First, remove any existing language prefix
-      let cleanHref = rawHref.replace(/^\/(en|sw)(?:\/|$)/, '/');
+      // First, remove ALL existing language prefixes to prevent stacking
+      let cleanHref = rawHref;
+      
+      // Remove multiple language prefixes like /en/en/en/en/path or /en/sw/en/path
+      const langPrefixPattern = /^\/(en|sw)\/((en|sw)\/)+/;
+      if (langPrefixPattern.test(cleanHref)) {
+        // Extract the path after all language prefixes
+        const pathParts = cleanHref.split('/').filter(Boolean);
+        const nonLangIndex = pathParts.findIndex(part => !['en', 'sw'].includes(part));
+        
+        if (nonLangIndex !== -1) {
+          // Rebuild path without language prefixes
+          cleanHref = '/' + pathParts.slice(nonLangIndex).join('/');
+        } else {
+          // If path only contains language codes, use root
+          cleanHref = '/';
+        }
+      } else {
+        // Handle simple case with just one language prefix
+        cleanHref = cleanHref.replace(/^\/(en|sw)(?:\/|$)/, '/');
+      }
       
       // If doesn't start with slash, add it
       if (!cleanHref.startsWith('/')) {
