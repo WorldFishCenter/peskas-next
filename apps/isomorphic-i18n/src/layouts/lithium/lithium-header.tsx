@@ -28,6 +28,7 @@ import SearchWidget from "@/app/shared/search/search";
 import { FilterSelector } from "@/app/components/filter-selector";
 import { useSession } from "next-auth/react";
 import type { TBmu } from "@repo/nosql/schema/bmu";
+import LanguageLink from "@/app/i18n/language-link";
 
 type SerializedBmu = {
   _id: string;
@@ -99,16 +100,16 @@ export default function Header({ lang }: { lang?: string }) {
       className={"z-[990] justify-between 2xl:py-5 2xl:pl-6  3xl:px-8"}
     >
       <div className="hidden items-center gap-3 xl:flex">
-        <Link
+        <LanguageLink
           aria-label="Site Logo"
-          href={"/"}
+          href="/"
           className="me-4 hidden w-[155px] shrink-0 text-gray-800 hover:text-gray-900 lg:me-5 xl:block"
         >
           <div className="flex items-center gap-2">
             <Logo className="max-w-[155px]" />
             <KenyaFlag className="h-6 w-auto" />
           </div>
-        </Link>
+        </LanguageLink>
         <HeaderMenuLeft lang={lang} />
       </div>
       <div className="flex w-full items-center gap-5 xl:w-auto 3xl:gap-6">
@@ -116,13 +117,13 @@ export default function Header({ lang }: { lang?: string }) {
           <HamburgerButton
             view={<Sidebar className="static w-full 2xl:w-full" lang={lang} />}
           />
-          <Link
+          <LanguageLink
             aria-label="Site Logo"
-            href={"/"}
+            href="/"
             className="me-4 w-9 shrink-0 text-gray-800 hover:text-gray-900 lg:me-5 xl:hidden"
           >
             <Logo iconOnly={true} />
-          </Link>
+          </LanguageLink>
           <LanguageSwitcher
             lang={lang!}
             className="me-3 rounded-none shadow-none"

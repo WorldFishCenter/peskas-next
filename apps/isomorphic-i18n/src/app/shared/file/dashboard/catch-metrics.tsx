@@ -25,6 +25,7 @@ import CustomLegend from "./charts/CustomLegend";
 import TrendsChart from "./charts/TrendsChart";
 import ComparisonChart from "./charts/ComparisonChart";
 import AnnualChart from "./charts/AnnualChart";
+import { getClientLanguage } from "@/app/i18n/language-link";
 
 // Create a more robust language context that includes both the language code and translations
 const LanguageContext = createContext<{
@@ -105,7 +106,35 @@ export default function CatchMetricsChart({
   const [recentData, setRecentData] = useState<ChartDataPoint[]>([]);
 
   const isTablet = useMedia("(max-width: 800px)", false);
-  const { t, i18n } = useTranslation("common");
+  
+  // Use client language instead of lang prop
+  const clientLang = getClientLanguage();
+  const { t, i18n } = useTranslation(clientLang);
+  
+  // Track current language with state
+  const [currentLang, setCurrentLang] = useState(clientLang);
+  
+  // Listen for language changes
+  useEffect(() => {
+    const handleLanguageChange = (event: CustomEvent) => {
+      setCurrentLang(event.detail.language);
+      
+      // Make sure i18n instance is updated
+      if (i18n.language !== event.detail.language) {
+        i18n.changeLanguage(event.detail.language);
+      }
+      
+      // Trigger a refresh without changing active tab
+      setLoading(true);
+      setTimeout(() => setLoading(false), 50);
+    };
+    
+    window.addEventListener('i18n-language-changed', handleLanguageChange as EventListener);
+    return () => {
+      window.removeEventListener('i18n-language-changed', handleLanguageChange as EventListener);
+    };
+  }, [i18n]);
+
   const [bmus] = useAtom(bmusAtom);
   const { data: session } = useSession();
 

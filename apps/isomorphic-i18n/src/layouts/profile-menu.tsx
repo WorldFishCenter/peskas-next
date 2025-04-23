@@ -11,6 +11,8 @@ import cn from "@utils/class-names";
 import { routes } from "@/config/routes";
 import { useTranslation } from "@/app/i18n/client";
 import { hasPermission } from '@/helpers/auth';
+import LanguageLink, { getClientLanguage } from "@/app/i18n/language-link";
+import { changeAppLanguage } from "@/app/i18n/language-switcher";
 
 export default function ProfileMenu({
   buttonClassName,
@@ -25,6 +27,18 @@ export default function ProfileMenu({
 }) {
   const { data: session, status } = useSession();
   const [mounted, setMounted] = useState(false);
+  const [currentLang, setCurrentLang] = useState<string>(getClientLanguage());
+
+  useEffect(() => {
+    const handleLanguageChange = ((event: CustomEvent) => {
+      setCurrentLang(event.detail.language);
+    }) as EventListener;
+
+    window.addEventListener('i18n-language-changed', handleLanguageChange);
+    return () => {
+      window.removeEventListener('i18n-language-changed', handleLanguageChange);
+    };
+  }, []);
 
   useEffect(() => {
     setMounted(true);
@@ -66,7 +80,7 @@ export default function ProfileMenu({
       </Popover.Trigger>
 
       <Popover.Content className="z-[9999] p-0 dark:bg-gray-100 [&>svg]:dark:fill-gray-100">
-        <DropdownMenu lang={lang} />
+        <DropdownMenu />
       </Popover.Content>
     </ProfileMenuPopover>
   );
@@ -101,14 +115,33 @@ const menuItems = (session: any) => [
     : [])
 ];
 
-function DropdownMenu({ lang }: { lang?: string }) {
-  const { t } = useTranslation(lang!);
+function DropdownMenu() {
+  const clientLang = getClientLanguage();
+  const { t } = useTranslation(clientLang);
   const { data: session } = useSession();
   const [mounted, setMounted] = useState(false);
   const userMenuItems = menuItems(session);
+  const [currentLang, setCurrentLang] = useState(clientLang);
+
+  useEffect(() => {
+    const handleLanguageChange = (event: CustomEvent) => {
+      setCurrentLang(event.detail.language);
+    };
+    
+    window.addEventListener('i18n-language-changed', handleLanguageChange as EventListener);
+    return () => {
+      window.removeEventListener('i18n-language-changed', handleLanguageChange as EventListener);
+    };
+  }, []);
 
   useEffect(() => {
     setMounted(true);
+    
+    const lang = getClientLanguage();
+    if (lang !== currentLang) {
+      setCurrentLang(lang);
+      changeAppLanguage(lang);
+    }
   }, []);
 
   if (!mounted) {
@@ -133,13 +166,13 @@ function DropdownMenu({ lang }: { lang?: string }) {
       {userMenuItems.length > 0 && mounted && (
         <div className="grid px-3.5 py-3.5 font-medium text-gray-700">
           {userMenuItems.map((item) => (
-            <Link
+            <LanguageLink
               key={item.name}
-              href={`/${lang}${item.href}`}
+              href={item.href}
               className="group my-0.5 flex items-center rounded-md px-2.5 py-2 hover:bg-gray-100 focus:outline-none hover:dark:bg-gray-50/50"
             >
               {t(item.name)}
-            </Link>
+            </LanguageLink>
           ))}
         </div>
       )}
