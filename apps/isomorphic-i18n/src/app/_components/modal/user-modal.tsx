@@ -2,7 +2,11 @@
 
 import { useAtom } from "jotai";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useMemo, useState } from "react";
+import find from 'lodash/find';
+import get from 'lodash/get';
+import values from 'lodash/values';
+import groupBy from 'lodash/groupBy';
 
 import { UpsertUserSchema } from "@/validators/user.schema";
 import { Button } from "@ui/button";
@@ -23,12 +27,18 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  SelectGroup,
+  SelectLabel,
 } from "@ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@ui/popover";
+import { Checkbox } from "rizzui";
+import SimpleBar from '@ui/simplebar';
 import { toast } from "@ui/toast";
 import cn from "@utils/class-names";
 import { Z_INDEX } from "@utils/common/constants";
 
 import type { DataType } from "@/store/modal";
+import type { TBmu } from "@repo/nosql/schema/bmu";
 
 import { ModalEnum, modalStoreAtom } from "@/store/modal";
 import { api } from "@/trpc/react";
@@ -68,13 +78,194 @@ const customStyles = `
   .user-bmu-dropdown {
     top: auto !important;
     bottom: 40px !important;
+    max-height: 300px !important;
+    overflow-y: auto !important;
   }
 
   /* Adjust internal list height */
   .dropdown-container [style*="height: 300px"] {
     height: 180px !important;
   }
+  
+  /* BMU filter dropdown styles */
+  .bmu-filter-dropdown {
+    width: 100%;
+    padding: 0.5rem;
+    max-height: 350px;
+  }
+  
+  .bmu-filter-content {
+    max-height: 280px;
+    overflow-y: auto;
+    width: 100%;
+    margin-top: 0.5rem;
+  }
+  
+  .bmu-section {
+    margin-bottom: 0.5rem;
+    padding: 0.5rem;
+    border-radius: 0.375rem;
+  }
+  
+  .bmu-section:hover {
+    background-color: rgba(0, 0, 0, 0.02);
+  }
+  
+  .bmu-section-items {
+    margin-top: 0.5rem;
+    margin-left: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+  
+  .bmu-trigger {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    padding: 0.5rem 1rem;
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.375rem;
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+    height: 2.5rem;
+  }
+  
+  /* Filter group component styles */
+  .filter-group-section {
+    font-weight: 600;
+    padding: 4px 0;
+  }
+  
+  .filter-group-item {
+    padding: 2px 0;
+    margin-left: 1.5rem;
+  }
 `;
+
+// Type definitions for BMU related data
+type BmuOption = {
+  value: string;
+  label: string;
+  group?: string;
+};
+
+type BmuGrouped = {
+  sectionName: string;
+  units: BmuOption[];
+};
+
+// Modified to match the format used in filter-selector
+const formatBmusForGroups = (bmus: any[] | undefined) => {
+  if (!bmus || !bmus.length) return [];
+  
+  // Group BMUs by their group property
+  const grouped = groupBy(bmus, 'group');
+  
+  // Convert to array of groups with their BMUs
+  return Object.entries(grouped).map(([groupName, groupBmus]) => ({
+    sectionName: groupName,
+    units: groupBmus.map(bmu => ({
+      value: bmu._id.toString(),
+      label: bmu.BMU,
+      group: bmu.group
+    }))
+  }));
+};
+
+// Filter section component for single selection
+const FilterGroup = ({
+  section,
+  selectedBmu,
+  onSelectBmu,
+}: {
+  section: BmuGrouped;
+  selectedBmu: string | undefined;
+  onSelectBmu: (bmuId: string) => void;
+}) => {
+  return (
+    <div className="bmu-section">
+      <div className="font-medium text-sm mb-1">{section.sectionName}</div>
+      <div className="bmu-section-items">
+        {section.units.map(unit => (
+          <div 
+            key={unit.value} 
+            className={cn(
+              "px-2 py-1 rounded cursor-pointer hover:bg-gray-100 flex items-center", 
+              selectedBmu === unit.value ? "bg-primary/10 text-primary font-medium" : ""
+            )}
+            onClick={() => onSelectBmu(unit.value)}
+          >
+            {unit.label}
+            {selectedBmu === unit.value && (
+              <svg 
+                width="16" 
+                height="16" 
+                viewBox="0 0 16 16" 
+                fill="none" 
+                xmlns="http://www.w3.org/2000/svg"
+                className="ml-auto"
+              >
+                <path 
+                  d="M6.00016 10.7998L3.20016 7.9998L2.26683 8.9998L6.00016 12.7332L14.0002 4.7332L13.0002 3.7332L6.00016 10.7998Z" 
+                  fill="currentColor"
+                />
+              </svg>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+// Filter section component for BMUs (multiple selection with regions)
+const BmusFilterGroup = ({
+  section,
+  selectedBmus,
+  onSelectBmu,
+  onSelectSection,
+}: {
+  section: BmuGrouped;
+  selectedBmus: string[];
+  onSelectBmu: (bmuId: string) => void;
+  onSelectSection: (sectionName: string, bmuIds: string[]) => void;
+}) => {
+  // Check if all BMUs in this section are selected
+  const allSelected = section.units.every(unit => 
+    selectedBmus.includes(unit.value)
+  );
+
+  // Handle selecting or deselecting the entire section
+  const handleSectionSelect = () => {
+    const sectionBmuIds = section.units.map(unit => unit.value);
+    onSelectSection(section.sectionName, sectionBmuIds);
+  };
+
+  return (
+    <div className="bmu-section mb-3">
+      <Checkbox
+        label={section.sectionName}
+        checked={allSelected}
+        onChange={handleSectionSelect}
+        className="font-medium text-gray-800"
+      />
+      <div className="bmu-section-items">
+        {section.units.map(unit => (
+          <Checkbox
+            key={unit.value}
+            label={unit.label}
+            checked={selectedBmus.includes(unit.value)}
+            onChange={() => onSelectBmu(unit.value)}
+            className="text-sm"
+          />
+        ))}
+      </div>
+    </div>
+  );
+};
 
 export default function UserModal({
   data,
@@ -89,6 +280,57 @@ export default function UserModal({
   const router = useRouter();
   const [, setModal] = useAtom(modalStoreAtom);
   const modalRef = useRef<HTMLDivElement>(null);
+  const [bmuOpen, setBmuOpen] = useState(false);
+  const [selectedBmu, setSelectedBmu] = useState<string | undefined>(undefined);
+  const [searchFilter, setSearchFilter] = useState('');
+  
+  // States for BMUs multi-select with regional filtering
+  const [bmusOpen, setBmusOpen] = useState(false);
+  const [selectedBmus, setSelectedBmus] = useState<string[]>([]);
+  const [bmusSearchFilter, setBmusSearchFilter] = useState('');
+
+  // Organize BMUs by group using the format from filter-selector
+  const groupedBmus: BmuGrouped[] = useMemo(() => 
+    formatBmusForGroups(bmus), [bmus]
+  );
+
+  // Flatten grouped BMUs for use with VirtualizedCombobox
+  const flatBmuOptions = useMemo(() => {
+    if (!groupedBmus || !groupedBmus.length) return [];
+    return groupedBmus.flatMap(group => 
+      group.units.map(bmu => ({
+        value: bmu.value,
+        label: `${bmu.label} (${group.sectionName})`, // Include group in label for context
+        group: group.sectionName
+      }))
+    );
+  }, [groupedBmus]);
+
+  // Filter BMUs based on search query
+  const filteredBmuGroups = useMemo(() => {
+    if (!searchFilter.trim() || !groupedBmus.length) return groupedBmus;
+    
+    // Filter BMUs that match the search query
+    return groupedBmus.map(group => ({
+      ...group,
+      units: group.units.filter(unit => 
+        unit.label.toLowerCase().includes(searchFilter.toLowerCase())
+      )
+    })).filter(group => group.units.length > 0); // Only keep groups with matching BMUs
+  }, [groupedBmus, searchFilter]);
+
+  // Filter BMUs for multi-select dropdown
+  const filteredBmuGroupsForMultiSelect = useMemo(() => {
+    if (!bmusSearchFilter.trim() || !groupedBmus.length) return groupedBmus;
+    
+    // Filter BMUs that match the search query
+    return groupedBmus.map(group => ({
+      ...group,
+      units: group.units.filter(unit => 
+        unit.label.toLowerCase().includes(bmusSearchFilter.toLowerCase())
+      )
+    })).filter(group => group.units.length > 0); // Only keep groups with matching BMUs
+  }, [groupedBmus, bmusSearchFilter]);
 
   const form = useForm({
     schema: UpsertUserSchema,
@@ -111,6 +353,20 @@ export default function UserModal({
     },
   });
 
+  // Initialize selectedBmu from user's userBmu if it exists
+  useEffect(() => {
+    if (user?.userBmu) {
+      setSelectedBmu(user.userBmu._id.toString());
+    }
+  }, [user]);
+
+  // Initialize selectedBmus from user's bmus if they exist
+  useEffect(() => {
+    if (user?.bmus && user.bmus.length > 0) {
+      setSelectedBmus(user.bmus.map(bmu => bmu._id.toString()));
+    }
+  }, [user]);
+
   useEffect(() => {
     form.reset({
       _id: user?._id?.toString() ?? undefined,
@@ -130,6 +386,69 @@ export default function UserModal({
       } : undefined,
     });
   }, [form, user]);
+
+  // Handle selecting a single BMU
+  const handleBmuSelect = (bmuId: string) => {
+    // Select only this BMU (single selection)
+    setSelectedBmu(bmuId);
+    
+    // Close the dropdown after selection
+    setBmuOpen(false);
+  };
+
+  // Handler for selecting/deselecting a single BMU in the BMUs field
+  const handleBmusSelect = (bmuId: string) => {
+    if (selectedBmus.includes(bmuId)) {
+      setSelectedBmus(selectedBmus.filter(id => id !== bmuId));
+    } else {
+      setSelectedBmus([...selectedBmus, bmuId]);
+    }
+  };
+
+  // Handler for selecting/deselecting an entire section in the BMUs field
+  const handleBmusSectionSelect = (sectionName: string, sectionBmuIds: string[]) => {
+    const allSelected = sectionBmuIds.every(id => selectedBmus.includes(id));
+    
+    if (allSelected) {
+      // Remove all BMUs in this section
+      setSelectedBmus(selectedBmus.filter(id => !sectionBmuIds.includes(id)));
+    } else {
+      // Add all BMUs in this section that aren't already selected
+      const newBmus = sectionBmuIds.filter(id => !selectedBmus.includes(id));
+      setSelectedBmus([...selectedBmus, ...newBmus]);
+    }
+  };
+
+  // Update form data when selected BMUs change
+  useEffect(() => {
+    // Map selected BMU IDs to objects with value and label
+    const bmuObjects = selectedBmus.map(id => {
+      const bmu = flatBmuOptions.find(option => option.value === id);
+      return {
+        value: id,
+        label: bmu ? bmu.label.split(' (')[0] : id,
+      };
+    });
+    
+    form.setValue('bmuNames', bmuObjects);
+  }, [selectedBmus, flatBmuOptions, form]);
+
+  // Update form data when selected BMU changes
+  useEffect(() => {
+    if (selectedBmu) {
+      // Find the BMU from flat options
+      const bmuOption = flatBmuOptions.find(bmu => bmu.value === selectedBmu);
+      if (bmuOption) {
+        form.setValue('userBmu', {
+          value: bmuOption.value,
+          label: bmuOption.label.split(' (')[0], // Remove group suffix
+        });
+      }
+    } else {
+      // If no BMU selected, clear userBmu field
+      form.setValue('userBmu', undefined);
+    }
+  }, [selectedBmu, flatBmuOptions, form]);
 
   const upsertUser = api.user.upsert.useMutation({
     onSuccess: async () => {
@@ -165,6 +484,16 @@ export default function UserModal({
         }
       });
     }, 10);
+  };
+
+  // Get the display text for the selected BMU
+  const getSelectedBmuText = () => {
+    if (!selectedBmu) {
+      return "Select a BMU";
+    }
+    
+    const bmu = flatBmuOptions.find(b => b.value === selectedBmu);
+    return bmu ? bmu.label.split(' (')[0] : "Select a BMU";
   };
 
   return (
@@ -329,22 +658,67 @@ export default function UserModal({
                     <div className={cn("flex flex-col gap-y-2")}>
                       <FormLabel>BMUs</FormLabel>
                       <div className="relative" onFocus={() => handleDropdownOpen('bmus')}>
-                        <VirtualizedCombobox
-                          value={field.value.map((bmu) => ({
-                            value: bmu.value,
-                            label: bmu.label,
-                          }))}
-                          options={
-                            bmus?.map((bmu) => ({
-                              value: bmu._id.toString(),
-                              label: bmu.BMU,
-                            })) ?? []
-                          }
-                          searchPlaceholder="Search for a BMU"
-                          onSelect={field.onChange}
-                          required={true}
-                          isMulti={true}
-                        />
+                        <Popover open={bmusOpen} onOpenChange={setBmusOpen}>
+                          <PopoverTrigger asChild>
+                            <button
+                              className="bmu-trigger"
+                              onClick={() => {
+                                setBmusOpen(!bmusOpen);
+                                handleDropdownOpen('bmus');
+                              }}
+                              type="button"
+                            >
+                              <span className="text-left truncate">
+                                {selectedBmus.length === 0
+                                  ? "Select BMUs"
+                                  : `${selectedBmus.length} BMU${selectedBmus.length > 1 ? 's' : ''} selected`}
+                              </span>
+                              <svg
+                                width="24"
+                                height="24"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                xmlns="http://www.w3.org/2000/svg"
+                                className={cn(
+                                  "transition-transform",
+                                  bmusOpen ? "rotate-180" : ""
+                                )}
+                              >
+                                <path
+                                  d="M6 9l6 6 6-6"
+                                  stroke="currentColor"
+                                  strokeWidth="2"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                />
+                              </svg>
+                            </button>
+                          </PopoverTrigger>
+                          <PopoverContent className="bmu-filter-dropdown">
+                            <Input
+                              placeholder="Search BMUs..."
+                              value={bmusSearchFilter}
+                              onChange={(e) => setBmusSearchFilter(e.target.value)}
+                              className="mb-2"
+                            />
+                            <SimpleBar className="bmu-filter-content">
+                              {filteredBmuGroupsForMultiSelect.map((section, idx) => (
+                                <BmusFilterGroup
+                                  key={`section-${idx}`}
+                                  section={section}
+                                  selectedBmus={selectedBmus}
+                                  onSelectBmu={handleBmusSelect}
+                                  onSelectSection={handleBmusSectionSelect}
+                                />
+                              ))}
+                              {filteredBmuGroupsForMultiSelect.length === 0 && (
+                                <div className="py-2 text-center text-gray-500">
+                                  No BMUs found
+                                </div>
+                              )}
+                            </SimpleBar>
+                          </PopoverContent>
+                        </Popover>
                       </div>
                       {error?.message ? (
                         <InputError error={error.message} />
@@ -354,6 +728,7 @@ export default function UserModal({
                 )}
               />
 
+              {/* User BMU Field */}
               <FormField
                 control={form.control}
                 name="userBmu"
@@ -361,24 +736,69 @@ export default function UserModal({
                   <FormItem className="dropdown-container">
                     <div className={cn("flex flex-col gap-y-2")}>
                       <FormLabel>User BMU</FormLabel>
-                      <div className="relative" onFocus={() => handleDropdownOpen('user-bmu')}>
-                        <VirtualizedCombobox
-                          value={field.value ? [{
-                            value: field.value.value,
-                            label: field.value.label,
-                          }] : []}
-                          options={
-                            bmus?.map((bmu) => ({
-                              value: bmu._id.toString(),
-                              label: bmu.BMU,
-                            })) ?? []
-                          }
-                          searchPlaceholder="Search for a BMU"
-                          onSelect={(value) => field.onChange(value[0])}
-                          required={false}
-                          isMulti={false}
-                        />
-                      </div>
+                      
+                      <Popover 
+                        open={bmuOpen} 
+                        onOpenChange={setBmuOpen}
+                      >
+                        <PopoverTrigger asChild>
+                          <button
+                            className="bmu-trigger"
+                            onClick={() => {
+                              setBmuOpen(!bmuOpen);
+                              handleDropdownOpen('user-bmu');
+                            }}
+                            type="button"
+                          >
+                            <span className="text-left truncate">
+                              {getSelectedBmuText()}
+                            </span>
+                            <svg
+                              width="24"
+                              height="24" 
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              xmlns="http://www.w3.org/2000/svg"
+                              className={cn(
+                                "transition-transform",
+                                bmuOpen ? "rotate-180" : ""
+                              )}
+                            >
+                              <path
+                                d="M6 9l6 6 6-6"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                              />
+                            </svg>
+                          </button>
+                        </PopoverTrigger>
+                        <PopoverContent className="bmu-filter-dropdown">
+                          <Input
+                            placeholder="Search here..."
+                            value={searchFilter}
+                            onChange={(e) => setSearchFilter(e.target.value)}
+                            className="mb-2"
+                          />
+                          <SimpleBar className="bmu-filter-content">
+                            {filteredBmuGroups.map((section, idx) => (
+                              <FilterGroup
+                                key={`section-${idx}`}
+                                section={section}
+                                selectedBmu={selectedBmu}
+                                onSelectBmu={handleBmuSelect}
+                              />
+                            ))}
+                            {filteredBmuGroups.length === 0 && (
+                              <div className="py-2 text-center text-gray-500">
+                                No BMUs found
+                              </div>
+                            )}
+                          </SimpleBar>
+                        </PopoverContent>
+                      </Popover>
+
                       {error?.message ? (
                         <InputError error={error.message} />
                       ) : null}
