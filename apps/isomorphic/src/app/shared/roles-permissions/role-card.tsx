@@ -25,6 +25,11 @@ interface RoleCardProps {
   users: User[];
 }
 
+// Custom styles for proper dropdown positioning
+const dropdownStyles = {
+  menu: 'max-h-[300px] overflow-y-auto z-50',
+};
+
 export default function RoleCard({
   name,
   color,
@@ -72,13 +77,16 @@ export default function RoleCard({
           </Title>
         </div>
 
-        <Dropdown className={className} placement="bottom-end">
+        <Dropdown 
+          className={className} 
+          placement="bottom-end"
+        >
           <Dropdown.Trigger>
             <ActionIcon variant="text" className="ml-auto h-auto w-auto p-1">
               <PiDotsThreeBold className="h-auto w-6" />
             </ActionIcon>
           </Dropdown.Trigger>
-          <Dropdown.Menu className="!z-0">
+          <Dropdown.Menu className="!z-50 max-h-[300px] overflow-y-auto">
             <Dropdown.Item className="gap-2 text-xs sm:text-sm">
               <span
                 onClick={() =>
