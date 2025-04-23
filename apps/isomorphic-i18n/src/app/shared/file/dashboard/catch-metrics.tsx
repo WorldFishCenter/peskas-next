@@ -379,16 +379,16 @@ export default function CatchMetricsChart({
                 {t("text-trends-tab")}
               </button>
               <button
-                className={`px-4 py-2 text-sm rounded-md transition duration-200 ${localActiveTab === 'comparison' ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'} w-full sm:w-auto`}
-                onClick={() => handleTabChange('comparison')}
-              >
-                {t("text-comparison-tab")}
-              </button>
-              <button
                 className={`px-4 py-2 text-sm rounded-md transition duration-200 ${localActiveTab === 'annual' ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'} w-full sm:w-auto`}
                 onClick={() => handleTabChange('annual')}
               >
                 {t("text-annual-tab")}
+              </button>
+              <button
+                className={`px-4 py-2 text-sm rounded-md transition duration-200 ${localActiveTab === 'comparison' ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'} w-full sm:w-auto`}
+                onClick={() => handleTabChange('comparison')}
+              >
+                {t("text-comparison-tab")}
               </button>
             </div>
           )}

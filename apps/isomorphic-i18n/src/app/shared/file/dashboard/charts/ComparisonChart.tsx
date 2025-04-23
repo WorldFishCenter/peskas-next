@@ -154,7 +154,7 @@ export default function ComparisonChart({
       <ResponsiveContainer width="100%" height="100%">
         <BarChart
           data={chartData}
-          margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
+          margin={{ top: 10, right: 30, left: 10, bottom: 0 }}
           barGap={0}
           barCategoryGap={200}
           barSize={30}
