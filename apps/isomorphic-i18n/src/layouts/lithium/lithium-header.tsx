@@ -126,7 +126,6 @@ export default function Header({ lang }: { lang?: string }) {
           <LanguageSwitcher
             lang={lang!}
             className="me-3 rounded-none shadow-none"
-            variant="text"
           />
           {/*
           <SearchWidget

@@ -30,3 +30,17 @@ export async function useTranslation(lang: string, ns?: any, options?: object) {
     i18n: i18nextInstance,
   };
 }
+
+// Export i18n components
+export { default as LanguageHandler } from './language-handler';
+export { default as LanguageSwitcher } from './language-switcher';
+export { default as LanguageLink } from './language-link';
+export { default as LanguageInitializer } from './language-initializer';
+
+// Export utils
+export { 
+  setDocumentLanguage, 
+  getDocumentLanguage, 
+  fixUrlLanguage,
+  languageInitScript 
+} from './utils';

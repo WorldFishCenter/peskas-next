@@ -13,6 +13,7 @@ export default function LanguageHandler({ lang }: { lang?: string }) {
   const pathname = usePathname();
   const router = useRouter();
   const initialized = useRef(false);
+  const lastFixedPath = useRef('');
 
   // Set initial language from URL or localStorage when component mounts
   useEffect(() => {
@@ -49,23 +50,23 @@ export default function LanguageHandler({ lang }: { lang?: string }) {
         
         // Fix URL if it doesn't match saved language
         if (pathname) {
-          // Check for common path pattern that might cause loops
-          if (pathname.includes('/common/common')) {
-            console.error('Loop detected in URL:', pathname);
-            // Don't try to fix URLs that have loops
-            return;
-          }
-          
-          // Make sure we're not applying changes to API routes or other special routes
+          // Skip special routes
           if (pathname.startsWith('/_next') || pathname.startsWith('/api')) {
             return;
           }
           
           const newPath = fixUrlLanguage(pathname, savedLang);
           
-          // Only update if the path would actually change and isn't already in a loop
-          if (newPath !== pathname && !newPath.includes('/common/common')) {
+          // Only update if the path would actually change and we haven't just done this fix
+          if (newPath !== pathname && newPath !== lastFixedPath.current) {
+            lastFixedPath.current = newPath;
             window.history.replaceState({ lang: savedLang }, '', newPath);
+            
+            // If this is a completely different page, consider it a proper navigation
+            if (pathname.split('/').slice(2).join('/') !== newPath.split('/').slice(2).join('/')) {
+              // Force router update to ensure consistent Next.js state
+              router.replace(newPath);
+            }
           }
         }
         
@@ -84,26 +85,48 @@ export default function LanguageHandler({ lang }: { lang?: string }) {
     // Run once on mount
     handleRouteChange();
 
-    // Listen to Next.js navigation events
-    window.addEventListener('popstate', handleRouteChange);
-    
-    // Create custom event listeners for Next.js router
-    const originalPushState = window.history.pushState;
-    window.history.pushState = function(...args) {
-      const result = originalPushState.apply(this, args);
-      window.dispatchEvent(new Event('pushstate'));
-      window.dispatchEvent(new Event('locationchange'));
-      return result;
+    // Handle Next.js client-side navigation events
+    const handleBeforeHistoryChange = () => {
+      setTimeout(handleRouteChange, 0);
     };
+
+    // Listen to various events that might indicate navigation
+    window.addEventListener('popstate', handleRouteChange);
+    window.addEventListener('beforeunload', handleRouteChange);
     
-    window.addEventListener('pushstate', handleRouteChange);
-    window.addEventListener('locationchange', handleRouteChange);
+    // Create a MutationObserver to detect DOM changes that might indicate navigation
+    const observer = new MutationObserver((mutations) => {
+      setTimeout(handleRouteChange, 0);
+    });
+    
+    observer.observe(document.documentElement, { 
+      childList: true, 
+      subtree: true,
+      attributes: true,
+      attributeFilter: ['href']
+    });
+    
+    // Intercept link clicks to ensure language prefix is preserved
+    document.addEventListener('click', (e) => {
+      const target = e.target as HTMLElement;
+      const link = target.closest('a');
+      
+      if (link && link.href && link.href.startsWith(window.location.origin)) {
+        const path = link.href.replace(window.location.origin, '');
+        const savedLang = getDocumentLanguage();
+        const fixedPath = fixUrlLanguage(path, savedLang);
+        
+        if (fixedPath !== path) {
+          e.preventDefault();
+          router.push(fixedPath);
+        }
+      }
+    });
 
     return () => {
       window.removeEventListener('popstate', handleRouteChange);
-      window.removeEventListener('pushstate', handleRouteChange);
-      window.removeEventListener('locationchange', handleRouteChange);
-      window.history.pushState = originalPushState;
+      window.removeEventListener('beforeunload', handleRouteChange);
+      observer.disconnect();
     };
   }, [i18n, pathname, router]);
 
