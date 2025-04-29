@@ -920,12 +920,14 @@
   "text-na": "N/A",
   "text-distribution-tab": "Distribution",
   "text-ranking-tab": "Ranking",
-  "text-distribution-tab-title": "Gear Distribution by BMU",
-  "text-comparison-tab-title": "BMU vs Average Comparison",
-  "text-ranking-tab-title": "Gear Type Ranking",
-  "text-distribution-tab-description": "Shows how different gear types are used across BMUs",
-  "text-comparison-tab-description": "Compares selected BMU with average of others",
-  "text-ranking-tab-description": "Shows the relative importance of each gear type",
+  "text-distribution-tab-title": "Fishing Gear Performance by BMU",
+  "text-comparison-tab-title": "BMU Gear Performance Comparison",
+  "text-ranking-tab-title": "Fishing Gear Effectiveness",
+  "text-ranking-tab-description": "Shows overall performance of different fishing methods",
+  "text-ranking-tab-title-all": "Overall Fishing Gear Effectiveness",
+  "text-ranking-tab-description-all": "Shows overall performance of different fishing methods across all BMUs",
+  "text-distribution-tab-description": "Shows how different fishing methods perform across Beach Management Units",
+  "text-comparison-tab-description": "Compares selected BMU's gear performance with average of others",
   "text-average-of-other-bmus": "Average of other BMUs",
-  "text-gear-distribution": "Gear Distribution"
+  "text-gear-distribution": "Fishing Gear Performance"
 }

@@ -778,12 +778,14 @@
   "text-distribution-tab": "Mgawanyo",
   "text-comparison-tab": "Ulinganisho",
   "text-ranking-tab": "Nafasi",
-  "text-distribution-tab-title": "Mgawanyo wa Vifaa kwa BMU",
-  "text-comparison-tab-title": "BMU Dhidi ya Wastani", 
-  "text-ranking-tab-title": "Nafasi ya Aina za Vifaa",
-  "text-distribution-tab-description": "Inaonyesha jinsi aina tofauti za vifaa zinavyotumika kwenye BMUs",
-  "text-comparison-tab-description": "Inalinganisha BMU iliyochaguliwa na wastani wa wengine",
-  "text-ranking-tab-description": "Inaonyesha umuhimu wa kila aina ya kifaa",
+  "text-distribution-tab-title": "Utendaji wa Vifaa vya Uvuvi kwa BMU",
+  "text-comparison-tab-title": "Ulinganisho wa Utendaji wa Vifaa vya BMU", 
+  "text-ranking-tab-title": "Ufanisi wa Vifaa vya Uvuvi",
+  "text-ranking-tab-description": "Inaonyesha utendaji wa jumla wa mbinu mbalimbali za uvuvi",
+  "text-ranking-tab-title-all": "Ufanisi wa Jumla wa Vifaa vya Uvuvi",
+  "text-ranking-tab-description-all": "Inaonyesha utendaji wa jumla wa mbinu tofauti za uvuvi katika BMUs zote",
+  "text-distribution-tab-description": "Inaonyesha jinsi mbinu tofauti za uvuvi zinavyofanya kazi katika Vitengo vya Usimamizi wa Ufuo",
+  "text-comparison-tab-description": "Inalinganisha utendaji wa vifaa vya BMU iliyochaguliwa na wastani wa wengine",
   "text-average-of-other-bmus": "Wastani wa BMUs nyingine",
-  "text-gear-distribution": "Mgawanyo wa Vifaa"
+  "text-gear-distribution": "Utendaji wa Vifaa vya Uvuvi"
 }

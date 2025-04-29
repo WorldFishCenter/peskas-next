@@ -9,6 +9,7 @@ import { bmusAtom } from "@/app/components/filter-selector";
 import cn from "@utils/class-names";
 import { useTheme } from "next-themes";
 import MetricCard from "@components/cards/metric-card";
+import { useSession } from "next-auth/react";
 import {
   BarChart,
   Bar,
@@ -288,10 +289,17 @@ export default function GearHeatmap({
   const [siteColors, setSiteColors] = useState<Record<string, string>>({});
   const [visibilityState, setVisibilityState] = useState<VisibilityState>({});
   const [activeTab, setActiveTab] = useState('distribution');
-  const numBMUs = (bmus || []).length;
-  // Use responsive approach instead of fixed height
-  // Charts will use container's h-96 class for responsive sizing
-
+  
+  // Get user session to determine their BMU
+  const { data: session } = useSession();
+  // Get user's BMU from session - use BMU property instead of _id
+  const userBMU = session?.user?.userBmu?.BMU || bmu;
+  
+  // Check if user is from CIA 
+  const isCiaUser = session?.user?.groups?.some((group: { name: string }) => group.name === 'CIA');
+  
+  // Use responsive height class instead of calculated height
+  
   const { data: rawData } = api.gear.summaries.useQuery({ bmus });
   const selectedMetricOption = METRIC_OPTIONS.find(
     (m) => m.value === selectedMetric
@@ -325,7 +333,7 @@ export default function GearHeatmap({
       const newSiteColors = uniqueBMUs.reduce<Record<string, string>>(
         (acc, site, index) => ({
           ...acc,
-          [site]: generateColor(index, site, bmu),
+          [site]: generateColor(index, site, userBMU),
         }),
         {}
       );
@@ -335,7 +343,7 @@ export default function GearHeatmap({
       const initialVisibility = uniqueBMUs.reduce<VisibilityState>(
         (acc, site) => ({
           ...acc,
-          [site]: { opacity: site === bmu ? 1 : 0.2 },
+          [site]: { opacity: site === userBMU ? 1 : 0.2 },
         }),
         {}
       );
@@ -383,12 +391,17 @@ export default function GearHeatmap({
       setBarData(transformedData);
 
       // Format data for the ranking chart
+      // If user is not from CIA and has a BMU, only show their BMU data
+      // Otherwise show data from all BMUs
       const rankingData: RankingDataItem[] = gearTypes.map((gear, index) => {
-        // Calculate total value for this gear across all BMUs
-        const totalValue = rawData.reduce((sum, curr) => {
-          return sum + (curr.gear === gear && typeof curr[selectedMetric] === "number" 
-            ? curr[selectedMetric] 
-            : 0);
+        // Determine which data to use based on user's role and BMU
+        const gearData = !isCiaUser && userBMU
+          ? rawData.filter(d => d.BMU === userBMU && d.gear === gear)
+          : rawData.filter(d => d.gear === gear);
+            
+        // Calculate total value for this gear (filtered for user's BMU if applicable)
+        const totalValue = gearData.reduce((sum, curr) => {
+          return sum + (typeof curr[selectedMetric] === "number" ? curr[selectedMetric] : 0);
         }, 0);
 
         return {
@@ -407,16 +420,16 @@ export default function GearHeatmap({
       setRankingData(rankingData);
 
       // Format data for the comparison chart
-      // For the selected BMU compared to average of others
-      if (bmu) {
+      // For the user's BMU compared to average of others
+      if (userBMU) {
         const comparisonData = gearTypes.map((gear, index) => {
-          // Get value for selected BMU
+          // Get value for user's BMU
           const bmuValue = rawData.find(
-            d => d.BMU === bmu && d.gear === gear && typeof d[selectedMetric] === "number"
+            d => d.BMU === userBMU && d.gear === gear && typeof d[selectedMetric] === "number"
           )?.[selectedMetric] || 0;
 
           // Get average value for other BMUs
-          const otherBMUs = uniqueBMUs.filter(b => b !== bmu);
+          const otherBMUs = uniqueBMUs.filter(b => b !== userBMU);
           let otherBMUsTotal = 0;
           let otherBMUsCount = 0;
 
@@ -440,7 +453,7 @@ export default function GearHeatmap({
 
           return {
             name: capitalizeGearType(gear.replace(/_/g, " ")),
-            [bmu]: Number(bmuValue.toFixed(2)),
+            [userBMU]: Number(bmuValue.toFixed(2)),
             average: Number(otherBMUsAvg.toFixed(2)),
             diff: diff,
             color: GEAR_COLORS[index % GEAR_COLORS.length]
@@ -457,7 +470,7 @@ export default function GearHeatmap({
     } finally {
       setLoading(false);
     }
-  }, [rawData, selectedMetric, bmu]);
+  }, [rawData, selectedMetric, userBMU, isCiaUser]);
 
   const getTabTitle = (tab: string): string => {
     switch (tab) {
@@ -466,7 +479,7 @@ export default function GearHeatmap({
       case 'comparison':
         return t("text-comparison-tab-title");
       case 'ranking':
-        return t("text-ranking-tab-title");
+        return userBMU && !isCiaUser ? t("text-ranking-tab-title") : t("text-ranking-tab-title-all");
       default:
         return t("text-distribution-tab-title");
     }
@@ -477,9 +490,13 @@ export default function GearHeatmap({
       case 'distribution':
         return t("text-distribution-tab-description");
       case 'comparison':
-        return t("text-comparison-tab-description");
+        return userBMU ? t("text-comparison-tab-description") + ` (${userBMU})` : t("text-comparison-tab-description");
       case 'ranking':
-        return t("text-ranking-tab-description");
+        if (userBMU && !isCiaUser) {
+          return t("text-ranking-tab-description") + ` (${userBMU})`;
+        } else {
+          return t("text-ranking-tab-description-all");
+        }
       default:
         return t("text-distribution-tab-description");
     }
@@ -518,7 +535,7 @@ export default function GearHeatmap({
             >
               {t("text-distribution-tab")}
             </button>
-            {bmu && (
+            {userBMU && (
               <button
                 className={`px-4 py-2 text-sm rounded-md transition duration-200 ${activeTab === 'comparison' ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'} w-full sm:w-auto`}
                 onClick={() => handleTabChange('comparison')}
@@ -609,7 +626,7 @@ export default function GearHeatmap({
         )}
 
         {/* Comparison View - Selected BMU vs Average of Others */}
-        {activeTab === 'comparison' && bmu && (
+        {activeTab === 'comparison' && userBMU && (
           <div className="w-full h-[600px] pt-4">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart
@@ -650,9 +667,9 @@ export default function GearHeatmap({
                   wrapperStyle={{ position: 'relative', marginTop: '10px' }}
                 />
                 <Bar
-                  dataKey={bmu}
-                  name={bmu}
-                  fill={siteColors[bmu] || "#fc3468"}
+                  dataKey={userBMU}
+                  name={userBMU}
+                  fill={siteColors[userBMU] || "#fc3468"}
                   radius={[0, 4, 4, 0]}
                   animationDuration={1000}
                   animationEasing="ease-out"
