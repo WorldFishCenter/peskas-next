@@ -22,6 +22,7 @@ import {
   Pie,
   Cell,
   LabelList,
+  Treemap,
 } from "recharts";
 
 // Import shared MetricSelector component
@@ -201,22 +202,22 @@ const CustomLegend = ({ payload, visibilityState, handleLegendClick }: any) => {
   );
 };
 
-// Custom pie tooltip
-const PieTooltip = ({ active, payload, selectedMetricOption }: any) => {
+// Custom treemap tooltip for ranking view
+const TreemapTooltip = ({ active, payload, selectedMetricOption }: any) => {
   if (active && payload && payload.length) {
-    const data = payload[0];
+    const data = payload[0].payload;
     return (
       <div className="bg-white p-4 border border-gray-200 rounded-lg shadow-lg">
         <p className="text-sm font-medium text-gray-600 mb-2">{data.name}</p>
         <div className="flex items-center gap-2">
           <div
             className="w-3 h-3 rounded-full"
-            style={{ backgroundColor: data.payload.fill }}
+            style={{ backgroundColor: data.fill }}
           />
           <p className="text-sm">
             <span className="font-semibold">{formatNumber(data.value)}</span>
-            {data.payload.percentage && (
-              <span className="text-gray-500 ml-1">({data.payload.percentage}%)</span>
+            {data.percentage && (
+              <span className="text-gray-500 ml-1">({data.percentage}%)</span>
             )}
           </p>
         </div>
@@ -224,6 +225,45 @@ const PieTooltip = ({ active, payload, selectedMetricOption }: any) => {
     );
   }
   return null;
+};
+
+// Custom treemap content component to handle visibility state and labels
+const CustomizedTreemapContent = (props: any) => {
+  const { depth, x, y, width, height, index, name, fill, root, opacity, visibilityState } = props;
+  
+  // Handle visibility state
+  const itemOpacity = visibilityState && name ? (visibilityState[name]?.opacity || 1) * 0.85 : 0.85;
+  
+  // Only show text if the rectangle is big enough
+  const showLabel = width > 30 && height > 30;
+  
+  return (
+    <g>
+      <rect
+        x={x}
+        y={y}
+        width={width}
+        height={height}
+        fill={fill}
+        fillOpacity={itemOpacity}
+        stroke="#fff"
+        strokeWidth={2}
+      />
+      {showLabel && (
+        <text
+          x={x + width / 2}
+          y={y + height / 2}
+          textAnchor="middle"
+          dominantBaseline="middle"
+          fontSize={12}
+          fill="#fff"
+          fontWeight={500}
+        >
+          {name}
+        </text>
+      )}
+    </g>
+  );
 };
 
 export default function GearHeatmap({
@@ -629,57 +669,44 @@ export default function GearHeatmap({
           </div>
         )}
 
-        {/* Ranking View - Pie Chart of Total Values */}
+        {/* Ranking View - Treemap instead of Pie Chart */}
         {activeTab === 'ranking' && (
           <div style={{ height: `${containerHeight}px` }} className="w-full pt-4">
             <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={rankingData}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  outerRadius={containerHeight > 400 ? 140 : 110}
-                  innerRadius={containerHeight > 400 ? 70 : 55}
-                  dataKey="value"
-                  nameKey="name"
-                  paddingAngle={2}
-                  animationDuration={1000}
-                  animationEasing="ease-out"
-                >
-                  <LabelList
-                    dataKey="name"
-                    position="outside"
-                    fill="#64748b"
-                    style={{ fontSize: '12px' }}
+              <Treemap
+                data={rankingData.filter(item => (visibilityState[item.name]?.opacity || 1) > 0.2)}
+                dataKey="value"
+                aspectRatio={4/3}
+                stroke="#fff"
+                nameKey="name"
+                animationDuration={1000}
+                animationEasing="ease-out"
+              >
+                {rankingData.map((entry, index) => (
+                  <Cell 
+                    key={`cell-${index}`} 
+                    name={entry.name}
+                    fill={entry.fill} 
+                    opacity={(visibilityState[entry.name]?.opacity || 1) * 0.85}
                   />
-                  {rankingData.map((entry, index) => (
-                    <Cell 
-                      key={`cell-${index}`} 
-                      fill={entry.fill} 
-                      fillOpacity={(visibilityState[entry.name]?.opacity || 1) * 0.85}
-                      strokeOpacity={visibilityState[entry.name]?.opacity || 1}
-                    />
-                  ))}
-                </Pie>
-                <Tooltip
-                  content={(props) => <PieTooltip {...props} selectedMetricOption={selectedMetricOption} />}
+                ))}
+                <Tooltip 
+                  content={(props) => <TreemapTooltip {...props} selectedMetricOption={selectedMetricOption} />} 
                   wrapperStyle={{ outline: 'none' }}
                 />
-                <Legend 
-                  content={(props) => (
-                    <CustomLegend
-                      {...props}
-                      visibilityState={visibilityState}
-                      handleLegendClick={handleLegendClick}
-                    />
-                  )}
-                  verticalAlign="bottom"
-                  align="center"
-                  wrapperStyle={{ position: 'relative', marginTop: '10px' }}
-                />
-              </PieChart>
+              </Treemap>
             </ResponsiveContainer>
+            <div className="pt-4">
+              <CustomLegend
+                payload={rankingData.map(item => ({
+                  value: item.name,
+                  color: item.fill,
+                  dataKey: item.name
+                }))}
+                visibilityState={visibilityState}
+                handleLegendClick={handleLegendClick}
+              />
+            </div>
           </div>
         )}
       </SimpleBar>
