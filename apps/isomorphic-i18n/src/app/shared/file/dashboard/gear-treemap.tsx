@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from "react";
-import dynamic from "next/dynamic";
 import { useAtom } from "jotai";
 import { ActionIcon, Popover } from "rizzui";
 import WidgetCard from "@components/cards/widget-card";
@@ -10,23 +9,22 @@ import { bmusAtom } from "@/app/components/filter-selector";
 import cn from "@utils/class-names";
 import { useTheme } from "next-themes";
 import MetricCard from "@components/cards/metric-card";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+} from "recharts";
 
-const Chart = dynamic(() => import("react-apexcharts"), { ssr: false });
+// Import shared MetricSelector component
+import MetricSelector from "./charts/MetricSelector";
+import { MetricKey, MetricOption } from "./charts/types";
 
-type MetricKey =
-  | "mean_effort"
-  | "mean_cpue"
-  | "mean_cpua"
-  | "mean_rpue"
-  | "mean_rpua";
-
-interface MetricOption {
-  value: MetricKey;
-  label: string;
-  unit: string;
-  category: "catch" | "revenue";
-}
-
+// Define METRIC_OPTIONS if not imported from types
 const METRIC_OPTIONS: MetricOption[] = [
   {
     value: "mean_effort",
@@ -60,17 +58,22 @@ const METRIC_OPTIONS: MetricOption[] = [
   },
 ];
 
-const NO_DATA_COLOR = "#f4f4f4";
-const YL_GN_BU = [
-  "#ffffd9",
-  "#edf8b1",
-  "#c7e9b4",
-  "#7fcdbb",
-  "#41b6c4",
-  "#1d91c0",
-  "#225ea8",
-  "#0c2c84",
-];
+// Consistent color palette with other charts
+const generateColor = (index: number, site: string, referenceBmu: string | undefined): string => {
+  if (site === referenceBmu) {
+    return "#fc3468"; // Red color for reference BMU
+  }
+  const colors = [
+    "#0c526e", // Dark blue
+    "#f09609", // Orange
+    "#2563eb", // Blue
+    "#16a34a", // Green
+    "#9333ea", // Purple
+    "#ea580c", // Dark orange
+    "#0891b2", // Teal
+  ];
+  return colors[index % colors.length];
+};
 
 const formatNumber = (value: number) => {
   if (value >= 1000) {
@@ -88,193 +91,18 @@ const capitalizeGearType = (gear: string) => {
     .join(" ");
 };
 
-const calculateDynamicRanges = (data: any[], metric: string) => {
-  // Filter valid number values
-  const values = data
-    .map((d) => d[metric])
-    .filter((val) => typeof val === "number" && !isNaN(val));
-
-  if (values.length === 0) return [];
-
-  // Sort the values (we don't want to modify the original array)
-  const sorted = [...values].sort((a, b) => a - b);
-
-  // Helper function to compute the qth quantile
-  const quantile = (q: number) => {
-    const pos = (sorted.length - 1) * q;
-    const base = Math.floor(pos);
-    const rest = pos - base;
-    if (sorted[base + 1] !== undefined) {
-      return sorted[base] + rest * (sorted[base + 1] - sorted[base]);
-    }
-    return sorted[base];
-  };
-
-  // Define boundaries at 0%, 12.5%, 25%, 37.5%, 50%, 62.5%, 75%, 87.5% and 100%
-  const boundaries = [
-    sorted[0],
-    quantile(1 / 8),
-    quantile(2 / 8),
-    quantile(3 / 8),
-    quantile(4 / 8),
-    quantile(5 / 8),
-    quantile(6 / 8),
-    quantile(7 / 8),
-    sorted[sorted.length - 1],
-  ];
-
-  // Create 8 buckets. For the last bucket, set "to" to Number.MAX_VALUE.
-  const ranges = [];
-  for (let i = 0; i < 8; i++) {
-    ranges.push({
-      from: Number(boundaries[i].toFixed(2)),
-      to: i === 7 ? Number.MAX_VALUE : Number(boundaries[i + 1].toFixed(2)),
-      color: YL_GN_BU[i], // Ensure your color palette has at least 8 colors.
-    });
-  }
-
-  return ranges;
-};
-
-const MetricSelector = ({
-  selectedMetric,
-  onMetricChange,
-  selectedMetricOption,
-}: {
-  selectedMetric: MetricKey;
-  onMetricChange: (metric: MetricKey) => void;
-  selectedMetricOption: MetricOption | undefined;
-}) => {
-  const [isOpen, setIsOpen] = useState(false);
-  const { t } = useTranslation("common");
-
-  const groupedMetrics = {
-    catch: METRIC_OPTIONS.filter((m) => m.category === "catch"),
-    revenue: METRIC_OPTIONS.filter((m) => m.category === "revenue"),
-  };
-
-  return (
-    <div className="flex flex-col gap-1">
-      <div className="flex items-center gap-2">
-        <Popover isOpen={isOpen} setIsOpen={setIsOpen} placement="bottom-end">
-          <Popover.Trigger>
-            <ActionIcon
-              variant="text"
-              className={cn(
-                "relative min-w-[180px] h-auto px-4 py-2 rounded-full flex items-center justify-between",
-                selectedMetric === "mean_rpue" || selectedMetric === "mean_rpua"
-                  ? "bg-amber-50 text-amber-900"
-                  : "bg-blue-50 text-blue-900"
-              )}
-            >
-              <span className="text-sm font-medium">
-                {selectedMetricOption?.label}
-              </span>
-              <svg
-                className="h-4 w-4 ml-2"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M19 9l-7 7-7-7"
-                />
-              </svg>
-            </ActionIcon>
-          </Popover.Trigger>{" "}
-          <Popover.Content className="w-[280px] p-2 bg-white/75 backdrop-blur-sm">
-            <div className="grid grid-cols-1 gap-2">
-              {/* Catch Metrics Section */}
-              <div className="space-y-2">
-                <div className="flex items-center gap-2 px-2">
-                  <div className="w-2 h-2 rounded-full bg-blue-500" />
-                  <span className="text-sm font-semibold text-gray-900">
-                    {t("text-metrics-catch")}
-                  </span>
-                </div>
-                <div className="space-y-1 pl-4">
-                  {groupedMetrics.catch.map((option) => (
-                    <button
-                      key={option.value}
-                      onClick={() => {
-                        onMetricChange(option.value);
-                        setIsOpen(false);
-                      }}
-                      className={cn(
-                        "w-full px-3 py-2 text-left text-sm transition duration-200 rounded-md flex items-center justify-between",
-                        selectedMetric === option.value
-                          ? "bg-blue-50/90 text-blue-900"
-                          : "text-gray-600 hover:bg-gray-50/90"
-                      )}
-                    >
-                      <span>
-                        {t(
-                          `text-metrics-${option.label.toLowerCase().replace(/ /g, "-")}`
-                        )}
-                      </span>
-                      <span className="text-xs text-gray-500">
-                        {option.unit}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="border-t border-gray-200 my-2" />
-
-              {/* Revenue Metrics Section */}
-              <div className="space-y-2">
-                <div className="flex items-center gap-2 px-2">
-                  <div className="w-2 h-2 rounded-full bg-amber-500" />
-                  <span className="text-sm font-semibold text-gray-900">
-                    {t("text-metrics-revenue")}
-                  </span>
-                </div>
-                <div className="space-y-1 pl-4">
-                  {groupedMetrics.revenue.map((option) => (
-                    <button
-                      key={option.value}
-                      onClick={() => {
-                        onMetricChange(option.value);
-                        setIsOpen(false);
-                      }}
-                      className={cn(
-                        "w-full px-3 py-2 text-left text-sm transition duration-200 rounded-md flex items-center justify-between",
-                        selectedMetric === option.value
-                          ? "bg-amber-50 text-amber-900"
-                          : "text-gray-600 hover:bg-gray-50"
-                      )}
-                    >
-                      <span>
-                        {t(
-                          `text-metrics-${option.label.toLowerCase().replace(/ /g, "-")}`
-                        )}
-                      </span>
-                      <span className="text-xs text-gray-500">
-                        {option.unit}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </Popover.Content>
-        </Popover>
-      </div>
-    </div>
-  );
-};
-
 interface GearData {
   BMU: string;
   gear: string;
   [key: string]: any;
 }
 
+interface VisibilityState {
+  [key: string]: { opacity: number };
+}
+
 const LoadingState = () => {
+  const { t } = useTranslation("common");
   return (
     <MetricCard
       title=""
@@ -284,13 +112,69 @@ const LoadingState = () => {
         <div className="h-24 w-24 @[16.25rem]:h-28 @[16.25rem]:w-32 @xs:h-32 @xs:w-36 flex items-center justify-center">
           <div className="flex flex-col items-center gap-2">
             <div className="w-8 h-8 border-4 border-gray-200 border-t-gray-500 rounded-full animate-spin" />
-            <span className="text-sm text-gray-500">Loading chart...</span>
+            <span className="text-sm text-gray-500">{t("text-loading")}</span>
           </div>
         </div>
       }
       chartClassName="flex flex-col w-auto h-auto text-center justify-center"
       className="min-w-[292px] w-full max-w-full flex flex-col items-center justify-center"
     />
+  );
+};
+
+// Custom tooltip consistent with other charts
+const CustomTooltip = ({ active, payload, label, selectedMetricOption }: any) => {
+  if (active && payload && payload.length) {
+    return (
+      <div className="bg-white p-4 border border-gray-200 rounded-lg shadow-lg">
+        <p className="text-sm font-medium text-gray-600 mb-2">{label}</p>
+        <div className="space-y-1.5">
+          {payload
+            .filter((p: any) => p.value !== undefined && p.value !== null)
+            .sort((a: any, b: any) => b.value - a.value)
+            .map((entry: any, index: number) => (
+              <div key={index} className="flex items-center gap-2">
+                <div
+                  className="w-3 h-3 rounded-full"
+                  style={{ backgroundColor: entry.color }}
+                />
+                <p className="text-sm">
+                  <span className="font-medium">{entry.name}:</span>{" "}
+                  <span className="font-semibold">{formatNumber(entry.value)}</span>
+                </p>
+              </div>
+            ))}
+        </div>
+      </div>
+    );
+  }
+  return null;
+};
+
+// Custom legend component consistent with other charts
+const CustomLegend = ({ payload, visibilityState, handleLegendClick }: any) => {
+  return (
+    <div className="flex flex-wrap gap-2 justify-center mt-2">
+      {payload?.map((entry: any) => {
+        const key = entry.dataKey || entry.value;
+        const opacity = visibilityState[key]?.opacity ?? 1;
+        
+        return (
+          <div
+            key={key}
+            className="flex items-center gap-2 cursor-pointer select-none transition-all duration-200"
+            onClick={() => handleLegendClick(key)}
+            style={{ opacity }}
+          >
+            <div
+              className="w-3 h-3 rounded-full transition-all duration-200"
+              style={{ backgroundColor: entry.color }}
+            />
+            <span className="text-sm font-medium">{entry.value}</span>
+          </div>
+        );
+      })}
+    </div>
   );
 };
 
@@ -306,12 +190,13 @@ export default function GearHeatmap({
   const { theme } = useTheme();
   const [selectedMetric, setSelectedMetric] =
     useState<MetricKey>("mean_effort");
-  const [series, setSeries] = useState<any[]>([]);
-  const [colorRanges, setColorRanges] = useState<any[]>([]);
+  const [barData, setBarData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { t } = useTranslation(lang!, "common");
   const [bmus] = useAtom(bmusAtom);
+  const [siteColors, setSiteColors] = useState<Record<string, string>>({});
+  const [visibilityState, setVisibilityState] = useState<VisibilityState>({});
   const numBMUs = (bmus || []).length;
   const containerHeight = numBMUs >= 4 ? 600 : (300 + (numBMUs * 300) / 4) - 150;
 
@@ -320,46 +205,47 @@ export default function GearHeatmap({
     (m) => m.value === selectedMetric
   );
 
+  const handleLegendClick = (site: string) => {
+    setVisibilityState((prev) => ({
+      ...prev,
+      [site]: {
+        opacity: prev[site]?.opacity === 1 ? 0.2 : 1,
+      },
+    }));
+  };
+
   useEffect(() => {
     if (!rawData) return;
 
     try {
       setLoading(true);
 
-      const dynamicRanges = calculateDynamicRanges(rawData, selectedMetric);
-      const formattedRanges = dynamicRanges.map((range, index) => ({
-        ...range,
-        name:
-          index === 0
-            ? `< ${formatNumber(range.to)}`
-            : index === dynamicRanges.length - 1
-              ? `> ${formatNumber(range.from)}`
-              : `${formatNumber(range.from)} - ${formatNumber(range.to)}`,
-      }));
-
-      setColorRanges([
-        {
-          from: -1,
-          to: -1,
-          color: theme === "dark" ? "#374151" : NO_DATA_COLOR,
-          name: "No Data",
-        },
-        ...formattedRanges,
-      ]);
-
-      setColorRanges([
-        {
-          from: -1,
-          to: -1,
-          color: theme === "dark" ? "#374151" : NO_DATA_COLOR,
-          name: "No Data",
-        },  
-        ...formattedRanges,
-      ]);
-
-      const bmuList = Array.from(
+      // Extract unique BMUs from the data
+      const uniqueBMUs = Array.from(
         new Set(rawData.map((d: GearData) => d.BMU))
       ).sort();
+
+      // Create color mapping for BMUs
+      const newSiteColors = uniqueBMUs.reduce<Record<string, string>>(
+        (acc, site, index) => ({
+          ...acc,
+          [site]: generateColor(index, site, bmu),
+        }),
+        {}
+      );
+      setSiteColors(newSiteColors);
+
+      // Set initial visibility state
+      const initialVisibility = uniqueBMUs.reduce<VisibilityState>(
+        (acc, site) => ({
+          ...acc,
+          [site]: { opacity: site === bmu ? 1 : 0.2 },
+        }),
+        {}
+      );
+      setVisibilityState(initialVisibility);
+
+      // Extract unique gear types and sort by total metric value
       const gearTypes = Array.from(
         new Set(rawData.map((d: GearData) => d.gear))
       ).sort((a, b) => {
@@ -382,19 +268,23 @@ export default function GearHeatmap({
         return bValue - aValue;
       });
 
-      const transformedSeries = bmuList.map((bmu) => ({
-        name: bmu,
-        data: gearTypes.map((gear) => {
-          const match = rawData.find((d) => d.BMU === bmu && d.gear === gear);
-          const value =
-            match && typeof match[selectedMetric] === "number"
-              ? match[selectedMetric]
-              : -1;
-          return value > 0 ? Number(value.toFixed(2)) : -1;
-        }),
-      }));
+      // Format data for the bar chart
+      const transformedData = gearTypes.map((gear) => {
+        const gearData: any = {
+          name: capitalizeGearType(gear.replace(/_/g, " ")),
+        };
 
-      setSeries(transformedSeries);
+        // Add data for each BMU
+        rawData.forEach((d: GearData) => {
+          if (d.gear === gear && typeof d[selectedMetric] === "number") {
+            gearData[d.BMU] = Number(d[selectedMetric].toFixed(2));
+          }
+        });
+
+        return gearData;
+      });
+
+      setBarData(transformedData);
       setError(null);
     } catch (error) {
       console.error("Error transforming data:", error);
@@ -402,161 +292,104 @@ export default function GearHeatmap({
     } finally {
       setLoading(false);
     }
-  }, [rawData, selectedMetric, theme]);
-
-  const chartOptions = {
-    chart: {
-      type: "heatmap" as const,
-      toolbar: {
-        show: false,
-      },
-      fontFamily: "Inter, sans-serif",
-      background: theme === "dark" ? "#1F2937" : "#FFFFFF",
-      foreColor: theme === "dark" ? "#D1D5DB" : "#4B5563",
-    },
-    dataLabels: {
-      enabled: true,
-      style: {
-        colors: [theme === "dark" ? "#FFFFFF" : "#000000"],
-        fontSize: "14px",
-        fontWeight: "600",
-      },
-      formatter: function (val: string | number | number[], opts?: any) {
-        if (typeof val === "number" && val !== -1) {
-          return formatNumber(val);
-        }
-        return "";
-      },
-    },
-    plotOptions: {
-      heatmap: {
-        enableShades: false,
-        colorScale: {
-          ranges: colorRanges,
-        },
-      },
-    },
-    xaxis: {
-      categories: Array.from(
-        new Set(
-          rawData?.map((d: GearData) =>
-            capitalizeGearType(d.gear.replace(/_/g, " "))
-          )
-        )
-      ),
-      labels: {
-        trim: true,
-        style: {
-          fontSize: "12px",
-          colors: theme === "dark" ? "#D1D5DB" : "#4B5563",
-        },
-      },
-      axisBorder: {
-        color: theme === "dark" ? "#4B5563" : "#E5E7EB",
-      },
-      axisTicks: {
-        color: theme === "dark" ? "#4B5563" : "#E5E7EB",
-      },
-    },
-    yaxis: {
-      labels: {
-        style: {
-          fontSize: "12px",
-          colors: theme === "dark" ? "#D1D5DB" : "#4B5563",
-        },
-      },
-    },
-    grid: {
-      show: true,
-      borderColor: theme === "dark" ? "#374151" : "#E5E7EB",
-      xaxis: {
-        lines: {
-          show: true,
-          colors: theme === "dark" ? "#374151" : "#E5E7EB",
-        },
-      },
-      yaxis: {
-        lines: {
-          show: true,
-          colors: theme === "dark" ? "#374151" : "#E5E7EB",
-        },
-      },
-    },
-    legend: {
-      show: true,
-      position: "top" as const,
-      fontSize: "12px",
-      labels: {
-        colors: theme === "dark" ? "#D1D5DB" : "#4B5563",
-        useSeriesColors: false,
-      },
-      markers: {
-        size: 10,
-      },
-      formatter: function (seriesName: string, opts?: any) {
-        if (!opts) return seriesName;
-        const range = colorRanges[opts.seriesIndex];
-        if (!range) return "";
-        return range.name;
-      },
-    },
-    tooltip: {
-      theme: theme as "light" | "dark",
-      custom: function ({ series, seriesIndex, dataPointIndex, w }: any) {
-        const value = series[seriesIndex][dataPointIndex];
-        const bmu = w.globals.seriesNames[seriesIndex];
-        const gearType = w.globals.labels[dataPointIndex];
-
-        const bgColor = theme === "dark" ? "#374151" : "#FFFFFF";
-        const textColor = theme === "dark" ? "#D1D5DB" : "#4B5563";
-        const borderColor = theme === "dark" ? "#4B5563" : "#E5E7EB";
-
-        if (value === -1) {
-          return `
-            <div class="p-2 rounded-lg shadow-lg" style="background: ${bgColor}; border: 1px solid ${borderColor}">
-              <div class="text-sm font-medium" style="color: ${textColor}">BMU: ${bmu}</div>
-              <div class="text-sm" style="color: ${textColor}">Gear Type: ${gearType}</div>
-              <div class="text-sm font-medium mt-1" style="color: ${textColor}">No Data</div>
-            </div>
-          `;
-        }
-
-        return `
-        <div class="p-2 rounded-lg shadow-lg" style="background: ${bgColor}; border: 1px solid ${borderColor}">
-          <div class="text-sm font-medium" style="color: ${textColor}">BMU: ${bmu}</div>
-          <div class="text-sm" style="color: ${textColor}">Gear Type: ${gearType}</div>
-          <div class="text-sm font-medium mt-1" style="color: ${textColor}">${selectedMetricOption?.label}: ${formatNumber(value)} ${selectedMetricOption?.unit}</div>
-        </div>
-      `;
-      },
-    },
-  };
+  }, [rawData, selectedMetric, bmu]);
 
   if (loading) return <LoadingState />;
   if (error) return <LoadingState />;
-  if (!series || series.length === 0) return <LoadingState />;
+  if (!barData || barData.length === 0) return <LoadingState />;
+
+  // Get unique BMUs for rendering bars
+  const uniqueBMUs = Object.keys(siteColors);
 
   return (
     <WidgetCard
       title={
-        <div className="flex items-center justify-between w-full">
-          <MetricSelector
-            selectedMetric={selectedMetric}
-            onMetricChange={setSelectedMetric}
-            selectedMetricOption={selectedMetricOption}
-          />
+        <div className="flex flex-col sm:flex-row items-start sm:items-center sm:justify-between w-full gap-3">
+          <div className="w-full sm:w-auto">
+            <MetricSelector
+              selectedMetric={selectedMetric}
+              onMetricChange={setSelectedMetric}
+              selectedMetricOption={selectedMetricOption}
+            />
+          </div>
+          <div className="hidden sm:block text-base font-medium text-gray-800 mx-auto">
+            <div className="text-center">
+              {t("text-gear-distribution")}
+            </div>
+            <div className="text-xs text-gray-500 text-center mt-1">
+              {t("text-gear-distribution-explanation")}
+            </div>
+          </div>
         </div>
       }
-      className={className}
+      className={cn("h-full", className)}
     >
+      {/* Mobile-only title - shows on small screens */}
+      <div className="sm:hidden text-center mb-4">
+        <div className="text-base font-medium text-gray-800">
+          {t("text-gear-distribution")}
+        </div>
+        <div className="text-xs text-gray-500 mt-1">
+          {t("text-gear-distribution-explanation")}
+        </div>
+      </div>
+      
       <SimpleBar>
-        <div style={{ height: `${containerHeight}px` }} className="w-full pt-9">
-          <Chart
-            options={chartOptions}
-            series={series}
-            type="heatmap"
-            height="100%"
-          />
+        <div style={{ height: `${containerHeight}px` }} className="w-full pt-4">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart
+              data={barData}
+              margin={{ top: 20, right: 30, left: 20, bottom: 70 }}
+            >
+              <CartesianGrid strokeDasharray="3 3" vertical={false} />
+              <XAxis 
+                dataKey="name" 
+                angle={-45} 
+                textAnchor="end" 
+                height={70}
+                tick={{ fontSize: 12, fill: "#64748b" }}
+                interval={0}
+                axisLine={{ stroke: "#cbd5e1", strokeWidth: 1 }}
+                tickLine={{ stroke: "#cbd5e1" }}
+              />
+              <YAxis
+                tickFormatter={(value) => formatNumber(value)}
+                tick={{ fontSize: 12, fill: "#64748b" }}
+                axisLine={false}
+                tickLine={false}
+              />
+              <Tooltip 
+                content={(props) => <CustomTooltip {...props} selectedMetricOption={selectedMetricOption} />} 
+                wrapperStyle={{ outline: 'none' }}
+              />
+              <Legend 
+                content={(props) => (
+                  <CustomLegend
+                    {...props}
+                    visibilityState={visibilityState}
+                    handleLegendClick={handleLegendClick}
+                  />
+                )}
+                verticalAlign="bottom"
+                align="center"
+                wrapperStyle={{ position: 'relative', marginTop: '10px' }}
+              />
+              {uniqueBMUs.map((bmu) => (
+                <Bar
+                  key={bmu}
+                  dataKey={bmu}
+                  name={bmu}
+                  fill={siteColors[bmu]}
+                  stroke={siteColors[bmu]}
+                  fillOpacity={(visibilityState[bmu]?.opacity || 1) * 0.85}
+                  strokeOpacity={visibilityState[bmu]?.opacity || 1}
+                  radius={[4, 4, 0, 0]}
+                  animationDuration={1000}
+                  animationEasing="ease-out"
+                />
+              ))}
+            </BarChart>
+          </ResponsiveContainer>
         </div>
       </SimpleBar>
     </WidgetCard>
