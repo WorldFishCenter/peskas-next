@@ -289,7 +289,8 @@ export default function GearHeatmap({
   const [visibilityState, setVisibilityState] = useState<VisibilityState>({});
   const [activeTab, setActiveTab] = useState('distribution');
   const numBMUs = (bmus || []).length;
-  const containerHeight = numBMUs >= 4 ? 600 : (300 + (numBMUs * 300) / 4) - 150;
+  // Use responsive approach instead of fixed height
+  // Charts will use container's h-96 class for responsive sizing
 
   const { data: rawData } = api.gear.summaries.useQuery({ bmus });
   const selectedMetricOption = METRIC_OPTIONS.find(
@@ -549,7 +550,7 @@ export default function GearHeatmap({
       <SimpleBar>
         {/* Distribution View (default) - Bar chart showing distribution by BMU */}
         {activeTab === 'distribution' && (
-          <div style={{ height: `${containerHeight}px` }} className="w-full pt-4">
+          <div className="w-full h-96 pt-4">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart
                 data={barData}
@@ -609,7 +610,7 @@ export default function GearHeatmap({
 
         {/* Comparison View - Selected BMU vs Average of Others */}
         {activeTab === 'comparison' && bmu && (
-          <div style={{ height: `${containerHeight}px` }} className="w-full pt-4">
+          <div className="w-full h-[600px] pt-4">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart
                 data={comparisonData}
@@ -671,7 +672,7 @@ export default function GearHeatmap({
 
         {/* Ranking View - Treemap instead of Pie Chart */}
         {activeTab === 'ranking' && (
-          <div style={{ height: `${containerHeight}px` }} className="w-full pt-4">
+          <div className="w-full h-[600px] pt-4">
             <ResponsiveContainer width="100%" height="100%">
               <Treemap
                 data={rankingData.filter(item => (visibilityState[item.name]?.opacity || 1) > 0.2)}
