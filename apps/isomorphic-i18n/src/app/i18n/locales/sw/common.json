@@ -760,7 +760,6 @@
   "text-average-of-all-bmus": "Wastani wa BMU Zote",
   "text-account-settings": "Mipangilio ya Akaunti",
   "text-trends-tab": "Mwenendo",
-  "text-comparison-tab": "Kulinganisha",
   "text-annual-tab": "Mwaka",
   "text-unit-fishers-km2-day": "wavuvi/km²/siku",
   "text-unit-kg-fisher-day": "kg/mvuvi/siku",
@@ -775,5 +774,16 @@
   "text-error-processing-data": "Hitilafu katika kuchakata data",
   "text-no-bmus-selected": "Hakuna BMUs zilizochaguliwa",
   "text-error": "Hitilafu",
-  "text-na": "Haipo"
+  "text-na": "Haipo",
+  "text-distribution-tab": "Mgawanyo",
+  "text-comparison-tab": "Ulinganisho",
+  "text-ranking-tab": "Nafasi",
+  "text-distribution-tab-title": "Mgawanyo wa Vifaa kwa BMU",
+  "text-comparison-tab-title": "BMU Dhidi ya Wastani", 
+  "text-ranking-tab-title": "Nafasi ya Aina za Vifaa",
+  "text-distribution-tab-description": "Inaonyesha jinsi aina tofauti za vifaa zinavyotumika kwenye BMUs",
+  "text-comparison-tab-description": "Inalinganisha BMU iliyochaguliwa na wastani wa wengine",
+  "text-ranking-tab-description": "Inaonyesha umuhimu wa kila aina ya kifaa",
+  "text-average-of-other-bmus": "Wastani wa BMUs nyingine",
+  "text-gear-distribution": "Mgawanyo wa Vifaa"
 }

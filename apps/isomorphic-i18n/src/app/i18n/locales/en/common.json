@@ -917,5 +917,15 @@
   "text-error-processing-data": "Error processing data",
   "text-no-bmus-selected": "No BMUs selected",
   "text-error": "Error",
-  "text-na": "N/A"
+  "text-na": "N/A",
+  "text-distribution-tab": "Distribution",
+  "text-ranking-tab": "Ranking",
+  "text-distribution-tab-title": "Gear Distribution by BMU",
+  "text-comparison-tab-title": "BMU vs Average Comparison",
+  "text-ranking-tab-title": "Gear Type Ranking",
+  "text-distribution-tab-description": "Shows how different gear types are used across BMUs",
+  "text-comparison-tab-description": "Compares selected BMU with average of others",
+  "text-ranking-tab-description": "Shows the relative importance of each gear type",
+  "text-average-of-other-bmus": "Average of other BMUs",
+  "text-gear-distribution": "Gear Distribution"
 }

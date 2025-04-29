@@ -18,6 +18,10 @@ import {
   Tooltip,
   Legend,
   ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+  LabelList,
 } from "recharts";
 
 // Import shared MetricSelector component
@@ -75,6 +79,18 @@ const generateColor = (index: number, site: string, referenceBmu: string | undef
   return colors[index % colors.length];
 };
 
+// Colors for gear types (consistent set)
+const GEAR_COLORS = [
+  "#3b82f6", // Blue
+  "#10b981", // Green
+  "#f59e0b", // Amber
+  "#ef4444", // Red
+  "#8b5cf6", // Purple
+  "#ec4899", // Pink
+  "#06b6d4", // Cyan
+  "#f97316", // Orange
+];
+
 const formatNumber = (value: number) => {
   if (value >= 1000) {
     return new Intl.NumberFormat("en-US", {
@@ -99,6 +115,13 @@ interface GearData {
 
 interface VisibilityState {
   [key: string]: { opacity: number };
+}
+
+interface RankingDataItem {
+  name: string;
+  value: number;
+  fill: string;
+  percentage?: string;
 }
 
 const LoadingState = () => {
@@ -178,6 +201,31 @@ const CustomLegend = ({ payload, visibilityState, handleLegendClick }: any) => {
   );
 };
 
+// Custom pie tooltip
+const PieTooltip = ({ active, payload, selectedMetricOption }: any) => {
+  if (active && payload && payload.length) {
+    const data = payload[0];
+    return (
+      <div className="bg-white p-4 border border-gray-200 rounded-lg shadow-lg">
+        <p className="text-sm font-medium text-gray-600 mb-2">{data.name}</p>
+        <div className="flex items-center gap-2">
+          <div
+            className="w-3 h-3 rounded-full"
+            style={{ backgroundColor: data.payload.fill }}
+          />
+          <p className="text-sm">
+            <span className="font-semibold">{formatNumber(data.value)}</span>
+            {data.payload.percentage && (
+              <span className="text-gray-500 ml-1">({data.payload.percentage}%)</span>
+            )}
+          </p>
+        </div>
+      </div>
+    );
+  }
+  return null;
+};
+
 export default function GearHeatmap({
   className,
   lang,
@@ -191,12 +239,15 @@ export default function GearHeatmap({
   const [selectedMetric, setSelectedMetric] =
     useState<MetricKey>("mean_effort");
   const [barData, setBarData] = useState<any[]>([]);
+  const [rankingData, setRankingData] = useState<RankingDataItem[]>([]);
+  const [comparisonData, setComparisonData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { t } = useTranslation(lang!, "common");
   const [bmus] = useAtom(bmusAtom);
   const [siteColors, setSiteColors] = useState<Record<string, string>>({});
   const [visibilityState, setVisibilityState] = useState<VisibilityState>({});
+  const [activeTab, setActiveTab] = useState('distribution');
   const numBMUs = (bmus || []).length;
   const containerHeight = numBMUs >= 4 ? 600 : (300 + (numBMUs * 300) / 4) - 150;
 
@@ -204,6 +255,10 @@ export default function GearHeatmap({
   const selectedMetricOption = METRIC_OPTIONS.find(
     (m) => m.value === selectedMetric
   );
+
+  const handleTabChange = (tab: string) => {
+    setActiveTab(tab);
+  };
 
   const handleLegendClick = (site: string) => {
     setVisibilityState((prev) => ({
@@ -268,7 +323,7 @@ export default function GearHeatmap({
         return bValue - aValue;
       });
 
-      // Format data for the bar chart
+      // Format data for the distribution bar chart
       const transformedData = gearTypes.map((gear) => {
         const gearData: any = {
           name: capitalizeGearType(gear.replace(/_/g, " ")),
@@ -285,6 +340,75 @@ export default function GearHeatmap({
       });
 
       setBarData(transformedData);
+
+      // Format data for the ranking chart
+      const rankingData: RankingDataItem[] = gearTypes.map((gear, index) => {
+        // Calculate total value for this gear across all BMUs
+        const totalValue = rawData.reduce((sum, curr) => {
+          return sum + (curr.gear === gear && typeof curr[selectedMetric] === "number" 
+            ? curr[selectedMetric] 
+            : 0);
+        }, 0);
+
+        return {
+          name: capitalizeGearType(gear.replace(/_/g, " ")),
+          value: Number(totalValue.toFixed(2)),
+          fill: GEAR_COLORS[index % GEAR_COLORS.length]
+        };
+      }).sort((a, b) => b.value - a.value);
+
+      // Add percentage values
+      const totalSum = rankingData.reduce((sum, item) => sum + item.value, 0);
+      rankingData.forEach(item => {
+        item.percentage = ((item.value / totalSum) * 100).toFixed(1);
+      });
+
+      setRankingData(rankingData);
+
+      // Format data for the comparison chart
+      // For the selected BMU compared to average of others
+      if (bmu) {
+        const comparisonData = gearTypes.map((gear, index) => {
+          // Get value for selected BMU
+          const bmuValue = rawData.find(
+            d => d.BMU === bmu && d.gear === gear && typeof d[selectedMetric] === "number"
+          )?.[selectedMetric] || 0;
+
+          // Get average value for other BMUs
+          const otherBMUs = uniqueBMUs.filter(b => b !== bmu);
+          let otherBMUsTotal = 0;
+          let otherBMUsCount = 0;
+
+          otherBMUs.forEach(otherBMU => {
+            const value = rawData.find(
+              d => d.BMU === otherBMU && d.gear === gear && typeof d[selectedMetric] === "number"
+            )?.[selectedMetric];
+
+            if (value) {
+              otherBMUsTotal += value;
+              otherBMUsCount++;
+            }
+          });
+
+          const otherBMUsAvg = otherBMUsCount > 0 
+            ? otherBMUsTotal / otherBMUsCount 
+            : 0;
+
+          // Difference (for sorting)
+          const diff = bmuValue - otherBMUsAvg;
+
+          return {
+            name: capitalizeGearType(gear.replace(/_/g, " ")),
+            [bmu]: Number(bmuValue.toFixed(2)),
+            average: Number(otherBMUsAvg.toFixed(2)),
+            diff: diff,
+            color: GEAR_COLORS[index % GEAR_COLORS.length]
+          };
+        }).sort((a, b) => Math.abs(b.diff) - Math.abs(a.diff));
+
+        setComparisonData(comparisonData);
+      }
+
       setError(null);
     } catch (error) {
       console.error("Error transforming data:", error);
@@ -293,6 +417,32 @@ export default function GearHeatmap({
       setLoading(false);
     }
   }, [rawData, selectedMetric, bmu]);
+
+  const getTabTitle = (tab: string): string => {
+    switch (tab) {
+      case 'distribution':
+        return t("text-distribution-tab-title");
+      case 'comparison':
+        return t("text-comparison-tab-title");
+      case 'ranking':
+        return t("text-ranking-tab-title");
+      default:
+        return t("text-distribution-tab-title");
+    }
+  };
+
+  const getTabDescription = (tab: string): string => {
+    switch (tab) {
+      case 'distribution':
+        return t("text-distribution-tab-description");
+      case 'comparison':
+        return t("text-comparison-tab-description");
+      case 'ranking':
+        return t("text-ranking-tab-description");
+      default:
+        return t("text-distribution-tab-description");
+    }
+  };
 
   if (loading) return <LoadingState />;
   if (error) return <LoadingState />;
@@ -314,11 +464,33 @@ export default function GearHeatmap({
           </div>
           <div className="hidden sm:block text-base font-medium text-gray-800 mx-auto">
             <div className="text-center">
-              {t("text-gear-distribution")}
+              {getTabTitle(activeTab)}
             </div>
             <div className="text-xs text-gray-500 text-center mt-1">
-              {t("text-gear-distribution-explanation")}
+              {getTabDescription(activeTab)}
             </div>
+          </div>
+          <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+            <button
+              className={`px-4 py-2 text-sm rounded-md transition duration-200 ${activeTab === 'distribution' ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'} w-full sm:w-auto`}
+              onClick={() => handleTabChange('distribution')}
+            >
+              {t("text-distribution-tab")}
+            </button>
+            {bmu && (
+              <button
+                className={`px-4 py-2 text-sm rounded-md transition duration-200 ${activeTab === 'comparison' ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'} w-full sm:w-auto`}
+                onClick={() => handleTabChange('comparison')}
+              >
+                {t("text-comparison-tab")}
+              </button>
+            )}
+            <button
+              className={`px-4 py-2 text-sm rounded-md transition duration-200 ${activeTab === 'ranking' ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'} w-full sm:w-auto`}
+              onClick={() => handleTabChange('ranking')}
+            >
+              {t("text-ranking-tab")}
+            </button>
           </div>
         </div>
       }
@@ -327,70 +499,189 @@ export default function GearHeatmap({
       {/* Mobile-only title - shows on small screens */}
       <div className="sm:hidden text-center mb-4">
         <div className="text-base font-medium text-gray-800">
-          {t("text-gear-distribution")}
+          {getTabTitle(activeTab)}
         </div>
         <div className="text-xs text-gray-500 mt-1">
-          {t("text-gear-distribution-explanation")}
+          {getTabDescription(activeTab)}
         </div>
       </div>
       
       <SimpleBar>
-        <div style={{ height: `${containerHeight}px` }} className="w-full pt-4">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart
-              data={barData}
-              margin={{ top: 20, right: 30, left: 20, bottom: 70 }}
-            >
-              <CartesianGrid strokeDasharray="3 3" vertical={false} />
-              <XAxis 
-                dataKey="name" 
-                angle={-45} 
-                textAnchor="end" 
-                height={70}
-                tick={{ fontSize: 12, fill: "#64748b" }}
-                interval={0}
-                axisLine={{ stroke: "#cbd5e1", strokeWidth: 1 }}
-                tickLine={{ stroke: "#cbd5e1" }}
-              />
-              <YAxis
-                tickFormatter={(value) => formatNumber(value)}
-                tick={{ fontSize: 12, fill: "#64748b" }}
-                axisLine={false}
-                tickLine={false}
-              />
-              <Tooltip 
-                content={(props) => <CustomTooltip {...props} selectedMetricOption={selectedMetricOption} />} 
-                wrapperStyle={{ outline: 'none' }}
-              />
-              <Legend 
-                content={(props) => (
-                  <CustomLegend
-                    {...props}
-                    visibilityState={visibilityState}
-                    handleLegendClick={handleLegendClick}
+        {/* Distribution View (default) - Bar chart showing distribution by BMU */}
+        {activeTab === 'distribution' && (
+          <div style={{ height: `${containerHeight}px` }} className="w-full pt-4">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart
+                data={barData}
+                margin={{ top: 20, right: 30, left: 20, bottom: 70 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                <XAxis 
+                  dataKey="name" 
+                  angle={-45} 
+                  textAnchor="end" 
+                  height={70}
+                  tick={{ fontSize: 12, fill: "#64748b" }}
+                  interval={0}
+                  axisLine={{ stroke: "#cbd5e1", strokeWidth: 1 }}
+                  tickLine={{ stroke: "#cbd5e1" }}
+                />
+                <YAxis
+                  tickFormatter={(value) => formatNumber(value)}
+                  tick={{ fontSize: 12, fill: "#64748b" }}
+                  axisLine={false}
+                  tickLine={false}
+                />
+                <Tooltip 
+                  content={(props) => <CustomTooltip {...props} selectedMetricOption={selectedMetricOption} />} 
+                  wrapperStyle={{ outline: 'none' }}
+                />
+                <Legend 
+                  content={(props) => (
+                    <CustomLegend
+                      {...props}
+                      visibilityState={visibilityState}
+                      handleLegendClick={handleLegendClick}
+                    />
+                  )}
+                  verticalAlign="bottom"
+                  align="center"
+                  wrapperStyle={{ position: 'relative', marginTop: '10px' }}
+                />
+                {uniqueBMUs.map((bmu) => (
+                  <Bar
+                    key={bmu}
+                    dataKey={bmu}
+                    name={bmu}
+                    fill={siteColors[bmu]}
+                    stroke={siteColors[bmu]}
+                    fillOpacity={(visibilityState[bmu]?.opacity || 1) * 0.85}
+                    strokeOpacity={visibilityState[bmu]?.opacity || 1}
+                    radius={[4, 4, 0, 0]}
+                    animationDuration={1000}
+                    animationEasing="ease-out"
                   />
-                )}
-                verticalAlign="bottom"
-                align="center"
-                wrapperStyle={{ position: 'relative', marginTop: '10px' }}
-              />
-              {uniqueBMUs.map((bmu) => (
+                ))}
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+
+        {/* Comparison View - Selected BMU vs Average of Others */}
+        {activeTab === 'comparison' && bmu && (
+          <div style={{ height: `${containerHeight}px` }} className="w-full pt-4">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart
+                data={comparisonData}
+                margin={{ top: 20, right: 30, left: 20, bottom: 70 }}
+                layout="vertical"
+              >
+                <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+                <XAxis 
+                  type="number"
+                  tickFormatter={(value) => formatNumber(value)}
+                  tick={{ fontSize: 12, fill: "#64748b" }}
+                  axisLine={{ stroke: "#cbd5e1", strokeWidth: 1 }}
+                  tickLine={{ stroke: "#cbd5e1" }}
+                />
+                <YAxis
+                  dataKey="name"
+                  type="category"
+                  tick={{ fontSize: 12, fill: "#64748b" }}
+                  axisLine={false}
+                  tickLine={false}
+                  width={120}
+                />
+                <Tooltip 
+                  content={(props) => <CustomTooltip {...props} selectedMetricOption={selectedMetricOption} />} 
+                  wrapperStyle={{ outline: 'none' }}
+                />
+                <Legend 
+                  content={(props) => (
+                    <CustomLegend
+                      {...props}
+                      visibilityState={visibilityState}
+                      handleLegendClick={handleLegendClick}
+                    />
+                  )}
+                  verticalAlign="bottom"
+                  align="center"
+                  wrapperStyle={{ position: 'relative', marginTop: '10px' }}
+                />
                 <Bar
-                  key={bmu}
                   dataKey={bmu}
                   name={bmu}
-                  fill={siteColors[bmu]}
-                  stroke={siteColors[bmu]}
-                  fillOpacity={(visibilityState[bmu]?.opacity || 1) * 0.85}
-                  strokeOpacity={visibilityState[bmu]?.opacity || 1}
-                  radius={[4, 4, 0, 0]}
+                  fill={siteColors[bmu] || "#fc3468"}
+                  radius={[0, 4, 4, 0]}
                   animationDuration={1000}
                   animationEasing="ease-out"
                 />
-              ))}
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
+                <Bar
+                  dataKey="average"
+                  name={t("text-average-of-other-bmus")}
+                  fill="#94a3b8"
+                  radius={[0, 4, 4, 0]}
+                  animationDuration={1000}
+                  animationEasing="ease-out"
+                />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+
+        {/* Ranking View - Pie Chart of Total Values */}
+        {activeTab === 'ranking' && (
+          <div style={{ height: `${containerHeight}px` }} className="w-full pt-4">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={rankingData}
+                  cx="50%"
+                  cy="50%"
+                  labelLine={false}
+                  outerRadius={containerHeight > 400 ? 140 : 110}
+                  innerRadius={containerHeight > 400 ? 70 : 55}
+                  dataKey="value"
+                  nameKey="name"
+                  paddingAngle={2}
+                  animationDuration={1000}
+                  animationEasing="ease-out"
+                >
+                  <LabelList
+                    dataKey="name"
+                    position="outside"
+                    fill="#64748b"
+                    style={{ fontSize: '12px' }}
+                  />
+                  {rankingData.map((entry, index) => (
+                    <Cell 
+                      key={`cell-${index}`} 
+                      fill={entry.fill} 
+                      fillOpacity={(visibilityState[entry.name]?.opacity || 1) * 0.85}
+                      strokeOpacity={visibilityState[entry.name]?.opacity || 1}
+                    />
+                  ))}
+                </Pie>
+                <Tooltip
+                  content={(props) => <PieTooltip {...props} selectedMetricOption={selectedMetricOption} />}
+                  wrapperStyle={{ outline: 'none' }}
+                />
+                <Legend 
+                  content={(props) => (
+                    <CustomLegend
+                      {...props}
+                      visibilityState={visibilityState}
+                      handleLegendClick={handleLegendClick}
+                    />
+                  )}
+                  verticalAlign="bottom"
+                  align="center"
+                  wrapperStyle={{ position: 'relative', marginTop: '10px' }}
+                />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+        )}
       </SimpleBar>
     </WidgetCard>
   );
