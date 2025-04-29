@@ -28,7 +28,6 @@ type MetricKey =
 
 interface RadarData {
   month: string;
-  year?: number;
   monthDisplay?: string;
   [key: string]: number | string | undefined;
 }
@@ -261,31 +260,8 @@ export default function CatchRadarChart({
           );
         setVisibilityState(newVisibilityState);
 
-        // Filter for data from 2023 onwards
-        // The data structure might not have a direct year field, or it might be in a different format
-        // First, let's check if we have any year fields in the data
-        const hasYearField = meanCatch.some(item => item.year !== undefined);
-        
-        let filteredMeanCatch = [...meanCatch];
-        
-        if (hasYearField) {
-          // If year field exists, filter by it
-          filteredMeanCatch = meanCatch.filter(item => {
-            const year = item.year ? Number(item.year) : 0;
-            return year >= 2023;
-          });
-          
-          // If filtering removed all data, use the original data
-          if (filteredMeanCatch.length === 0) {
-            console.warn("No data found from 2023 onwards, showing all available data");
-            filteredMeanCatch = [...meanCatch];
-          }
-        } else {
-          // If there's no year field, we can't filter by year
-          console.warn("Year field not found in data, showing all available data");
-        }
-
-        let processedData = [...filteredMeanCatch]
+        // Process and sort the data by month
+        let processedData = [...meanCatch]
           .sort(
             (a, b) =>
               MONTH_ORDER.indexOf(a.month) - MONTH_ORDER.indexOf(b.month)
@@ -293,16 +269,8 @@ export default function CatchRadarChart({
           .map((item) => {
             const completeItem: RadarData = { 
               month: item.month,
-              // Preserve year field if it exists
-              ...(item.year !== undefined && { year: Number(item.year) })
+              monthDisplay: item.month
             };
-            
-            // Format the month to include year if available
-            if (item.year !== undefined) {
-              completeItem.monthDisplay = `${item.month} ${item.year}`;
-            } else {
-              completeItem.monthDisplay = item.month;
-            }
             
             uniqueSites.forEach((site) => {
               completeItem[site] =
@@ -440,7 +408,7 @@ export default function CatchRadarChart({
                 strokeDasharray="3 3"
               />
               <PolarAngleAxis
-                dataKey={data[0]?.monthDisplay ? "monthDisplay" : "month"}
+                dataKey="month"
                 tick={{ fill: "#64748b", fontSize: 11, fontWeight: 400 }}
                 tickLine={false}
                 stroke="#cbd5e1"
