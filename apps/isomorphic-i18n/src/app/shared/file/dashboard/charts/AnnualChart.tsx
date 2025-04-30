@@ -123,10 +123,12 @@ export default function AnnualChart({
   const renderBars = () => {
     // Filter BMUs based on user type
     const sites = Object.keys(siteColors).filter(site => {
-      if (isCiaUser) {
+      // For non-CIA users, exclude historical_average completely
+      if (!isCiaUser) {
         return site !== "average" && site !== "historical_average";
       }
-      return site !== "average" && site !== "historical_average";
+      // For CIA users, keep historical_average if needed, but exclude average
+      return site !== "average";
     });
     
     return sites.map((site) => (

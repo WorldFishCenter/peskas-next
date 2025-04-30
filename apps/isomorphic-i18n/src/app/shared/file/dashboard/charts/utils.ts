@@ -2,23 +2,42 @@ import { ChartDataPoint } from "./types";
 import { TickProps } from "./types";
 import { CustomYAxisTick } from "./components";
 
+// Standard color function for all charts - using consistent mapping without hardcoding BMUs
 export const generateColor = (index: number, site: string, referenceBmu: string | undefined): string => {
+  // Special case for reference BMU
   if (site === referenceBmu) {
     return "#fc3468"; // Red color for reference BMU
   }
+  
+  // Special cases for non-BMU series
   if (site === "average") {
-    return "#000000"; // Black color for average line
+    return "#64748b"; // Slate gray for average
   }
+  
+  if (site === "historical_average") {
+    return "#94a3b8"; // Light slate gray for historical average
+  }
+  
+  // Standard color palette
   const colors = [
     "#0c526e", // Dark blue
     "#f09609", // Orange
-    "#2563eb", // Blue
+    "#2563eb", // Blue 
     "#16a34a", // Green
     "#9333ea", // Purple
     "#ea580c", // Dark orange
     "#0891b2", // Teal
   ];
-  return colors[index % colors.length];
+  
+  // Use a simple hash of the BMU name to determine its color
+  // This ensures the same BMU always gets the same color regardless of order
+  const hash = site.split('').reduce((acc, char) => {
+    return ((acc << 5) - acc) + char.charCodeAt(0);
+  }, 0);
+  
+  // Use absolute value and modulo to pick a color from our palette
+  const colorIndex = Math.abs(hash) % colors.length;
+  return colors[colorIndex];
 };
 
 export const getBarColor = (baseColor: string, isPositive: boolean): string => {

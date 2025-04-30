@@ -20,6 +20,8 @@ import cn from "@utils/class-names";
 import { useSession } from "next-auth/react";
 // Import shared permissions hook
 import useUserPermissions from "./hooks/useUserPermissions";
+// Import shared color function
+import { generateColor } from "./charts/utils";
 
 type MetricKey =
   | "mean_effort"
@@ -71,22 +73,6 @@ const MONTH_ORDER = [
   "Nov",
   "Dec",
 ];
-
-const generateColor = (index: number, site: string, referenceBmu: string | undefined): string => {
-  if (site === referenceBmu) {
-    return "#fc3468"; // Red color for reference BMU
-  }
-  const colors = [
-    "#0c526e", // Dark blue
-    "#f09609", // Orange
-    "#2563eb", // Blue
-    "#16a34a", // Green
-    "#9333ea", // Purple
-    "#ea580c", // Dark orange
-    "#0891b2", // Teal
-  ];
-  return colors[index % colors.length];
-};
 
 const CustomTooltip = ({ active, payload, metric, t }: any) => {
   if (active && payload && payload.length) {

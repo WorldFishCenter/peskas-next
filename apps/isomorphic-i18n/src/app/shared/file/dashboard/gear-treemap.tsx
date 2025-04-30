@@ -31,6 +31,8 @@ import MetricSelector from "./charts/MetricSelector";
 import { MetricKey, MetricOption } from "./charts/types";
 // Import shared permissions hook
 import useUserPermissions from "./hooks/useUserPermissions";
+// Import shared color function 
+import { generateColor } from "./charts/utils";
 
 // Define METRIC_OPTIONS if not imported from types
 const METRIC_OPTIONS: MetricOption[] = [
@@ -65,23 +67,6 @@ const METRIC_OPTIONS: MetricOption[] = [
     category: "revenue",
   },
 ];
-
-// Consistent color palette with other charts
-const generateColor = (index: number, site: string, referenceBmu: string | undefined): string => {
-  if (site === referenceBmu) {
-    return "#fc3468"; // Red color for reference BMU
-  }
-  const colors = [
-    "#0c526e", // Dark blue
-    "#f09609", // Orange
-    "#2563eb", // Blue
-    "#16a34a", // Green
-    "#9333ea", // Purple
-    "#ea580c", // Dark orange
-    "#0891b2", // Teal
-  ];
-  return colors[index % colors.length];
-};
 
 // Colors for gear types (consistent set)
 const GEAR_COLORS = [

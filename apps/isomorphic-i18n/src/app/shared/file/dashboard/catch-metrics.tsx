@@ -741,12 +741,17 @@ export default function CatchMetricsChart({
           <SimpleBar>
             <TrendsChart
               chartData={chartData.map(point => {
-                // Create a new object without the historical_average property
-                const { historical_average, ...rest } = point;
-                return rest;
+                // Create a new object without the historical_average property for non-CIA users
+                if (!isCiaUser) {
+                  const { historical_average, ...rest } = point;
+                  return rest;
+                }
+                return point;
               })}
               selectedMetricOption={selectedMetricOption}
-              siteColors={siteColors}
+              siteColors={isCiaUser ? siteColors : Object.fromEntries(
+                Object.entries(siteColors).filter(([key]) => key !== 'historical_average')
+              )}
               visibilityState={visibilityState}
               isCiaUser={!!isCiaUser}
               isTablet={isTablet}
@@ -773,11 +778,16 @@ export default function CatchMetricsChart({
             <ComparisonChart
               chartData={recentData.map(point => {
                 // Create a new object without the historical_average property for non-CIA users
-                const { historical_average, ...rest } = point;
-                return rest;
+                if (!isCiaUser) {
+                  const { historical_average, ...rest } = point;
+                  return rest;
+                }
+                return point;
               })}
               selectedMetricOption={selectedMetricOption}
-              siteColors={siteColors}
+              siteColors={isCiaUser ? siteColors : Object.fromEntries(
+                Object.entries(siteColors).filter(([key]) => key !== 'historical_average')
+              )}
               visibilityState={visibilityState}
               isTablet={isTablet}
               CustomLegend={(props) => (
@@ -821,21 +831,18 @@ export default function CatchMetricsChart({
         {localActiveTab === 'annual' && (
           <SimpleBar>
             <AnnualChart
-              chartData={
-                // Filter out historical_average completely from annual data
-                annualData.map(point => {
-                  // Create a copy without historical_average
-                  const newPoint = { ...point };
-                  delete newPoint.historical_average;
-                  return newPoint;
-                })
-              }
+              chartData={annualData.map(point => {
+                // Filter out historical_average for non-CIA users
+                if (!isCiaUser) {
+                  const { historical_average, ...rest } = point;
+                  return rest;
+                }
+                return point;
+              })}
               selectedMetricOption={selectedMetricOption}
-              siteColors={{
-                ...Object.entries(siteColors)
-                  .filter(([key]) => key !== 'historical_average')
-                  .reduce((acc, [key, value]) => ({ ...acc, [key]: value }), {})
-              }}
+              siteColors={isCiaUser ? siteColors : Object.fromEntries(
+                Object.entries(siteColors).filter(([key]) => key !== 'historical_average')
+              )}
               visibilityState={visibilityState}
               isCiaUser={!!isCiaUser}
               isTablet={isTablet}
