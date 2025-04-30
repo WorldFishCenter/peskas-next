@@ -784,8 +784,13 @@
   "text-ranking-tab-description": "Inaonyesha utendaji wa jumla wa mbinu mbalimbali za uvuvi",
   "text-ranking-tab-title-all": "Ufanisi wa Jumla wa Vifaa vya Uvuvi",
   "text-ranking-tab-description-all": "Inaonyesha utendaji wa jumla wa mbinu tofauti za uvuvi katika BMUs zote",
-  "text-distribution-tab-description": "Inaonyesha jinsi mbinu tofauti za uvuvi zinavyofanya kazi katika Vitengo vya Usimamizi wa Ufuo",
+  "text-distribution-tab-description": "Inaonyesha jinsi mbinu tofauti za uvuvi zinavyofanya kazi katika Vitengo vya BMUs",
   "text-comparison-tab-description": "Inalinganisha utendaji wa vifaa vya BMU iliyochaguliwa na wastani wa wengine",
   "text-average-of-other-bmus": "Wastani wa BMUs nyingine",
-  "text-gear-distribution": "Utendaji wa Vifaa vya Uvuvi"
+  "text-gear-distribution": "Utendaji wa Vifaa vya Uvuvi",
+  
+  "text-distribution-tab-title-cia": "Utendaji wa Vifaa vya Uvuvi katika BMU Yako",
+  "text-distribution-tab-description-cia": "Inaonyesha vipimo vya utendaji kwa aina tofauti za vifaa vya uvuvi katika Kitengo chako cha BMU",
+  "text-ranking-tab-title-cia": "Umuhimu wa Vifaa vya Uvuvi katika BMU Yako",
+  "text-ranking-tab-description-cia": "Inaonyesha umuhimu wa kuhusiana wa aina tofauti za vifaa vya uvuvi katika Kitengo chako cha BMU"
 }

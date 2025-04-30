@@ -26,6 +26,8 @@ import TrendsChart from "./charts/TrendsChart";
 import ComparisonChart from "./charts/ComparisonChart";
 import AnnualChart from "./charts/AnnualChart";
 import { getClientLanguage } from "@/app/i18n/language-link";
+// Import shared permissions hook
+import useUserPermissions from "./hooks/useUserPermissions";
 
 // Create a more robust language context that includes both the language code and translations
 const LanguageContext = createContext<{
@@ -136,12 +138,36 @@ export default function CatchMetricsChart({
   }, [i18n]);
 
   const [bmus] = useAtom(bmusAtom);
-  const { data: session } = useSession();
-
-  // Determine if the user is part of the CIA group
-  const isCiaUser = session?.user?.groups?.some((group: { name: string }) => group.name === 'CIA');
+  
+  // Use centralized permissions hook
+  const {
+    userBMU,
+    isCiaUser,
+    isWbciaUser,
+    isAdmin,
+    getAccessibleBMUs,
+    hasRestrictedAccess,
+    shouldShowAggregated,
+    canCompareWithOthers
+  } = useUserPermissions();
+  
+  // Determine which BMU to use for filtering - prefer passed prop, then user's BMU
+  const effectiveBMU = bmu || userBMU;
 
   const { data: monthlyData } = api.aggregatedCatch.monthly.useQuery({ bmus });
+
+  // Reset to trends tab if CIA user somehow gets to comparison tab
+  useEffect(() => {
+    if (isCiaUser && (localActiveTab === 'comparison' || localActiveTab === 'recent')) {
+      const newTab = 'trends';
+      setLocalActiveTab(newTab);
+      
+      // Also notify parent component if needed
+      if (onTabChange) {
+        onTabChange(newTab === 'trends' ? 'standard' : newTab);
+      }
+    }
+  }, [isCiaUser, localActiveTab, onTabChange]);
 
   // Keep in sync with parent component, handling old tab names too
   useEffect(() => {
@@ -172,7 +198,7 @@ export default function CatchMetricsChart({
       };
       
       // For Comparison tab, we need to handle the Positive/Negative variants too
-      if ((localActiveTab === 'comparison' || localActiveTab === 'recent') && !isCiaUser) {
+      if ((localActiveTab === 'comparison' || localActiveTab === 'recent') && canCompareWithOthers) {
         // Also update the positive and negative variants
         const positiveKey = `${site}Positive`;
         const negativeKey = `${site}Negative`;
@@ -187,6 +213,11 @@ export default function CatchMetricsChart({
 
   // Handle tab changes while preserving language state
   const handleTabChange = (tab: string) => {
+    // Don't allow CIA users to access comparison tab
+    if (isCiaUser && (tab === 'comparison' || tab === 'recent')) {
+      return;
+    }
+    
     // Save current language before tab change
     const currentClientLang = getClientLanguage();
     
@@ -224,17 +255,17 @@ export default function CatchMetricsChart({
 
   // Update visibility state when changing tabs
   useEffect(() => {
-    if ((localActiveTab === 'comparison' || localActiveTab === 'recent') && !isCiaUser) {
+    if ((localActiveTab === 'comparison' || localActiveTab === 'recent') && canCompareWithOthers) {
       // Make sure all BMUs have proper visibility state
       const newVisibilityState = { ...visibilityState };
       Object.keys(siteColors).forEach(site => {
         if (site !== 'average' && !newVisibilityState[site]) {
-          newVisibilityState[site] = { opacity: site === bmu ? 1 : 0.2 };
+          newVisibilityState[site] = { opacity: site === effectiveBMU ? 1 : 0.2 };
         }
       });
       setVisibilityState(newVisibilityState);
     }
-  }, [localActiveTab, isCiaUser, siteColors, bmu]);
+  }, [localActiveTab, canCompareWithOthers, siteColors, effectiveBMU, visibilityState]);
 
   // Process main data when monthlyData changes
   useEffect(() => {
@@ -245,18 +276,23 @@ export default function CatchMetricsChart({
       const uniqueSites = Array.from(
         new Set(monthlyData.map((item: ApiDataPoint) => item.landing_site))
       );
+      
+      // Apply user permissions
+      const accessibleSites = hasRestrictedAccess 
+        ? getAccessibleBMUs(uniqueSites as string[])
+        : uniqueSites;
 
       // Create color mapping for sites
       const newSiteColors = uniqueSites.reduce<Record<string, string>>(
         (acc, site, index) => ({
           ...acc,
-          [site as string]: generateColor(index, site, bmu),
+          [site as string]: generateColor(index, site, effectiveBMU),
         }),
         {}
       );
       
-      // Only add average for non-CIA users
-      if (!isCiaUser) {
+      // Only add average for users who can compare
+      if (canCompareWithOthers) {
         // Add color for average line
         newSiteColors["average"] = generateColor(0, "average", undefined);
       }
@@ -267,21 +303,25 @@ export default function CatchMetricsChart({
       const initialVisibility = uniqueSites.reduce<VisibilityState>(
         (acc, site) => ({
           ...acc,
-          [site as string]: { opacity: site === bmu ? 1 : 0.2 },
+          [site as string]: { 
+            opacity: hasRestrictedAccess
+              ? (accessibleSites.includes(site as string) ? 1 : 0.2)
+              : (site === effectiveBMU ? 1 : 0.2) 
+          },
         }),
         {}
       );
       
       // For Comparison tab, add visibility for positive and negative variants
-      if ((localActiveTab === 'comparison' || localActiveTab === 'recent') && !isCiaUser) {
+      if ((localActiveTab === 'comparison' || localActiveTab === 'recent') && canCompareWithOthers) {
         uniqueSites.forEach(site => {
           initialVisibility[`${site}Positive`] = { opacity: initialVisibility[site].opacity };
           initialVisibility[`${site}Negative`] = { opacity: initialVisibility[site].opacity };
         });
       }
       
-      // Only add average visibility for non-CIA users
-      if (!isCiaUser) {
+      // Only add average visibility for users who can compare
+      if (canCompareWithOthers) {
         // Always show average line
         initialVisibility["average"] = { opacity: 1 };
       }
@@ -313,8 +353,8 @@ export default function CatchMetricsChart({
         {}
       );
 
-      // Calculate average value for each date point - only for non-CIA users
-      if (!isCiaUser) {
+      // Calculate average value for each date point - only for users who can compare
+      if (canCompareWithOthers) {
         Object.keys(groupedData).forEach(dateKey => {
           const dateData = groupedData[dateKey];
           const values = Object.entries(dateData)
@@ -354,15 +394,15 @@ export default function CatchMetricsChart({
     } finally {
       setLoading(false);
     }
-  }, [monthlyData, selectedMetric, bmu, isCiaUser, localActiveTab]);
+  }, [monthlyData, selectedMetric, effectiveBMU, hasRestrictedAccess, canCompareWithOthers, localActiveTab, getAccessibleBMUs]);
 
   // Calculate derived data when chartData changes
   useEffect(() => {
     if (chartData.length > 0) {
-      setRecentData(getRecentData(chartData, !!isCiaUser) as ChartDataPoint[]);
-      setAnnualData(getAnnualData(chartData, !!isCiaUser, siteColors));
+      setRecentData(getRecentData(chartData, !canCompareWithOthers) as ChartDataPoint[]);
+      setAnnualData(getAnnualData(chartData, !canCompareWithOthers, siteColors));
     }
-  }, [chartData, isCiaUser, siteColors]);
+  }, [chartData, canCompareWithOthers, siteColors]);
 
   // Find the selected metric option
   const selectedMetricOption = METRIC_OPTIONS.find(
@@ -409,7 +449,7 @@ export default function CatchMetricsChart({
               }
             </div>
           </div>
-          {!isCiaUser && (
+          {canCompareWithOthers && (
             <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
               <button
                 className={`px-4 py-2 text-sm rounded-md transition duration-200 ${localActiveTab === 'trends' ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'} w-full sm:w-auto`}
@@ -483,7 +523,7 @@ export default function CatchMetricsChart({
         )}
         
         {/* Comparison Chart */}
-        {(localActiveTab === 'comparison' || localActiveTab === 'recent') && (
+        {(localActiveTab === 'comparison' || localActiveTab === 'recent') && canCompareWithOthers && (
           <SimpleBar>
             <ComparisonChart
               chartData={recentData}

@@ -29,6 +29,8 @@ import {
 // Import shared MetricSelector component
 import MetricSelector from "./charts/MetricSelector";
 import { MetricKey, MetricOption } from "./charts/types";
+// Import shared permissions hook
+import useUserPermissions from "./hooks/useUserPermissions";
 
 // Define METRIC_OPTIONS if not imported from types
 const METRIC_OPTIONS: MetricOption[] = [
@@ -290,13 +292,20 @@ export default function GearHeatmap({
   const [visibilityState, setVisibilityState] = useState<VisibilityState>({});
   const [activeTab, setActiveTab] = useState('distribution');
   
-  // Get user session to determine their BMU
-  const { data: session } = useSession();
-  // Get user's BMU from session - use BMU property instead of _id
-  const userBMU = session?.user?.userBmu?.BMU || bmu;
+  // Use the centralized permissions hook
+  const {
+    userBMU,
+    isCiaUser,
+    isWbciaUser,
+    isAdmin,
+    getAccessibleBMUs,
+    hasRestrictedAccess,
+    shouldShowAggregated,
+    canCompareWithOthers
+  } = useUserPermissions();
   
-  // Check if user is from CIA 
-  const isCiaUser = session?.user?.groups?.some((group: { name: string }) => group.name === 'CIA');
+  // Determine which BMU to use for filtering - prefer passed prop, then user's BMU
+  const effectiveBMU = bmu || userBMU;
   
   // Use responsive height class instead of calculated height
   
@@ -318,6 +327,13 @@ export default function GearHeatmap({
     }));
   };
 
+  // Reset to distribution tab if CIA user somehow gets to comparison tab
+  useEffect(() => {
+    if (isCiaUser && activeTab === 'comparison') {
+      setActiveTab('distribution');
+    }
+  }, [isCiaUser, activeTab]);
+
   useEffect(() => {
     if (!rawData) return;
 
@@ -328,22 +344,31 @@ export default function GearHeatmap({
       const uniqueBMUs = Array.from(
         new Set(rawData.map((d: GearData) => d.BMU))
       ).sort();
+      
+      // Filter BMUs based on user permissions
+      const accessibleBMUs = hasRestrictedAccess 
+        ? getAccessibleBMUs(uniqueBMUs) 
+        : uniqueBMUs;
 
       // Create color mapping for BMUs
       const newSiteColors = uniqueBMUs.reduce<Record<string, string>>(
         (acc, site, index) => ({
           ...acc,
-          [site]: generateColor(index, site, userBMU),
+          [site]: generateColor(index, site, effectiveBMU),
         }),
         {}
       );
       setSiteColors(newSiteColors);
 
-      // Set initial visibility state
+      // Set initial visibility state based on user permissions
       const initialVisibility = uniqueBMUs.reduce<VisibilityState>(
         (acc, site) => ({
           ...acc,
-          [site]: { opacity: site === userBMU ? 1 : 0.2 },
+          [site]: { 
+            opacity: hasRestrictedAccess 
+              ? (accessibleBMUs.includes(site) ? 1 : 0.2) 
+              : (site === effectiveBMU ? 1 : 0.2) 
+          },
         }),
         {}
       );
@@ -391,18 +416,26 @@ export default function GearHeatmap({
       setBarData(transformedData);
 
       // Format data for the ranking chart
-      // If user is not from CIA and has a BMU, only show their BMU data
-      // Otherwise show data from all BMUs
+      // Filter data based on user permissions
+      const filteredRankingData = rawData.filter((d: GearData) => {
+        if (hasRestrictedAccess) {
+          // For CIA users, only show their assigned BMU
+          return d.BMU === effectiveBMU;
+        } else if (isWbciaUser && effectiveBMU) {
+          // For WBCIA users with a selected BMU, filter to that BMU
+          return d.BMU === effectiveBMU;
+        }
+        // For admins and users without restrictions, show all data
+        return true;
+      });
+      
       const rankingData: RankingDataItem[] = gearTypes.map((gear, index) => {
-        // Determine which data to use based on user's role and BMU
-        const gearData = !isCiaUser && userBMU
-          ? rawData.filter(d => d.BMU === userBMU && d.gear === gear)
-          : rawData.filter(d => d.gear === gear);
-            
-        // Calculate total value for this gear (filtered for user's BMU if applicable)
-        const totalValue = gearData.reduce((sum, curr) => {
-          return sum + (typeof curr[selectedMetric] === "number" ? curr[selectedMetric] : 0);
-        }, 0);
+        // Calculate total value for this gear (filtered for BMU if applicable)
+        const totalValue = filteredRankingData
+          .filter(d => d.gear === gear)
+          .reduce((sum, curr) => {
+            return sum + (typeof curr[selectedMetric] === "number" ? curr[selectedMetric] : 0);
+          }, 0);
 
         return {
           name: capitalizeGearType(gear.replace(/_/g, " ")),
@@ -421,15 +454,15 @@ export default function GearHeatmap({
 
       // Format data for the comparison chart
       // For the user's BMU compared to average of others
-      if (userBMU) {
+      if (effectiveBMU) {
         const comparisonData = gearTypes.map((gear, index) => {
           // Get value for user's BMU
           const bmuValue = rawData.find(
-            d => d.BMU === userBMU && d.gear === gear && typeof d[selectedMetric] === "number"
+            d => d.BMU === effectiveBMU && d.gear === gear && typeof d[selectedMetric] === "number"
           )?.[selectedMetric] || 0;
 
           // Get average value for other BMUs
-          const otherBMUs = uniqueBMUs.filter(b => b !== userBMU);
+          const otherBMUs = uniqueBMUs.filter(b => b !== effectiveBMU);
           let otherBMUsTotal = 0;
           let otherBMUsCount = 0;
 
@@ -453,7 +486,7 @@ export default function GearHeatmap({
 
           return {
             name: capitalizeGearType(gear.replace(/_/g, " ")),
-            [userBMU]: Number(bmuValue.toFixed(2)),
+            [effectiveBMU]: Number(bmuValue.toFixed(2)),
             average: Number(otherBMUsAvg.toFixed(2)),
             diff: diff,
             color: GEAR_COLORS[index % GEAR_COLORS.length]
@@ -470,30 +503,65 @@ export default function GearHeatmap({
     } finally {
       setLoading(false);
     }
-  }, [rawData, selectedMetric, userBMU, isCiaUser]);
+  }, [rawData, selectedMetric, effectiveBMU, hasRestrictedAccess, isWbciaUser, getAccessibleBMUs]);
 
   const getTabTitle = (tab: string): string => {
+    // Custom titles for CIA users who can only see their own BMU
+    if (isCiaUser && hasRestrictedAccess) {
+      switch (tab) {
+        case 'distribution':
+          return t("text-distribution-tab-title-cia") || `Fishing Gear Performance in ${effectiveBMU}`;
+        case 'ranking':
+          return t("text-ranking-tab-title-cia") || `Gear Type Importance in ${effectiveBMU}`;
+        default:
+          return t("text-distribution-tab-title-cia") || `Fishing Gear Performance in ${effectiveBMU}`;
+      }
+    }
+    
+    // Standard titles for users who can see multiple BMUs
     switch (tab) {
       case 'distribution':
         return t("text-distribution-tab-title");
       case 'comparison':
         return t("text-comparison-tab-title");
       case 'ranking':
-        return userBMU && !isCiaUser ? t("text-ranking-tab-title") : t("text-ranking-tab-title-all");
+        return hasRestrictedAccess ? 
+          t("text-ranking-tab-title") + ` (${effectiveBMU})` :
+          t("text-ranking-tab-title-all");
       default:
         return t("text-distribution-tab-title");
     }
   };
 
   const getTabDescription = (tab: string): string => {
+    // Custom descriptions for CIA users who can only see their own BMU
+    if (isCiaUser && hasRestrictedAccess) {
+      switch (tab) {
+        case 'distribution':
+          return t("text-distribution-tab-description-cia") || 
+            `Shows performance metrics for different fishing gear types in your BMU (${effectiveBMU})`;
+        case 'ranking':
+          return t("text-ranking-tab-description-cia") || 
+            `Shows the relative importance of different fishing gear types in your BMU (${effectiveBMU})`;
+        default:
+          return t("text-distribution-tab-description-cia") || 
+            `Shows performance metrics for different fishing gear types in your BMU (${effectiveBMU})`;
+      }
+    }
+    
+    // Standard descriptions for users who can see multiple BMUs
     switch (tab) {
       case 'distribution':
         return t("text-distribution-tab-description");
       case 'comparison':
-        return userBMU ? t("text-comparison-tab-description") + ` (${userBMU})` : t("text-comparison-tab-description");
+        return effectiveBMU ? 
+          t("text-comparison-tab-description") + ` (${effectiveBMU})` : 
+          t("text-comparison-tab-description");
       case 'ranking':
-        if (userBMU && !isCiaUser) {
-          return t("text-ranking-tab-description") + ` (${userBMU})`;
+        if (hasRestrictedAccess) {
+          return t("text-ranking-tab-description") + ` (${effectiveBMU})`;
+        } else if (effectiveBMU) {
+          return t("text-ranking-tab-description") + ` (${effectiveBMU})`;
         } else {
           return t("text-ranking-tab-description-all");
         }
@@ -535,7 +603,8 @@ export default function GearHeatmap({
             >
               {t("text-distribution-tab")}
             </button>
-            {userBMU && (
+            {/* Only show comparison tab for non-CIA users */}
+            {effectiveBMU && !isCiaUser && (
               <button
                 className={`px-4 py-2 text-sm rounded-md transition duration-200 ${activeTab === 'comparison' ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'} w-full sm:w-auto`}
                 onClick={() => handleTabChange('comparison')}
@@ -626,7 +695,7 @@ export default function GearHeatmap({
         )}
 
         {/* Comparison View - Selected BMU vs Average of Others */}
-        {activeTab === 'comparison' && userBMU && (
+        {activeTab === 'comparison' && effectiveBMU && (
           <div className="w-full h-[600px] pt-4">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart
@@ -667,9 +736,9 @@ export default function GearHeatmap({
                   wrapperStyle={{ position: 'relative', marginTop: '10px' }}
                 />
                 <Bar
-                  dataKey={userBMU}
-                  name={userBMU}
-                  fill={siteColors[userBMU] || "#fc3468"}
+                  dataKey={effectiveBMU}
+                  name={effectiveBMU}
+                  fill={siteColors[effectiveBMU] || "#fc3468"}
                   radius={[0, 4, 4, 0]}
                   animationDuration={1000}
                   animationEasing="ease-out"

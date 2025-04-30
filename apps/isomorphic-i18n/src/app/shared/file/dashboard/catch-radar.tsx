@@ -18,6 +18,8 @@ import { useTranslation } from "@/app/i18n/client";
 import { api } from "@/trpc/react";
 import cn from "@utils/class-names";
 import { useSession } from "next-auth/react";
+// Import shared permissions hook
+import useUserPermissions from "./hooks/useUserPermissions";
 
 type MetricKey =
   | "mean_effort"
@@ -178,10 +180,21 @@ export default function CatchRadarChart({
 }) {
   const { t } = useTranslation(lang!, "common");
   const [bmus] = useAtom(bmusAtom);
-  const { data: session } = useSession();
   
-  // Determine if the user is part of the CIA group
-  const isCiaUser = session?.user?.groups?.some((group: { name: string }) => group.name === 'CIA');
+  // Use centralized permissions hook
+  const {
+    userBMU,
+    isCiaUser,
+    isWbciaUser,
+    isAdmin,
+    getAccessibleBMUs,
+    hasRestrictedAccess,
+    shouldShowAggregated,
+    canCompareWithOthers
+  } = useUserPermissions();
+  
+  // Determine which BMU to use for filtering - prefer passed prop, then user's BMU
+  const effectiveBMU = bmu || userBMU;
 
   const [data, setData] = useState<RadarData[]>([]);
   const [loading, setLoading] = useState(true);
@@ -241,9 +254,14 @@ export default function CatchRadarChart({
           return;
         }
 
+        // Apply user permissions to filter BMUs
+        const accessibleSites = hasRestrictedAccess 
+          ? getAccessibleBMUs(uniqueSites) 
+          : uniqueSites;
+
         const newSiteColors = uniqueSites.reduce<Record<string, string>>(
           (acc: Record<string, string>, site: string, index: number) => {
-            acc[site] = generateColor(index, site, bmu);
+            acc[site] = generateColor(index, site, effectiveBMU);
             return acc;
           },
           {}
@@ -254,7 +272,11 @@ export default function CatchRadarChart({
           uniqueSites.reduce<VisibilityState>(
             (acc: VisibilityState, site: string) => ({
               ...acc,
-              [site]: { opacity: site === bmu ? 1 : 0.2 },
+              [site]: { 
+                opacity: hasRestrictedAccess
+                  ? accessibleSites.includes(site) ? 1 : 0.2
+                  : site === effectiveBMU ? 1 : 0.2 
+              },
             }),
             {}
           );
@@ -282,19 +304,19 @@ export default function CatchRadarChart({
           });
 
         // Calculate differenced data if needed
-        if (activeTab === 'differenced' && bmu) {
+        if (activeTab === 'differenced' && effectiveBMU) {
           processedData = processedData.map(item => {
-            const userValue = Number(item[bmu]);
+            const userValue = Number(item[effectiveBMU]);
             // Only calculate difference if the BMU has data for this month
             if (isNaN(userValue) || userValue === 0) {
               return {
                 month: item.month,
-                [bmu]: 0
+                [effectiveBMU]: 0
               };
             }
 
             const otherBMUs = uniqueSites.filter(site => 
-              site !== bmu && 
+              site !== effectiveBMU && 
               !isNaN(Number(item[site])) && 
               Number(item[site]) !== 0
             );
@@ -303,7 +325,7 @@ export default function CatchRadarChart({
             if (otherBMUs.length === 0) {
               return {
                 month: item.month,
-                [bmu]: 0
+                [effectiveBMU]: 0
               };
             }
 
@@ -313,9 +335,9 @@ export default function CatchRadarChart({
 
             return {
               month: item.month,
-              [bmu]: userValue - otherAverage
+              [effectiveBMU]: userValue - otherAverage
             };
-          }).filter(item => Number(item[bmu]) !== 0); // Remove months with no valid difference
+          }).filter(item => Number(item[effectiveBMU]) !== 0); // Remove months with no valid difference
         }
 
         setData(processedData);
@@ -329,7 +351,7 @@ export default function CatchRadarChart({
     };
 
     processData();
-  }, [meanCatch, selectedMetric, activeTab, bmu, isFetching, t]);
+  }, [meanCatch, selectedMetric, activeTab, effectiveBMU, isFetching, t, hasRestrictedAccess, getAccessibleBMUs]);
 
   // Remove the separate bmus effect since we handle loading in the main effect
   useEffect(() => {
@@ -426,7 +448,7 @@ export default function CatchRadarChart({
               />
               {Object.entries(siteColors).map(([site, color]) => {
                 // In differenced mode, only show the selected BMU
-                if (activeTab === 'differenced' && site !== bmu) {
+                if (activeTab === 'differenced' && site !== effectiveBMU) {
                   return null;
                 }
                 const opacity = visibilityState[site]?.opacity ?? 1;

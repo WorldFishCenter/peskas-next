@@ -15,6 +15,7 @@ import { api } from "@/trpc/react";
 import { bmusAtom } from "@/app/components/filter-selector";
 import { useSession } from "next-auth/react";
 import WidgetCard from "@components/cards/widget-card";
+import useUserPermissions from "./hooks/useUserPermissions";
 
 type FileStatsType = {
   className?: string;
@@ -95,52 +96,46 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
   const [selectedMonth, setSelectedMonth] = useState<string | null>(null);
   const [comparisonValues, setComparisonValues] = useState<{[key: string]: {reference: number, others?: number, date: string}}>({});
   const [bmus] = useAtom(bmusAtom);
-  const { data: session } = useSession();
-
-  // Check groups array exists before trying to use some()
-  const hasGroups = Array.isArray(session?.user?.groups);
-  const isCiaUser = hasGroups && session?.user?.groups?.some((group: { name: string }) => group.name === 'CIA');
-  const isAdminUser = hasGroups && session?.user?.groups?.some((group: { name: string }) => group.name === 'Admin');
   
-  // Log user session info for debugging
+  const {
+    userBMU,
+    isCiaUser,
+    isWbciaUser,
+    isAdmin,
+    getAccessibleBMUs,
+    hasRestrictedAccess,
+    shouldShowAggregated,
+    canCompareWithOthers
+  } = useUserPermissions();
   
+  const effectiveBMU = bmu || userBMU;
   
-  // Get the active BMU from props or session
-  const activeBmu = bmu || session?.user?.userBmu?.BMU || "Vipingo";
+  const displayName = isAdmin ? "All BMUs" : effectiveBMU || "Selected BMU";
   
-  // Display name based on user role
-  const displayName = isAdminUser ? "All BMUs" : activeBmu;
-  
-  // For admin users, we want all BMUs data together
-  // For CIA users, we only need their BMU's data
   const { data: statsData1, isLoading: isLoading1, error: error1 } = api.monthlyStats.allStats.useQuery({ 
-    bmus: isAdminUser ? bmus : (bmu ? [bmu] : bmus) // Fallback to all bmus if bmu is not provided
+    bmus: isAdmin ? bmus : (hasRestrictedAccess ? [effectiveBMU].filter(Boolean) as string[] : bmus)
   }, {
     retry: 3,
     retryDelay: 1000,
-    staleTime: 1000 * 60 * 5, // 5 minutes
+    staleTime: 1000 * 60 * 5,
   }) as { data: StatsResponse | undefined, isLoading: boolean, error: any };
   
-  // Only fetch other BMUs data if not a CIA user and not an admin user
   const { data: statsData2, isLoading: isLoading2, error: error2 } = api.monthlyStats.allStats.useQuery({ 
-    bmus: (!isCiaUser && !isAdminUser && bmu) ? bmus.filter(b => b !== bmu) : []
+    bmus: canCompareWithOthers && effectiveBMU ? bmus.filter(b => b !== effectiveBMU) : []
   }, {
     retry: 3,
     retryDelay: 1000,
-    staleTime: 1000 * 60 * 5, // 5 minutes
-    enabled: !isCiaUser && !isAdminUser && !!bmu,
+    staleTime: 1000 * 60 * 5,
+    enabled: canCompareWithOthers && !!effectiveBMU,
   }) as { data: StatsResponse | undefined, isLoading: boolean, error: any };
 
-  // Monitor API responses (keeping this from refactor-charts for debugging)
   useEffect(() => {
-    const otherQuery = (!isCiaUser && !isAdminUser && bmu) ? bmus.filter(b => b !== bmu) : [];
-  }, [statsData1, statsData2, isLoading1, isLoading2, error1, error2, isAdminUser, bmus, activeBmu, bmu, isCiaUser]);
+    const otherQuery = canCompareWithOthers && effectiveBMU ? bmus.filter(b => b !== effectiveBMU) : [];
+  }, [statsData1, statsData2, isLoading1, isLoading2, error1, error2, isAdmin, bmus, effectiveBMU, canCompareWithOthers]);
 
   useEffect(() => {
-    // Set loading state based on API query states
     setLoading(isLoading1 || isLoading2);
     
-    // Set error state if any API calls failed
     if (error1 || error2) {
       console.error("API error:", error1 || error2);
       setError("Failed to load statistics data");
@@ -148,7 +143,6 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
       return;
     }
     
-    // Handle case when no data is returned
     if (!isLoading1 && !statsData1) {
       console.warn("No statistics data available");
       setError("No statistics data available");
@@ -173,7 +167,7 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
       const getMonthName = (dateStr: string) => {
         if (!dateStr) return '';
         const parts = dateStr.split('-');
-        if (parts.length < 2) return dateStr; // Already a month name
+        if (parts.length < 2) return dateStr;
         const year = parts[0];
         const month = parts[1];
         const date = new Date(parseInt(year), parseInt(month) - 1);
@@ -181,12 +175,10 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
       };
       
       const transformedStats = metrics.map(metric => {
-        // Safely access properties with fallbacks for missing data
         const referenceMetric = statsData1?.[metric.field] || { current: 0, percentage: 0, trend: [] };
         const otherBmusMetric = statsData2?.[metric.field];
         const trend = referenceMetric.trend || [];
 
-        // Calculate default percentage change between last two months
         let defaultPercentage = '';
         let defaultIncreased = false;
         let monthComparison = '';
@@ -206,7 +198,6 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
           }
         }
 
-        // Set default percentage in hoveredPercentages
         if (defaultPercentage) {
           setHoveredPercentages(prev => ({
             ...prev,
@@ -218,7 +209,6 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
           }));
         }
 
-        // Get the most recent month data for comparison values
         if (trend.length > 0) {
           const lastPoint = trend[trend.length - 1];
           const lastOthersPoint = otherBmusMetric?.trend?.[otherBmusMetric.trend.length - 1];
@@ -227,18 +217,16 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
             ...prev,
             [metric.id]: {
               reference: Math.round(lastPoint.sale || 0),
-              others: !isAdminUser && !isCiaUser ? Math.round(lastOthersPoint?.sale || 0) : undefined,
+              others: canCompareWithOthers ? Math.round(lastOthersPoint?.sale || 0) : undefined,
               date: getMonthName(lastPoint.day)
             }
           }));
         }
 
-        // Transform the trend data with safety checks for undefined values
         const chartData = trend.map((point, index) => ({
           day: point.day || '',
           reference: point.sale || 0,
-          // Only include others for non-admin users
-          others: !isAdminUser && !isCiaUser && otherBmusMetric?.trend?.[index]?.sale || 0,
+          others: canCompareWithOthers && otherBmusMetric?.trend?.[index]?.sale || 0,
           index,
           data: trend,
           metricId: metric.id
@@ -260,7 +248,7 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
     } finally {
       setLoading(false);
     }
-  }, [statsData1, statsData2, isLoading1, isLoading2, error1, error2, t, isCiaUser, isAdminUser, bmus, bmu]);
+  }, [statsData1, statsData2, isLoading1, isLoading2, error1, error2, t, canCompareWithOthers]);
 
   const handleBarClick = (data: any) => {
     if (!data || !data.activePayload || data.activePayload.length === 0) return;
@@ -274,7 +262,7 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
       ...prev,
       [metricId]: {
         reference: Math.round(entry.payload.reference),
-        others: (!isAdminUser && !isCiaUser) ? Math.round(entry.payload.others || 0) : undefined,
+        others: canCompareWithOthers ? Math.round(entry.payload.others || 0) : undefined,
         date: getMonthName(day)
       }
     }));
@@ -283,7 +271,7 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
   const getMonthName = (dateStr: string) => {
     if (!dateStr) return '';
     const parts = dateStr.split('-');
-    if (parts.length < 2) return dateStr; // Already a month name
+    if (parts.length < 2) return dateStr;
     const year = parts[0];
     const month = parts[1];
     const date = new Date(parseInt(year), parseInt(month) - 1);
@@ -300,24 +288,22 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
         const getMonthName = (dateStr: string) => {
           if (!dateStr) return '';
           const parts = dateStr.split('-');
-          if (parts.length < 2) return dateStr; // Already a month name
+          if (parts.length < 2) return dateStr;
           const year = parts[0];
           const month = parts[1];
           const date = new Date(parseInt(year), parseInt(month) - 1);
           return date.toLocaleString('default', { month: 'short' });
         };
         
-        // Update comparison values for current point (even if it's the first point)
         setComparisonValues(prev => ({
           ...prev,
           [entry.payload.metricId]: {
             reference: Math.round(entry.payload.reference),
-            others: (!isAdminUser && !isCiaUser) ? Math.round(entry.payload.others || 0) : undefined,
+            others: canCompareWithOthers ? Math.round(entry.payload.others || 0) : undefined,
             date: getMonthName(entry.payload.day)
           }
         }));
         
-        // Only calculate percentage change if we have a previous point to compare
         if (currentIndex > 0) {
           const currentMonth = getMonthName(data[currentIndex].day);
           const prevMonth = getMonthName(data[currentIndex - 1].day);
@@ -362,7 +348,6 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
           )}
         >
           <div className="p-4">
-            {/* Header: Title and Trend */}
             <div className="flex justify-between items-center w-full">
               <Text className="text-sm text-gray-700">{stat.title}</Text>
               {hoveredPercentages[stat.id] && (
@@ -380,7 +365,6 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
               )}
             </div>
             
-            {/* Metric and Period */}
             <div className="flex items-baseline gap-2 mt-0.5">
               <Text className="text-xl font-bold text-gray-900">
                 {comparisonValues[stat.id]?.reference ? 
@@ -394,13 +378,12 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
               )}
             </div>
             
-            {/* Legend */}
             <div className="flex items-center gap-3 text-2xs mt-2 mb-0.5">
               <div className="flex items-center gap-1">
                 <div className="w-1.5 h-1.5 rounded-full bg-[#fc3468]" />
                 <span>{displayName}</span>
               </div>
-              {(!isCiaUser && !isAdminUser) && (
+              {canCompareWithOthers && (
                 <div className="flex items-center gap-1">
                   <div className="w-1.5 h-1.5 rounded-full bg-[rgba(178,216,216,0.75)]" />
                   <span>Other BMUs</span>
@@ -409,7 +392,6 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
             </div>
           </div>
           
-          {/* Chart */}
           <div className="h-24 w-full bg-gray-50/50 transition-colors duration-200 hover:bg-gray-100/60">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart 
@@ -434,7 +416,7 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
                   maxBarSize={7}
                   minPointSize={3}
                 />
-                {(!isCiaUser && !isAdminUser) && (
+                {canCompareWithOthers && (
                   <Bar
                     dataKey="others"
                     fill="rgba(178, 216, 216, 0.75)"
@@ -448,13 +430,12 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
             </ResponsiveContainer>
           </div>
           
-          {/* Current Values */}
           <div className="px-3 py-2 border-t border-gray-100 bg-gray-50/30 flex justify-between text-xs">
             <div className="flex flex-col">
               <span className="text-2xs text-gray-500">{displayName}</span>
               <span className="font-medium">{comparisonValues[stat.id]?.reference || "-"}</span>
             </div>
-            {(!isCiaUser && !isAdminUser) && (
+            {canCompareWithOthers && (
               <div className="flex flex-col">
                 <span className="text-2xs text-gray-500">Other BMUs</span>
                 <span className="font-medium">{comparisonValues[stat.id]?.others || "-"}</span>
