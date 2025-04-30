@@ -185,17 +185,7 @@ export default function PerformanceTable({
     handleSort(key);
   }, [handleSort]);
   
-  // Check if user is in CIA mode
-  const isCiaUser = session?.user?.groups?.some(
-    (group: { name: string }) => group.name === 'CIA'
-  );
-
-  // If in CIA mode, don't render the table as it doesn't make sense to show a comparison
-  // table with just one BMU
-  if (isCiaUser) {
-    return null;
-  }
-
+  // Move columns definition before the conditional return
   const columns = useMemo<ColumnType[]>(
     () => [
       {
@@ -395,6 +385,17 @@ export default function PerformanceTable({
     ],
     [t, sortConfig, memoizedHandleSort]
   );
+
+  // Check if user is in CIA mode
+  const isCiaUser = session?.user?.groups?.some(
+    (group: { name: string }) => group.name === 'CIA'
+  );
+
+  // If in CIA mode, don't render the table as it doesn't make sense to show a comparison
+  // table with just one BMU
+  if (isCiaUser) {
+    return null;
+  }
 
   return (
     <div className={className}>
