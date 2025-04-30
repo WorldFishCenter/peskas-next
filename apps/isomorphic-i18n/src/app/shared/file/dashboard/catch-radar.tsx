@@ -2,7 +2,7 @@
 
 import WidgetCard from "@components/cards/widget-card";
 import { useAtom } from "jotai";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import {
   Legend,
   PolarAngleAxis,
@@ -224,6 +224,8 @@ export default function CatchRadarChart({
 
   useEffect(() => {
     // Set loading state when dependencies change
+    if (!isInitialLoad && !isFetching) return;
+    
     setLoading(true);
     setError(null);
 
@@ -342,6 +344,7 @@ export default function CatchRadarChart({
 
         setData(processedData);
         setError(null);
+        setIsInitialLoad(false);
       } catch (e) {
         console.error("Error processing data:", e);
         setError(t("text-error-processing-data"));
@@ -351,7 +354,7 @@ export default function CatchRadarChart({
     };
 
     processData();
-  }, [meanCatch, selectedMetric, activeTab, effectiveBMU, isFetching, t, hasRestrictedAccess, getAccessibleBMUs]);
+  }, [meanCatch, selectedMetric, activeTab, effectiveBMU, isFetching, isInitialLoad]);
 
   // Remove the separate bmus effect since we handle loading in the main effect
   useEffect(() => {
@@ -361,14 +364,14 @@ export default function CatchRadarChart({
     }
   }, [bmus, t]);
 
-  const handleLegendClick = (site: string) => {
+  const handleLegendClick = useCallback((site: string) => {
     setVisibilityState((prev) => ({
       ...prev,
       [site]: {
         opacity: prev[site]?.opacity === 1 ? 0.2 : 1,
       },
     }));
-  };
+  }, []);
 
   if (loading || isFetching) return <LoadingState t={t} />;
 
@@ -464,9 +467,7 @@ export default function CatchRadarChart({
                     strokeWidth={2}
                     dot
                     activeDot={{ r: 6, strokeWidth: 0 }}
-                    animationBegin={0}
-                    animationDuration={1000}
-                    animationEasing="ease-out"
+                    isAnimationActive={false}
                   />
                 );
               })}

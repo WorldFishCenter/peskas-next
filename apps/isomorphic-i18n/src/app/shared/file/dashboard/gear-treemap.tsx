@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback, useRef } from "react";
 import { useAtom } from "jotai";
 import { ActionIcon, Popover } from "rizzui";
 import WidgetCard from "@components/cards/widget-card";
@@ -292,6 +292,9 @@ export default function GearHeatmap({
   const [visibilityState, setVisibilityState] = useState<VisibilityState>({});
   const [activeTab, setActiveTab] = useState('distribution');
   
+  // Add refs to track initialization states
+  const dataProcessed = useRef<boolean>(false);
+  
   // Use the centralized permissions hook
   const {
     userBMU,
@@ -306,26 +309,24 @@ export default function GearHeatmap({
   
   // Determine which BMU to use for filtering - prefer passed prop, then user's BMU
   const effectiveBMU = bmu || userBMU;
-  
-  // Use responsive height class instead of calculated height
 
   const { data: rawData } = api.gear.summaries.useQuery({ bmus });
   const selectedMetricOption = METRIC_OPTIONS.find(
     (m) => m.value === selectedMetric
   );
 
-  const handleTabChange = (tab: string) => {
+  const handleTabChange = useCallback((tab: string) => {
     setActiveTab(tab);
-  };
+  }, []);
 
-  const handleLegendClick = (site: string) => {
+  const handleLegendClick = useCallback((site: string) => {
     setVisibilityState((prev) => ({
       ...prev,
       [site]: {
         opacity: prev[site]?.opacity === 1 ? 0.2 : 1,
       },
     }));
-  };
+  }, []);
 
   // Reset to distribution tab if CIA user somehow gets to comparison tab
   useEffect(() => {
@@ -336,9 +337,13 @@ export default function GearHeatmap({
 
   useEffect(() => {
     if (!rawData) return;
+    
+    // Skip processing if already done and not changing key dependencies
+    if (dataProcessed.current && barData.length > 0 && !loading) return;
 
     try {
       setLoading(true);
+      setError(null);
 
       // Extract unique BMUs from the data
       const uniqueBMUs = Array.from(
@@ -360,19 +365,21 @@ export default function GearHeatmap({
       );
       setSiteColors(newSiteColors);
 
-      // Set initial visibility state based on user permissions
-      const initialVisibility = uniqueBMUs.reduce<VisibilityState>(
-        (acc, site) => ({
-          ...acc,
-          [site]: { 
-            opacity: hasRestrictedAccess 
-              ? (accessibleBMUs.includes(site) ? 1 : 0.2) 
-              : (site === effectiveBMU ? 1 : 0.2) 
-          },
-        }),
-        {}
-      );
-      setVisibilityState(initialVisibility);
+      // Only set initial visibility state if it's empty
+      if (Object.keys(visibilityState).length === 0) {
+        const initialVisibility = uniqueBMUs.reduce<VisibilityState>(
+          (acc, site) => ({
+            ...acc,
+            [site]: { 
+              opacity: hasRestrictedAccess 
+                ? (accessibleBMUs.includes(site) ? 1 : 0.2) 
+                : (site === effectiveBMU ? 1 : 0.2) 
+            },
+          }),
+          {}
+        );
+        setVisibilityState(initialVisibility);
+      }
 
       // Extract unique gear types and sort by total metric value
       const gearTypes = Array.from(
@@ -496,6 +503,7 @@ export default function GearHeatmap({
         setComparisonData(comparisonData);
       }
 
+      dataProcessed.current = true;
       setError(null);
     } catch (error) {
       console.error("Error transforming data:", error);
@@ -685,8 +693,7 @@ export default function GearHeatmap({
                     fillOpacity={(visibilityState[bmu]?.opacity || 1) * 0.85}
                     strokeOpacity={visibilityState[bmu]?.opacity || 1}
                     radius={[4, 4, 0, 0]}
-                    animationDuration={1000}
-                    animationEasing="ease-out"
+                    isAnimationActive={false}
                   />
                 ))}
               </BarChart>
@@ -740,16 +747,14 @@ export default function GearHeatmap({
                   name={effectiveBMU}
                   fill={siteColors[effectiveBMU] || "#fc3468"}
                   radius={[0, 4, 4, 0]}
-                  animationDuration={1000}
-                  animationEasing="ease-out"
+                  isAnimationActive={false}
                 />
                 <Bar
                   dataKey="average"
                   name={t("text-average-of-other-bmus")}
                   fill="#94a3b8"
                   radius={[0, 4, 4, 0]}
-                  animationDuration={1000}
-                  animationEasing="ease-out"
+                  isAnimationActive={false}
                 />
               </BarChart>
             </ResponsiveContainer>
@@ -766,8 +771,7 @@ export default function GearHeatmap({
                 aspectRatio={4/3}
                 stroke="#fff"
                 nameKey="name"
-                animationDuration={1000}
-                animationEasing="ease-out"
+                isAnimationActive={false}
               >
                 {rankingData.map((entry, index) => (
                   <Cell 
@@ -792,8 +796,8 @@ export default function GearHeatmap({
                 }))}
                 visibilityState={visibilityState}
                 handleLegendClick={handleLegendClick}
-          />
-        </div>
+              />
+            </div>
           </div>
         )}
       </SimpleBar>

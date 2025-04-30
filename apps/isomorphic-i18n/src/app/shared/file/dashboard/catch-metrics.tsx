@@ -1,7 +1,7 @@
 import WidgetCard from "@components/cards/widget-card";
 import { useAtom } from "jotai";
-import { useEffect, useState, useCallback, useRef } from "react";
-import React, { createContext, useContext, useMemo } from "react";
+import { useEffect, useState, useCallback, useRef, useMemo } from "react";
+import React, { createContext, useContext } from "react";
 
 import { bmusAtom } from "@/app/components/filter-selector";
 import { useTranslation } from "@/app/i18n/client";
@@ -197,13 +197,18 @@ export default function CatchMetricsChart({
   const [fiveYearMarks, setFiveYearMarks] = useState<number[]>([]);
   const [visibilityState, setVisibilityState] = useState<VisibilityState>({});
   const [siteColors, setSiteColors] = useState<Record<string, string>>({});
+  
+  // Add refs to track initialization states
+  const visibilityInitialized = useRef<boolean>(false);
+  const dataProcessed = useRef<boolean>(false);
+  const prevTabRef = useRef<string | null>(null);
 
   // Map old tab names to new ones for backwards compatibility
-  const getNewTabName = (oldTab: string) => {
+  const getNewTabName = useCallback((oldTab: string) => {
     if (oldTab === 'standard') return 'trends';
     if (oldTab === 'recent') return 'comparison';
     return oldTab;
-  };
+  }, []);
 
   // Initialize with mapped value to handle both old and new tab names
   const [localActiveTab, setLocalActiveTab] = useState(() => getNewTabName(activeTab));
@@ -230,16 +235,19 @@ export default function CatchMetricsChart({
         i18n.changeLanguage(event.detail.language);
       }
       
-      // Trigger a refresh without changing active tab
-      setLoading(true);
-      setTimeout(() => setLoading(false), 50);
+      // Trigger a refresh without changing active tab - but only if not already loading
+      if (!loading) {
+        setLoading(true);
+        const timer = setTimeout(() => setLoading(false), 50);
+        return () => clearTimeout(timer);
+      }
     };
     
     window.addEventListener('i18n-language-changed', handleLanguageChange as EventListener);
     return () => {
       window.removeEventListener('i18n-language-changed', handleLanguageChange as EventListener);
     };
-  }, [i18n]);
+  }, [i18n, loading]);
 
   const [bmus] = useAtom(bmusAtom);
   
@@ -256,7 +264,7 @@ export default function CatchMetricsChart({
   } = useUserPermissions();
 
   // Determine which BMU to use for filtering - prefer passed prop, then user's BMU
-  const effectiveBMU = bmu || userBMU;
+  const effectiveBMU = useMemo(() => bmu || userBMU, [bmu, userBMU]);
 
   const { data: monthlyData } = api.aggregatedCatch.monthly.useQuery({ bmus });
 
@@ -265,17 +273,19 @@ export default function CatchMetricsChart({
     const newTabName = getNewTabName(activeTab);
     if (localActiveTab !== newTabName) {
       setLocalActiveTab(newTabName);
+      // Update the ref to track tab changes
+      prevTabRef.current = newTabName;
     }
-  }, [activeTab]);
+  }, [activeTab, getNewTabName, localActiveTab]);
 
   // Ensure language is maintained during tab changes
   useEffect(() => {
     if (lang && i18n.language !== lang) {
       i18n.changeLanguage(lang);
     }
-  }, [lang, i18n, localActiveTab]);
+  }, [lang, i18n]);
 
-  const handleLegendClick = (site: string) => {
+  const handleLegendClick = useCallback((site: string) => {
     // Don't toggle visibility for the average line or special CIA comparison lines
     if (site === "average" || site === "historical_average") return;
     
@@ -300,12 +310,15 @@ export default function CatchMetricsChart({
       
       return newState;
     });
-  };
+  }, [localActiveTab]);
 
   // Handle tab changes while preserving language state
-  const handleTabChange = (tab: string) => {
+  const handleTabChange = useCallback((tab: string) => {
     // Save current language before tab change
     const currentClientLang = getClientLanguage();
+    
+    if (prevTabRef.current === tab) return; // Avoid unnecessary updates
+    prevTabRef.current = tab;
     
     // Set a data attribute on document to immediately communicate language
     if (typeof document !== 'undefined') {
@@ -337,26 +350,56 @@ export default function CatchMetricsChart({
         }));
       }, 10);
     }
-  };
+  }, [i18n, onTabChange]);
 
-  // Update visibility state when changing tabs
+  // Update visibility state when changing tabs - but only once per tab change
   useEffect(() => {
-    if ((localActiveTab === 'comparison' || localActiveTab === 'recent') && canCompareWithOthers) {
-      // Make sure all BMUs have proper visibility state
-      const newVisibilityState = { ...visibilityState };
+    // Skip if we've already processed visibility for this tab change
+    if (
+      !Object.keys(siteColors).length ||
+      !(localActiveTab === 'comparison' || localActiveTab === 'recent') ||
+      !canCompareWithOthers
+    ) {
+      return;
+    }
+
+    // Skip if visibilityState is already initialized for needed keys
+    const needsInitialization = Object.keys(siteColors).some(site => 
+      site !== 'average' && 
+      site !== 'historical_average' && 
+      !visibilityState[site]
+    );
+
+    if (!needsInitialization) return;
+
+    setVisibilityState(prev => {
+      const newState = { ...prev };
+      
       Object.keys(siteColors).forEach(site => {
-        if (site !== 'average' && site !== 'historical_average' && !newVisibilityState[site]) {
-          newVisibilityState[site] = { opacity: site === effectiveBMU ? 1 : 0.2 };
+        if (site !== 'average' && site !== 'historical_average' && !newState[site]) {
+          newState[site] = { opacity: site === effectiveBMU ? 1 : 0.2 };
+          
+          // Also set positive/negative variants for comparison view
+          const positiveKey = `${site}Positive`;
+          const negativeKey = `${site}Negative`;
+          newState[positiveKey] = { opacity: newState[site].opacity };
+          newState[negativeKey] = { opacity: newState[site].opacity };
         }
       });
-      setVisibilityState(newVisibilityState);
-    }
+      
+      return newState;
+    });
+    
+    visibilityInitialized.current = true;
   }, [localActiveTab, canCompareWithOthers, siteColors, effectiveBMU, visibilityState]);
 
   // Process main data when monthlyData changes
   useEffect(() => {
     if (!monthlyData) return;
-
+    
+    // Prevent re-processing data unnecessarily
+    if (chartData.length > 0 && !loading) return;
+    
     try {
       // Get unique sites from the data
       const uniqueSites = Array.from(
@@ -399,16 +442,19 @@ export default function CatchMetricsChart({
       // For Comparison tab, add visibility for positive and negative variants
       if ((localActiveTab === 'comparison' || localActiveTab === 'recent')) {
         uniqueSites.forEach(site => {
-          initialVisibility[`${site}Positive`] = { opacity: initialVisibility[site].opacity };
-          initialVisibility[`${site}Negative`] = { opacity: initialVisibility[site].opacity };
+          initialVisibility[`${site}Positive`] = { opacity: initialVisibility[site as string].opacity };
+          initialVisibility[`${site}Negative`] = { opacity: initialVisibility[site as string].opacity };
         });
       }
       
       // Always show average lines
-        initialVisibility["average"] = { opacity: 1 };
+      initialVisibility["average"] = { opacity: 1 };
       initialVisibility["historical_average"] = { opacity: 1 };
       
-      setVisibilityState(initialVisibility);
+      // Only set visibility state if it's the initial load
+      if (Object.keys(visibilityState).length === 0) {
+        setVisibilityState(initialVisibility);
+      }
 
       // Filter data from 2023 onwards
       const filteredData = monthlyData.filter((item: ApiDataPoint) => {
@@ -424,7 +470,7 @@ export default function CatchMetricsChart({
             acc[date] = {
               date,
               ...uniqueSites.reduce(
-                (sites, site) => ({ ...sites, [site]: undefined }),
+                (sites, site) => ({ ...sites, [site as string]: undefined }),
                 {}
               ),
             };
@@ -436,20 +482,20 @@ export default function CatchMetricsChart({
       );
 
       // Calculate average value for each date point
-        Object.keys(groupedData).forEach(dateKey => {
-          const dateData = groupedData[dateKey];
-          const values = Object.entries(dateData)
-            .filter(([key, value]) => key !== "date" && value !== undefined)
-            .map(([_, value]) => value as number);
-          
-          if (values.length > 0) {
-            const avg = values.reduce((sum, val) => sum + val, 0) / values.length;
-            groupedData[dateKey].average = parseFloat(avg.toFixed(2));
-          } else {
-            // Ensure we have an average property even if it's 0
-            groupedData[dateKey].average = 0;
-          }
-        });
+      Object.keys(groupedData).forEach(dateKey => {
+        const dateData = groupedData[dateKey];
+        const values = Object.entries(dateData)
+          .filter(([key, value]) => key !== "date" && value !== undefined)
+          .map(([_, value]) => value as number);
+        
+        if (values.length > 0) {
+          const avg = values.reduce((sum, val) => sum + val, 0) / values.length;
+          groupedData[dateKey].average = parseFloat(avg.toFixed(2));
+        } else {
+          // Ensure we have an average property even if it's 0
+          groupedData[dateKey].average = 0;
+        }
+      });
 
       const processedData = Object.values(groupedData).sort(
         (a, b) => a.date - b.date
@@ -474,24 +520,28 @@ export default function CatchMetricsChart({
     } finally {
       setLoading(false);
     }
-  }, [monthlyData, selectedMetric, effectiveBMU, hasRestrictedAccess, canCompareWithOthers, localActiveTab, getAccessibleBMUs]);
+  }, [monthlyData, selectedMetric, effectiveBMU, hasRestrictedAccess, getAccessibleBMUs]);
 
   // Calculate derived data when chartData changes
   useEffect(() => {
-    if (chartData.length > 0) {
-      // For non-CIA users, use standard comparison
-      if (canCompareWithOthers) {
-        setRecentData(getRecentData(chartData, false) as ChartDataPoint[]);
-      } 
-      // For CIA users, create comparison against historical average if they have a BMU
-      else if (isCiaUser && effectiveBMU) {
-        setCiaComparisonData(prepareDataForCiaComparison(chartData, effectiveBMU));
-      }
-      
-      // Annual data is the same for all users
-      setAnnualData(getAnnualData(chartData, !canCompareWithOthers, siteColors));
+    if (chartData.length === 0) return;
+    
+    // Skip if already calculated
+    if (recentData.length > 0 && annualData.length > 0) return;
+    
+    // For non-CIA users, use standard comparison
+    if (canCompareWithOthers) {
+      setRecentData(getRecentData(chartData, false) as ChartDataPoint[]);
+    } 
+    // For CIA users, create comparison against historical average if they have a BMU
+    else if (isCiaUser && effectiveBMU) {
+      setCiaComparisonData(prepareDataForCiaComparison(chartData, effectiveBMU));
     }
-  }, [chartData, canCompareWithOthers, siteColors, isCiaUser, effectiveBMU]);
+    
+    // Annual data is the same for all users
+    setAnnualData(getAnnualData(chartData, !canCompareWithOthers, siteColors));
+    
+  }, [chartData, canCompareWithOthers, isCiaUser, effectiveBMU, siteColors, recentData.length, annualData.length]);
 
   // Find the selected metric option
   const selectedMetricOption = METRIC_OPTIONS.find(
