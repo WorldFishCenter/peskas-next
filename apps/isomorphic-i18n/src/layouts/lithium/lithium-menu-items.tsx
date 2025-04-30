@@ -50,6 +50,17 @@ export const lithiumMenuItems: LithiumMenuItem = {
       },
     ],
   },
+  catch_composition: {
+    name: 'Catch Composition',
+    type: 'link',
+    dropdownItems: [
+      {
+        name: 'Catch Composition',
+        href: routes.catch_composition,
+        icon: 'FishIcon',
+      },
+    ],
+  },
   map: {
     name: 'sidebar-map',
     type: 'link',
