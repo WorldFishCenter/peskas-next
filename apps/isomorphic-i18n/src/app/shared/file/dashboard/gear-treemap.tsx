@@ -244,18 +244,18 @@ const CustomizedTreemapContent = (props: any) => {
       />
       {showLabel && (
         <>
-          <text
-            x={x + width / 2}
+        <text
+          x={x + width / 2}
             y={y + height / 2 - (showPercentage ? 10 : 0)}
-            textAnchor="middle"
-            dominantBaseline="middle"
+          textAnchor="middle"
+          dominantBaseline="middle"
             fontSize={25}
             fontWeight="normal"
             fontFamily="'Inter', sans-serif"
             fill="#ffffff"
-          >
-            {name}
-          </text>
+        >
+          {name}
+        </text>
           {showPercentage && percentage && (
             <text
               x={x + width / 2}
@@ -319,7 +319,7 @@ export default function GearHeatmap({
   
   // Determine which BMU to use for filtering - prefer passed prop, then user's BMU
   const effectiveBMU = bmu || userBMU;
-
+  
   // Force refetch when bmus changes by adding bmus to the query key
   const { data: rawData, refetch } = api.gear.summaries.useQuery(
     { bmus },
@@ -404,18 +404,18 @@ export default function GearHeatmap({
 
       // Only set initial visibility state if it's empty
       if (Object.keys(visibilityState).length === 0) {
-        const initialVisibility = uniqueBMUs.reduce<VisibilityState>(
-          (acc, site) => ({
-            ...acc,
-            [site]: { 
-              opacity: hasRestrictedAccess 
-                ? (accessibleBMUs.includes(site) ? 1 : 0.2) 
-                : (site === effectiveBMU ? 1 : 0.2) 
-            },
-          }),
-          {}
-        );
-        setVisibilityState(initialVisibility);
+      const initialVisibility = uniqueBMUs.reduce<VisibilityState>(
+        (acc, site) => ({
+          ...acc,
+          [site]: { 
+            opacity: hasRestrictedAccess 
+              ? (accessibleBMUs.includes(site) ? 1 : 0.2) 
+              : (site === effectiveBMU ? 1 : 0.2) 
+          },
+        }),
+        {}
+      );
+      setVisibilityState(initialVisibility);
       }
 
       // Extract unique gear types and sort by total metric value
@@ -817,7 +817,7 @@ export default function GearHeatmap({
                   <Cell 
                     key={`cell-${index}`} 
                     name={entry.name}
-                    fill={entry.fill}
+                    fill={entry.fill} 
                   />
                 ))}
                 <Tooltip 

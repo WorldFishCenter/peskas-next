@@ -239,7 +239,7 @@ export default function CatchMetricsChart({
       
       // Trigger a refresh without changing active tab - but only if not already loading
       if (!loading) {
-        setLoading(true);
+      setLoading(true);
         const timer = setTimeout(() => setLoading(false), 50);
         return () => clearTimeout(timer);
       }
@@ -447,7 +447,7 @@ export default function CatchMetricsChart({
     if (chartData.length > 0 && !loading && 
         JSON.stringify(previousBmus.current) === JSON.stringify(bmus) && 
         previousMetricRef.current === selectedMetric) return;
-    
+
     try {
       // Get unique sites from the data
       const uniqueSites = Array.from(
@@ -498,16 +498,16 @@ export default function CatchMetricsChart({
       }
       
       // Always show average lines
-      initialVisibility["average"] = { opacity: 1 };
+        initialVisibility["average"] = { opacity: 1 };
       
       // Only add historical_average visibility for CIA users
       if (isCiaUser) {
-        initialVisibility["historical_average"] = { opacity: 1 };
+      initialVisibility["historical_average"] = { opacity: 1 };
       }
       
       // Only set visibility state if it's the initial load
       if (Object.keys(visibilityState).length === 0) {
-        setVisibilityState(initialVisibility);
+      setVisibilityState(initialVisibility);
       }
 
       // Filter data from 2023 onwards
@@ -536,20 +536,20 @@ export default function CatchMetricsChart({
       );
 
       // Calculate average value for each date point
-      Object.keys(groupedData).forEach(dateKey => {
-        const dateData = groupedData[dateKey];
-        const values = Object.entries(dateData)
-          .filter(([key, value]) => key !== "date" && value !== undefined)
-          .map(([_, value]) => value as number);
-        
-        if (values.length > 0) {
-          const avg = values.reduce((sum, val) => sum + val, 0) / values.length;
-          groupedData[dateKey].average = parseFloat(avg.toFixed(2));
-        } else {
-          // Ensure we have an average property even if it's 0
-          groupedData[dateKey].average = 0;
-        }
-      });
+        Object.keys(groupedData).forEach(dateKey => {
+          const dateData = groupedData[dateKey];
+          const values = Object.entries(dateData)
+            .filter(([key, value]) => key !== "date" && value !== undefined)
+            .map(([_, value]) => value as number);
+          
+          if (values.length > 0) {
+            const avg = values.reduce((sum, val) => sum + val, 0) / values.length;
+            groupedData[dateKey].average = parseFloat(avg.toFixed(2));
+          } else {
+            // Ensure we have an average property even if it's 0
+            groupedData[dateKey].average = 0;
+          }
+        });
 
       const processedData = Object.values(groupedData).sort(
         (a, b) => a.date - b.date
@@ -585,17 +585,17 @@ export default function CatchMetricsChart({
     // Skip if already calculated
     if (recentData.length > 0 && annualData.length > 0) return;
     
-    // For non-CIA users, use standard comparison
-    if (canCompareWithOthers) {
-      setRecentData(getRecentData(chartData, false) as ChartDataPoint[]);
-    } 
-    // For CIA users, create comparison against historical average if they have a BMU
-    else if (isCiaUser && effectiveBMU) {
-      setCiaComparisonData(prepareDataForCiaComparison(chartData, effectiveBMU));
-    }
-    
-    // Annual data is the same for all users
-    setAnnualData(getAnnualData(chartData, !canCompareWithOthers, siteColors));
+      // For non-CIA users, use standard comparison
+      if (canCompareWithOthers) {
+        setRecentData(getRecentData(chartData, false) as ChartDataPoint[]);
+      } 
+      // For CIA users, create comparison against historical average if they have a BMU
+      else if (isCiaUser && effectiveBMU) {
+        setCiaComparisonData(prepareDataForCiaComparison(chartData, effectiveBMU));
+      }
+      
+      // Annual data is the same for all users
+      setAnnualData(getAnnualData(chartData, !canCompareWithOthers, siteColors));
     
   }, [chartData, canCompareWithOthers, isCiaUser, effectiveBMU, siteColors, recentData.length, annualData.length]);
 

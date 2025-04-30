@@ -188,7 +188,7 @@ export default function CatchRadarChart({
   const [visibilityState, setVisibilityState] = useState<VisibilityState>({});
   const [siteColors, setSiteColors] = useState<Record<string, string>>({});
   const [isInitialLoad, setIsInitialLoad] = useState(true);
-  
+
   // Add ref to track bmus changes
   const previousBmus = useRef<string[]>([]);
   const previousMetric = useRef<string>(selectedMetric);

@@ -22,7 +22,7 @@ export const generateColor = (index: number, site: string, referenceBmu: string 
   const colors = [
     "#0c526e", // Dark blue
     "#f09609", // Orange
-    "#2563eb", // Blue 
+    "#2563eb", // Blue
     "#16a34a", // Green
     "#9333ea", // Purple
     "#ea580c", // Dark orange
