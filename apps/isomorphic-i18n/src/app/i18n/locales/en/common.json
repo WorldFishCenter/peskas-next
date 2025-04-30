@@ -897,6 +897,9 @@
   "text-metrics-area-revenue": "Area Revenue",
   "text-monthly-trends-over-time": "Monthly Trends Over Time",
   "text-performance-vs-average": "Performance vs Average",
+  "text-performance-vs-historical-average": "Performance vs 6-Month Average",
+  "text-performance-vs-6-month-average": "Performance vs 6-Month Average",
+  "text-cia-comparison-explanation": "Shows values compared to your 6-month average",
   "text-yearly-summary": "Yearly Summary",
   "text-trends-explanation": "Shows how metrics change month by month",
   "text-comparison-explanation": "Shows values compared to the average of 6 months",
@@ -933,5 +936,12 @@
   "text-distribution-tab-title-cia": "Fishing Gear Performance in Your BMU",
   "text-distribution-tab-description-cia": "Shows performance metrics for different fishing gear types in your BMU",
   "text-ranking-tab-title-cia": "Fishing Gear Importance in Your BMU",
-  "text-ranking-tab-description-cia": "Shows the relative importance of different fishing gear types in your BMU"
+  "text-ranking-tab-description-cia": "Shows the relative importance of different fishing gear types in your BMU",
+  "text-above-average": "Above Average",
+  "text-below-average": "Below Average",
+  "text-historical-average": "6-Month Average",
+  "text-6-month-average": "6-Month Average",
+  "text-no-comparison-data-available": "No comparison data available",
+  "text-difference-from-average": "Difference from Average",
+  "text-actual-value": "Actual Value"
 }

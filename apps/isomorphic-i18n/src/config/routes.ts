@@ -1,5 +1,6 @@
 export const routes = {
   about: '/about',
+  catch_composition: '/catch_composition',
   eCommerce: {
     dashboard: '/ecommerce',
     products: '/ecommerce/products',

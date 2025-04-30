@@ -308,7 +308,7 @@ export default function GearHeatmap({
   const effectiveBMU = bmu || userBMU;
   
   // Use responsive height class instead of calculated height
-  
+
   const { data: rawData } = api.gear.summaries.useQuery({ bmus });
   const selectedMetricOption = METRIC_OPTIONS.find(
     (m) => m.value === selectedMetric
@@ -582,11 +582,11 @@ export default function GearHeatmap({
       title={
         <div className="flex flex-col sm:flex-row items-start sm:items-center sm:justify-between w-full gap-3">
           <div className="w-full sm:w-auto">
-            <MetricSelector
-              selectedMetric={selectedMetric}
-              onMetricChange={setSelectedMetric}
-              selectedMetricOption={selectedMetricOption}
-            />
+          <MetricSelector
+            selectedMetric={selectedMetric}
+            onMetricChange={setSelectedMetric}
+            selectedMetricOption={selectedMetricOption}
+          />
           </div>
           <div className="hidden sm:block text-base font-medium text-gray-800 mx-auto">
             <div className="text-center">
@@ -792,8 +792,8 @@ export default function GearHeatmap({
                 }))}
                 visibilityState={visibilityState}
                 handleLegendClick={handleLegendClick}
-              />
-            </div>
+          />
+        </div>
           </div>
         )}
       </SimpleBar>

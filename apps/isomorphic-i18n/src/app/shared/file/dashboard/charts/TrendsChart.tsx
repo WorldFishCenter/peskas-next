@@ -76,7 +76,13 @@ export default function TrendsChart({
 
   // Generate areas for each BMU
   const renderAreas = () => {
-    const sites = Object.keys(siteColors).filter(site => site !== "average");
+    // For CIA users, only show their BMU and not "average" or "historical_average"
+    const sites = Object.keys(siteColors).filter(site => {
+      if (isCiaUser) {
+        return site !== "average" && site !== "historical_average";
+      }
+      return site !== "average";
+    });
     
     return sites.map((site) => (
       <Area
@@ -190,7 +196,7 @@ export default function TrendsChart({
           
           {renderAreas()}
           
-          {/* Add average line for non-CIA users */}
+          {/* Add average line for non-CIA users only */}
           {!isCiaUser && (
             <Area
               type="monotone"

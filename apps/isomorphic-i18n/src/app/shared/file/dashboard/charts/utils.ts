@@ -139,7 +139,7 @@ export const getAnnualData = (chartData: ChartDataPoint[], isCiaUser: boolean, s
   
   // First, ensure we have entries for all years in our dataset
   const allYears = Array.from(new Set(chartData.map(item => new Date(item.date).getFullYear())));
-  const allSites = Object.keys(siteColors).filter(site => site !== "average");
+  const allSites = Object.keys(siteColors).filter(site => site !== "average" && site !== "historical_average");
   
   // Ensure we have entries for all years and all BMUs
   allYears.forEach(year => {
@@ -159,7 +159,7 @@ export const getAnnualData = (chartData: ChartDataPoint[], isCiaUser: boolean, s
     
     // Process each BMU value
     Object.entries(item).forEach(([key, value]) => {
-      if (key !== 'date' && key !== 'average' && value !== undefined) {
+      if (key !== 'date' && key !== 'average' && key !== 'historical_average' && value !== undefined) {
         if (!yearlyData[year][`${key}_sum`]) {
           yearlyData[year][`${key}_sum`] = 0;
           yearlyData[year][`${key}_count`] = 0;
@@ -183,10 +183,10 @@ export const getAnnualData = (chartData: ChartDataPoint[], isCiaUser: boolean, s
       const sum = data[`${key}_sum`];
       const count = data[`${key}_count`];
       if (count > 0) {
-        yearResult[key] = sum / count;
+        yearResult[key] = parseFloat((sum / count).toFixed(2));
       } else {
-        // If no data for this BMU in this year, set to 0 or null
-        yearResult[key] = 0;
+        // If no data for this BMU in this year, set to undefined instead of 0
+        yearResult[key] = undefined;
       }
     });
     
@@ -195,12 +195,20 @@ export const getAnnualData = (chartData: ChartDataPoint[], isCiaUser: boolean, s
       const bmuValues = Object.entries(yearResult)
         .filter(([key]) => key !== 'date' && key !== 'average')
         .map(([_, value]) => value as number)
-        .filter(val => val > 0); // Only consider positive values
+        .filter(val => val !== undefined && val > 0); // Only consider positive values
         
       if (bmuValues.length > 0) {
-        yearResult.average = bmuValues.reduce((sum: number, val) => sum + val, 0) / bmuValues.length;
+        yearResult.average = parseFloat((bmuValues.reduce((sum: number, val) => sum + val, 0) / bmuValues.length).toFixed(2));
       } else {
-        yearResult.average = 0;
+        yearResult.average = undefined;
+      }
+    }
+    // For CIA users, calculate historical average if we have multiple years
+    else if (isCiaUser && bmuKeys.length > 0 && allYears.length > 1) {
+      // Use the first BMU key as the primary one for CIA users
+      const primaryBmuKey = bmuKeys[0];
+      if (yearResult[primaryBmuKey] !== undefined) {
+        yearResult.historical_average = yearResult[primaryBmuKey];
       }
     }
     

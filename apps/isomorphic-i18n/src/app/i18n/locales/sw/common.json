@@ -753,6 +753,8 @@
   "text-metrics-area-revenue": "Mapato ya Eneo",
   "text-monthly-trends-over-time": "Mwenendo wa Kila Mwezi",
   "text-performance-vs-average": "Utendaji Dhidi ya Wastani",
+  "text-performance-vs-historical-average": "Utendaji Dhidi ya Wastani wa Miezi 6",
+  "text-performance-vs-6-month-average": "Utendaji Dhidi ya Wastani wa Miezi 6",
   "text-yearly-summary": "Muhtasari wa Kila Mwaka",
   "text-trends-explanation": "Inaonyesha jinsi vipimo vinavyobadilika mwezi kwa mwezi",
   "text-comparison-explanation": "Inaonyesha thamani ikilinganishwa na wastani wa miezi 6",
@@ -792,5 +794,13 @@
   "text-distribution-tab-title-cia": "Utendaji wa Vifaa vya Uvuvi katika BMU Yako",
   "text-distribution-tab-description-cia": "Inaonyesha vipimo vya utendaji kwa aina tofauti za vifaa vya uvuvi katika Kitengo chako cha BMU",
   "text-ranking-tab-title-cia": "Umuhimu wa Vifaa vya Uvuvi katika BMU Yako",
-  "text-ranking-tab-description-cia": "Inaonyesha umuhimu wa kuhusiana wa aina tofauti za vifaa vya uvuvi katika Kitengo chako cha BMU"
+  "text-ranking-tab-description-cia": "Inaonyesha umuhimu wa kuhusiana wa aina tofauti za vifaa vya uvuvi katika Kitengo chako cha BMU",
+  "text-cia-comparison-explanation": "Inaonyesha thamani ikilinganishwa na wastani wako wa miezi 6",
+  "text-above-average": "Juu ya Wastani",
+  "text-below-average": "Chini ya Wastani",
+  "text-historical-average": "Wastani wa Miezi 6",
+  "text-6-month-average": "Wastani wa Miezi 6",
+  "text-no-comparison-data-available": "Hakuna data ya ulinganisho inayopatikana",
+  "text-difference-from-average": "Tofauti Kutoka kwa Wastani",
+  "text-actual-value": "Thamani Halisi"
 }

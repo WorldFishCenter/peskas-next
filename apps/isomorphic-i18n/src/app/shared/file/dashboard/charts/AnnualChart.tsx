@@ -90,6 +90,8 @@ export default function AnnualChart({
                 // Always put average at the bottom
                 if (a.dataKey === "average") return 1;
                 if (b.dataKey === "average") return -1;
+                if (a.dataKey === "historical_average") return 1;
+                if (b.dataKey === "historical_average") return -1;
                 return b.value - a.value;
               })
               .map((entry: any) => (
@@ -99,7 +101,13 @@ export default function AnnualChart({
                     style={{ backgroundColor: entry.color }}
                   />
                   <p className="text-sm">
-                    <span className="font-medium">{entry.dataKey === "average" ? getTranslation("text-average-of-all-bmus") : entry.dataKey}:</span>{" "}
+                    <span className="font-medium">
+                      {entry.dataKey === "average" 
+                        ? getTranslation("text-average-of-all-bmus") 
+                        : entry.dataKey === "historical_average"
+                        ? t("text-historical-average") || "Historical Average"
+                        : entry.dataKey}
+                    </span>{" "}
                     {entry.value?.toFixed(1)}
                   </p>
                 </div>
@@ -113,7 +121,13 @@ export default function AnnualChart({
 
   // Generate bars for each BMU
   const renderBars = () => {
-    const sites = Object.keys(siteColors).filter(site => site !== "average");
+    // Filter BMUs based on user type
+    const sites = Object.keys(siteColors).filter(site => {
+      if (isCiaUser) {
+        return site !== "average" && site !== "historical_average";
+      }
+      return site !== "average";
+    });
     
     return sites.map((site) => (
       <Bar
@@ -127,6 +141,7 @@ export default function AnnualChart({
         radius={[2, 2, 0, 0]}
         hide={visibilityState[site]?.opacity === 0}
         fillOpacity={visibilityState[site]?.opacity}
+        isAnimationActive={false}
       />
     ));
   };
@@ -138,14 +153,16 @@ export default function AnnualChart({
           data={chartData}
           margin={{ top: 10, right: 30, left: 10, bottom: 0 }}
           barGap={2}
-          barCategoryGap={100}
+          barCategoryGap={40}
         >
           <CartesianGrid strokeDasharray="3 3" vertical={false} />
           <XAxis
             dataKey="date"
             tickFormatter={formatDate}
-            axisLine={false}
-            tick={{ fontSize: 12 }}
+            axisLine={{ stroke: "#cbd5e1", strokeWidth: 1 }}
+            tick={{ fontSize: 12, fill: "#64748b" }}
+            tickLine={{ stroke: "#cbd5e1" }}
+            tickMargin={5}
           />
           <YAxis
             tickFormatter={(value) => value.toFixed(1)}
@@ -153,9 +170,24 @@ export default function AnnualChart({
             tick={<CustomYAxisTick />}
             width={40}
           />
-          <Tooltip content={<CustomTooltip />} />
+          <Tooltip content={<CustomTooltip />} wrapperStyle={{ outline: 'none' }} />
           
           {renderBars()}
+          
+          {/* Add average bar for non-CIA users */}
+          {!isCiaUser && (
+            <Bar
+              dataKey="average"
+              name={getTranslation("text-average-of-all-bmus")}
+              fill="#64748b"
+              stroke="#64748b"
+              strokeWidth={1}
+              maxBarSize={40}
+              radius={[2, 2, 0, 0]}
+              fillOpacity={visibilityState["average"]?.opacity}
+              isAnimationActive={false}
+            />
+          )}
           
           {CustomLegend && <Legend content={(props) => <CustomLegend {...props} />} />}
         </BarChart>
