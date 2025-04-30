@@ -165,21 +165,10 @@ export default function PerformanceTable({
   const { t } = useTranslation(lang!, "table");
   const [bmus] = useAtom(bmusAtom);
   const { data: session } = useSession();
-
-  // Check if user is in CIA mode
-  const isCiaUser = session?.user?.groups?.some(
-    (group: { name: string }) => group.name === 'CIA'
-  );
-
-  // If in CIA mode, don't render the table as it doesn't make sense to show a comparison
-  // table with just one BMU
-  if (isCiaUser) {
-    return null;
-  }
-
   const { data: performanceData, isLoading: isDataLoading } =
     api.aggregatedCatch.performance.useQuery({ bmus });
 
+  // Move all hooks before the conditional return
   const memoizedData = useMemo(() => performanceData || [], [performanceData]);
 
   const {
@@ -195,6 +184,17 @@ export default function PerformanceTable({
   const memoizedHandleSort = useCallback((key: string) => {
     handleSort(key);
   }, [handleSort]);
+  
+  // Check if user is in CIA mode
+  const isCiaUser = session?.user?.groups?.some(
+    (group: { name: string }) => group.name === 'CIA'
+  );
+
+  // If in CIA mode, don't render the table as it doesn't make sense to show a comparison
+  // table with just one BMU
+  if (isCiaUser) {
+    return null;
+  }
 
   const columns = useMemo<ColumnType[]>(
     () => [
