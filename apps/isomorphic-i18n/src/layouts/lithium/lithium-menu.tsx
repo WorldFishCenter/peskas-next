@@ -78,7 +78,7 @@ function LinkMenu({
  */
 export default function HeaderMenuLeft({ lang }: { lang?: string }) {
   const { direction } = useDirection();
-  const menuKeys: LithiumMenuItemsKeys[] = ["map", "catch_composition", "about"]; 
+  const menuKeys: LithiumMenuItemsKeys[] = ["catch_composition", "about"]; 
 
   return (
     <NavMenu
