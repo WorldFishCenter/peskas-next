@@ -2,7 +2,7 @@
 
 import WidgetCard from "@components/cards/widget-card";
 import { useAtom } from "jotai";
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useRef } from "react";
 import {
   Legend,
   PolarAngleAxis,
@@ -202,16 +202,38 @@ export default function CatchRadarChart({
   const [visibilityState, setVisibilityState] = useState<VisibilityState>({});
   const [siteColors, setSiteColors] = useState<Record<string, string>>({});
   const [isInitialLoad, setIsInitialLoad] = useState(true);
+  
+  // Add ref to track bmus changes
+  const previousBmus = useRef<string[]>([]);
+  const previousMetric = useRef<string>(selectedMetric);
 
-  const { data: meanCatch, isLoading: isFetching, error: queryError } =
+  // Force refetch when bmus or metric changes
+  const { data: meanCatch, isLoading: isFetching, error: queryError, refetch } =
     api.aggregatedCatch.meanCatchRadar.useQuery(
       { bmus, metric: selectedMetric },
       {
         refetchOnMount: true,
         refetchOnWindowFocus: false,
         retry: 3,
+        enabled: bmus.length > 0,
       }
     );
+
+  // Force refetch when bmus or metric changes
+  useEffect(() => {
+    // Check if bmus array or metric has changed
+    const bmusChanged = JSON.stringify(previousBmus.current) !== JSON.stringify(bmus);
+    const metricChanged = previousMetric.current !== selectedMetric;
+    
+    if (bmusChanged || metricChanged) {
+      console.log('BMUs or metric changed, refetching data');
+      setData([]);
+      setIsInitialLoad(true);
+      previousBmus.current = [...bmus];
+      previousMetric.current = selectedMetric;
+      refetch();
+    }
+  }, [bmus, selectedMetric, refetch]);
 
   // Handle query errors
   useEffect(() => {
@@ -224,13 +246,15 @@ export default function CatchRadarChart({
 
   useEffect(() => {
     // Set loading state when dependencies change
-    if (!isInitialLoad && !isFetching) return;
+    if (!isInitialLoad && !isFetching && bmus.length > 0 && 
+        JSON.stringify(previousBmus.current) === JSON.stringify(bmus) &&
+        previousMetric.current === selectedMetric) return;
     
     setLoading(true);
     setError(null);
 
     // Don't process data if we're still fetching or if data is not available
-    if (isFetching || !meanCatch) {
+    if (isFetching || !meanCatch || bmus.length === 0) {
       return;
     }
 
@@ -342,6 +366,8 @@ export default function CatchRadarChart({
           }).filter(item => Number(item[effectiveBMU]) !== 0); // Remove months with no valid difference
         }
 
+        previousBmus.current = [...bmus];
+        previousMetric.current = selectedMetric;
         setData(processedData);
         setError(null);
         setIsInitialLoad(false);
@@ -354,15 +380,7 @@ export default function CatchRadarChart({
     };
 
     processData();
-  }, [meanCatch, selectedMetric, activeTab, effectiveBMU, isFetching, isInitialLoad]);
-
-  // Remove the separate bmus effect since we handle loading in the main effect
-  useEffect(() => {
-    if (!bmus || bmus.length === 0) {
-      setError(t("text-no-bmus-selected"));
-      setLoading(false);
-    }
-  }, [bmus, t]);
+  }, [meanCatch, selectedMetric, activeTab, effectiveBMU, isFetching, isInitialLoad, bmus]);
 
   const handleLegendClick = useCallback((site: string) => {
     setVisibilityState((prev) => ({

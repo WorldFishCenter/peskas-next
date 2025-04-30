@@ -126,7 +126,7 @@ export default function AnnualChart({
       if (isCiaUser) {
         return site !== "average" && site !== "historical_average";
       }
-      return site !== "average";
+      return site !== "average" && site !== "historical_average";
     });
     
     return sites.map((site) => (

@@ -85,14 +85,18 @@ const generateColor = (index: number, site: string, referenceBmu: string | undef
 
 // Colors for gear types (consistent set)
 const GEAR_COLORS = [
-  "#3b82f6", // Blue
-  "#10b981", // Green
-  "#f59e0b", // Amber
-  "#ef4444", // Red
-  "#8b5cf6", // Purple
-  "#ec4899", // Pink
-  "#06b6d4", // Cyan
-  "#f97316", // Orange
+  "#4C51BF", // Indigo
+  "#00B4D8", // Bright Cyan
+  "#14B8A6", // Teal
+  "#FB7185", // Pink
+  "#FFB800", // Amber
+  "#F97316", // Orange
+  "#8B5CF6", // Purple
+  "#10B981", // Emerald
+  "#D946EF", // Fuchsia
+  "#EC4899", // Hot Pink
+  "#EF4444", // Red
+  "#6366F1", // Blue
 ];
 
 const formatNumber = (value: number) => {
@@ -232,13 +236,11 @@ const TreemapTooltip = ({ active, payload, selectedMetricOption }: any) => {
 
 // Custom treemap content component to handle visibility state and labels
 const CustomizedTreemapContent = (props: any) => {
-  const { depth, x, y, width, height, index, name, fill, root, opacity, visibilityState } = props;
-  
-  // Handle visibility state
-  const itemOpacity = visibilityState && name ? (visibilityState[name]?.opacity || 1) * 0.85 : 0.85;
+  const { x, y, width, height, name, value, fill, percentage, index } = props;
   
   // Only show text if the rectangle is big enough
-  const showLabel = width > 30 && height > 30;
+  const showLabel = width > 60 && height > 30;
+  const showPercentage = width > 70 && height > 40;
   
   return (
     <g>
@@ -248,22 +250,43 @@ const CustomizedTreemapContent = (props: any) => {
         width={width}
         height={height}
         fill={fill}
-        fillOpacity={itemOpacity}
-        stroke="#fff"
         strokeWidth={2}
+        stroke="#ffffff"
+        strokeOpacity={0.8}
+        rx={6}
+        ry={6}
+        style={{ filter: 'drop-shadow(0px 2px 3px rgba(0, 0, 0, 0.1))' }}
       />
       {showLabel && (
-        <text
-          x={x + width / 2}
-          y={y + height / 2}
-          textAnchor="middle"
-          dominantBaseline="middle"
-          fontSize={12}
-          fill="#fff"
-          fontWeight={500}
-        >
-          {name}
-        </text>
+        <>
+          <text
+            x={x + width / 2}
+            y={y + height / 2 - (showPercentage ? 10 : 0)}
+            textAnchor="middle"
+            dominantBaseline="middle"
+            fontSize={25}
+            fontWeight="normal"
+            fontFamily="'Inter', sans-serif"
+            fill="#ffffff"
+          >
+            {name}
+          </text>
+          {showPercentage && percentage && (
+            <text
+              x={x + width / 2}
+              y={y + height / 2 + 16}
+              textAnchor="middle"
+              dominantBaseline="middle"
+              fontSize={20}
+              fontWeight="normal"
+              fontFamily="'Inter', sans-serif"
+              fill="#ffffff"
+              fillOpacity={0.95}
+            >
+              {percentage}%
+            </text>
+          )}
+        </>
       )}
     </g>
   );
@@ -294,6 +317,8 @@ export default function GearHeatmap({
   
   // Add refs to track initialization states
   const dataProcessed = useRef<boolean>(false);
+  const previousMetric = useRef<string>(selectedMetric);
+  const previousBmus = useRef<string[]>(bmus);
   
   // Use the centralized permissions hook
   const {
@@ -310,7 +335,28 @@ export default function GearHeatmap({
   // Determine which BMU to use for filtering - prefer passed prop, then user's BMU
   const effectiveBMU = bmu || userBMU;
 
-  const { data: rawData } = api.gear.summaries.useQuery({ bmus });
+  // Force refetch when bmus changes by adding bmus to the query key
+  const { data: rawData, refetch } = api.gear.summaries.useQuery(
+    { bmus },
+    {
+      refetchOnMount: true,
+      refetchOnWindowFocus: false,
+      retry: 3,
+      enabled: bmus.length > 0,
+    }
+  );
+
+  // Force refetch when bmus changes
+  useEffect(() => {
+    // Check if bmus array has changed
+    if (JSON.stringify(previousBmus.current) !== JSON.stringify(bmus)) {
+      console.log('BMUs changed, refetching data');
+      dataProcessed.current = false;
+      previousBmus.current = [...bmus];
+      refetch();
+    }
+  }, [bmus, refetch]);
+
   const selectedMetricOption = METRIC_OPTIONS.find(
     (m) => m.value === selectedMetric
   );
@@ -337,6 +383,12 @@ export default function GearHeatmap({
 
   useEffect(() => {
     if (!rawData) return;
+    
+    // Reset data processing flag if metric has changed
+    if (previousMetric.current !== selectedMetric) {
+      dataProcessed.current = false;
+      previousMetric.current = selectedMetric;
+    }
     
     // Skip processing if already done and not changing key dependencies
     if (dataProcessed.current && barData.length > 0 && !loading) return;
@@ -511,7 +563,7 @@ export default function GearHeatmap({
     } finally {
       setLoading(false);
     }
-  }, [rawData, selectedMetric, effectiveBMU, hasRestrictedAccess, isWbciaUser, getAccessibleBMUs]);
+  }, [rawData, selectedMetric, effectiveBMU, hasRestrictedAccess, isWbciaUser, getAccessibleBMUs, bmus]);
 
   const getTabTitle = (tab: string): string => {
     // Custom titles for CIA users who can only see their own BMU
@@ -761,24 +813,26 @@ export default function GearHeatmap({
           </div>
         )}
 
-        {/* Ranking View - Treemap instead of Pie Chart */}
+        {/* Ranking View - Treemap with improved visualization */}
         {activeTab === 'ranking' && (
           <div className="w-full h-[600px] pt-4">
             <ResponsiveContainer width="100%" height="100%">
               <Treemap
                 data={rankingData.filter(item => (visibilityState[item.name]?.opacity || 1) > 0.2)}
                 dataKey="value"
-                aspectRatio={4/3}
-                stroke="#fff"
+                aspectRatio={1.6}
+                stroke="#ffffff"
                 nameKey="name"
                 isAnimationActive={false}
+                content={
+                  <CustomizedTreemapContent />
+                }
               >
                 {rankingData.map((entry, index) => (
                   <Cell 
                     key={`cell-${index}`} 
                     name={entry.name}
-                    fill={entry.fill} 
-                    opacity={(visibilityState[entry.name]?.opacity || 1) * 0.85}
+                    fill={entry.fill}
                   />
                 ))}
                 <Tooltip 
@@ -787,17 +841,6 @@ export default function GearHeatmap({
                 />
               </Treemap>
             </ResponsiveContainer>
-            <div className="pt-4">
-              <CustomLegend
-                payload={rankingData.map(item => ({
-                  value: item.name,
-                  color: item.fill,
-                  dataKey: item.name
-                }))}
-                visibilityState={visibilityState}
-                handleLegendClick={handleLegendClick}
-              />
-            </div>
           </div>
         )}
       </SimpleBar>

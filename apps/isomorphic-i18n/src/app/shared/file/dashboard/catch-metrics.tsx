@@ -202,6 +202,8 @@ export default function CatchMetricsChart({
   const visibilityInitialized = useRef<boolean>(false);
   const dataProcessed = useRef<boolean>(false);
   const prevTabRef = useRef<string | null>(null);
+  const previousBmus = useRef<string[]>([]);
+  const previousMetricRef = useRef<string>(selectedMetric);
 
   // Map old tab names to new ones for backwards compatibility
   const getNewTabName = useCallback((oldTab: string) => {
@@ -266,7 +268,45 @@ export default function CatchMetricsChart({
   // Determine which BMU to use for filtering - prefer passed prop, then user's BMU
   const effectiveBMU = useMemo(() => bmu || userBMU, [bmu, userBMU]);
 
-  const { data: monthlyData } = api.aggregatedCatch.monthly.useQuery({ bmus });
+  // Force refetch when bmus changes by adding bmus to the query key
+  const { data: monthlyData, refetch } = api.aggregatedCatch.monthly.useQuery(
+    { bmus },
+    {
+      refetchOnMount: true, 
+      refetchOnWindowFocus: false,
+      retry: 3,
+      enabled: bmus.length > 0,
+    }
+  );
+
+  // Track selectedMetric changes and force data reprocessing
+  useEffect(() => {
+    if (previousMetricRef.current !== selectedMetric) {
+      console.log('Metric changed from', previousMetricRef.current, 'to', selectedMetric);
+      previousMetricRef.current = selectedMetric;
+      setChartData([]);
+      setRecentData([]);
+      setAnnualData([]);
+      setCiaComparisonData([]);
+      dataProcessed.current = false;
+      setLoading(true);
+    }
+  }, [selectedMetric]);
+
+  // Force refetch when bmus changes
+  useEffect(() => {
+    // Check if bmus array has changed
+    if (JSON.stringify(previousBmus.current) !== JSON.stringify(bmus)) {
+      console.log('BMUs changed, refetching data');
+      setChartData([]);
+      setRecentData([]);
+      setAnnualData([]);
+      setCiaComparisonData([]);
+      dataProcessed.current = false;
+      previousBmus.current = [...bmus];
+      refetch();
+    }
+  }, [bmus, refetch]);
 
   // Keep in sync with parent component, handling old tab names too
   useEffect(() => {
@@ -395,10 +435,18 @@ export default function CatchMetricsChart({
 
   // Process main data when monthlyData changes
   useEffect(() => {
-    if (!monthlyData) return;
+    if (!monthlyData || bmus.length === 0) return;
+    
+    // Reset processing flag if metric changed
+    if (previousMetricRef.current !== selectedMetric) {
+      dataProcessed.current = false;
+      previousMetricRef.current = selectedMetric;
+    }
     
     // Prevent re-processing data unnecessarily
-    if (chartData.length > 0 && !loading) return;
+    if (chartData.length > 0 && !loading && 
+        JSON.stringify(previousBmus.current) === JSON.stringify(bmus) && 
+        previousMetricRef.current === selectedMetric) return;
     
     try {
       // Get unique sites from the data
@@ -420,9 +468,11 @@ export default function CatchMetricsChart({
         {}
       );
       
-      // Add special colors for averages
+      // Add special colors for averages - only include historical_average for CIA users
       newSiteColors["average"] = "#64748b"; // Standard average color
-      newSiteColors["historical_average"] = "#94a3b8"; // Historical average for CIA users
+      if (isCiaUser) {
+        newSiteColors["historical_average"] = "#94a3b8"; // Only add for CIA users
+      }
       
       setSiteColors(newSiteColors);
 
@@ -449,7 +499,11 @@ export default function CatchMetricsChart({
       
       // Always show average lines
       initialVisibility["average"] = { opacity: 1 };
-      initialVisibility["historical_average"] = { opacity: 1 };
+      
+      // Only add historical_average visibility for CIA users
+      if (isCiaUser) {
+        initialVisibility["historical_average"] = { opacity: 1 };
+      }
       
       // Only set visibility state if it's the initial load
       if (Object.keys(visibilityState).length === 0) {
@@ -515,12 +569,14 @@ export default function CatchMetricsChart({
 
       setFiveYearMarks(marks);
       setChartData(processedData);
+      previousBmus.current = [...bmus];
+      previousMetricRef.current = selectedMetric;
     } catch (error) {
       console.error("Error processing data:", error);
     } finally {
       setLoading(false);
     }
-  }, [monthlyData, selectedMetric, effectiveBMU, hasRestrictedAccess, getAccessibleBMUs]);
+  }, [monthlyData, selectedMetric, effectiveBMU, hasRestrictedAccess, getAccessibleBMUs, bmus, isCiaUser, localActiveTab]);
 
   // Calculate derived data when chartData changes
   useEffect(() => {
@@ -684,7 +740,11 @@ export default function CatchMetricsChart({
         {(localActiveTab === 'trends' || localActiveTab === 'standard') && (
           <SimpleBar>
             <TrendsChart
-              chartData={chartData}
+              chartData={chartData.map(point => {
+                // Create a new object without the historical_average property
+                const { historical_average, ...rest } = point;
+                return rest;
+              })}
               selectedMetricOption={selectedMetricOption}
               siteColors={siteColors}
               visibilityState={visibilityState}
@@ -711,7 +771,11 @@ export default function CatchMetricsChart({
             {canCompareWithOthers ? (
               // Standard comparison chart for users who can see multiple BMUs
             <ComparisonChart
-              chartData={recentData}
+              chartData={recentData.map(point => {
+                // Create a new object without the historical_average property for non-CIA users
+                const { historical_average, ...rest } = point;
+                return rest;
+              })}
               selectedMetricOption={selectedMetricOption}
               siteColors={siteColors}
               visibilityState={visibilityState}
@@ -757,9 +821,21 @@ export default function CatchMetricsChart({
         {localActiveTab === 'annual' && (
           <SimpleBar>
             <AnnualChart
-              chartData={annualData}
+              chartData={
+                // Filter out historical_average completely from annual data
+                annualData.map(point => {
+                  // Create a copy without historical_average
+                  const newPoint = { ...point };
+                  delete newPoint.historical_average;
+                  return newPoint;
+                })
+              }
               selectedMetricOption={selectedMetricOption}
-              siteColors={siteColors}
+              siteColors={{
+                ...Object.entries(siteColors)
+                  .filter(([key]) => key !== 'historical_average')
+                  .reduce((acc, [key, value]) => ({ ...acc, [key]: value }), {})
+              }}
               visibilityState={visibilityState}
               isCiaUser={!!isCiaUser}
               isTablet={isTablet}
