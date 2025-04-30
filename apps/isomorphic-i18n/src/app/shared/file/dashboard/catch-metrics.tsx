@@ -832,15 +832,12 @@ export default function CatchMetricsChart({
           <SimpleBar>
             <AnnualChart
               chartData={annualData.map(point => {
-                // Filter out historical_average for non-CIA users
-                if (!isCiaUser) {
-                  const { historical_average, ...rest } = point;
-                  return rest;
-                }
-                return point;
+                // Always filter out historical_average for annual chart
+                const { historical_average, ...rest } = point;
+                return rest;
               })}
               selectedMetricOption={selectedMetricOption}
-              siteColors={isCiaUser ? siteColors : Object.fromEntries(
+              siteColors={Object.fromEntries(
                 Object.entries(siteColors).filter(([key]) => key !== 'historical_average')
               )}
               visibilityState={visibilityState}
