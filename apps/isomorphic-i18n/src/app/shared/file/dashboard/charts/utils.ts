@@ -236,4 +236,55 @@ export const getAnnualData = (chartData: ChartDataPoint[], isCiaUser: boolean, s
   
   // Sort by year
   return result.sort((a, b) => a.date - b.date);
+};
+
+// Fish category color generator - ensures consistent coloring across components
+export const generateFishCategoryColor = (category: string): string => {
+  if (!category) return "#6B7280"; // Default gray for empty categories
+  
+  // Normalize the category name to handle case sensitivity
+  const normalizedCategory = category.trim();
+  
+  // Special cases for specific categories - using a case-insensitive approach
+  const specialCases: Record<string, string> = {
+    "goatfish": "#4F46E5",    // Indigo
+    "lobster": "#EC4899",     // Pink
+    "octopus": "#F59E0B",     // Amber
+    "parrotfish": "#10B981",  // Emerald
+    "pelagics": "#6366F1",    // Indigo (lighter)
+    "rabbitfish": "#8B5CF6",  // Violet
+    "ray": "#F97316",         // Orange
+    "shark": "#EF4444",       // Red
+    "rest of catch": "#6B7280", // Gray
+    "scavengers": "#94A3B8",  // Light slate
+  };
+  
+  // Check if we have a special case for this category (case insensitive)
+  const lowerCaseCategory = normalizedCategory.toLowerCase();
+  if (specialCases[lowerCaseCategory]) {
+    return specialCases[lowerCaseCategory];
+  }
+  
+  // Standard color palette for other fish categories
+  const colors = [
+    "#4F46E5", // Indigo
+    "#EC4899", // Pink
+    "#F59E0B", // Amber
+    "#10B981", // Emerald
+    "#6366F1", // Indigo (lighter)
+    "#8B5CF6", // Violet
+    "#F97316", // Orange
+    "#14B8A6", // Teal
+    "#06B6D4", // Cyan
+    "#3B82F6", // Blue
+  ];
+  
+  // Use a hash function with the normalized name to ensure consistent results
+  const hash = lowerCaseCategory.split('').reduce((acc, char) => {
+    return ((acc << 5) - acc) + char.charCodeAt(0);
+  }, 0);
+  
+  // Use absolute value and modulo to pick a color from our palette
+  const colorIndex = Math.abs(hash) % colors.length;
+  return colors[colorIndex];
 }; 

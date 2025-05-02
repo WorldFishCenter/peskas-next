@@ -9,6 +9,7 @@ import { bmusAtom } from "@/app/components/filter-selector";
 import { useTranslation } from "@/app/i18n/client";
 import SimpleBar from "@ui/simplebar";
 import useUserPermissions from "./hooks/useUserPermissions";
+import { generateFishCategoryColor } from "./charts/utils";
 
 // Define fish category display data
 interface CategoryDisplay {
@@ -29,20 +30,6 @@ interface VisibilityState {
     opacity: number;
   };
 }
-
-// Define colors that match the application's theme
-const THEME_COLORS = [
-  "#4F46E5", // Indigo
-  "#EC4899", // Pink
-  "#F59E0B", // Amber
-  "#10B981", // Emerald
-  "#6366F1", // Indigo (lighter)
-  "#8B5CF6", // Violet
-  "#F97316", // Orange
-  "#14B8A6", // Teal
-  "#06B6D4", // Cyan
-  "#3B82F6", // Blue
-];
 
 const LoadingState = () => {
   const { t } = useTranslation("common");
@@ -182,11 +169,14 @@ export default function FishCompositionComparison({
       });
       
       // Convert to array of category objects with colors
-      const categoryArray = Array.from(categories).map((category, index) => ({
-        id: category.toLowerCase().replace(/\s+/g, '_'),
-        name: category,
-        color: THEME_COLORS[index % THEME_COLORS.length]
-      }));
+      const categoryArray = Array.from(categories).map((category) => {
+        console.log(`Fish category: "${category}" → color: ${generateFishCategoryColor(category)}`);
+        return {
+          id: category.toLowerCase().replace(/\s+/g, '_'),
+          name: category,
+          color: generateFishCategoryColor(category)
+        };
+      });
       
       setCategoryDisplays(categoryArray);
       
@@ -382,19 +372,24 @@ export default function FishCompositionComparison({
                   <Tooltip content={<CustomTooltip />} />
                   
                   {/* Stack bars for each fish category with visibility state */}
-                  {categoryDisplays.map((category) => (
-                    <Bar 
-                      key={category.id}
-                      dataKey={category.id}
-                      name={category.name}
-                      stackId="a"
-                      fill={category.color}
-                      radius={[0, 0, 0, 0]}
-                      fillOpacity={visibilityState[category.id]?.opacity ?? 1}
-                      hide={visibilityState[category.id]?.opacity === 0}
-                      isAnimationActive={false}
-                    />
-                  ))}
+                  {categoryDisplays.map((category) => {
+                    // Extra check to ensure color is correctly assigned
+                    const categoryColor = category.color || generateFishCategoryColor(category.name);
+                    
+                    return (
+                      <Bar 
+                        key={category.id}
+                        dataKey={category.id}
+                        name={category.name}
+                        stackId="a"
+                        fill={categoryColor}
+                        radius={[0, 0, 0, 0]}
+                        fillOpacity={visibilityState[category.id]?.opacity ?? 1}
+                        hide={visibilityState[category.id]?.opacity === 0}
+                        isAnimationActive={false}
+                      />
+                    );
+                  })}
                 </BarChart>
               </ResponsiveContainer>
             </div>

@@ -3,6 +3,7 @@ import { useTranslation } from "@/app/i18n/client";
 import { ActionIcon, Popover } from "rizzui";
 import cn from "@utils/class-names";
 import { FishCategoryKey, FishCategoryOption } from "../fish-composition-chart";
+import { generateFishCategoryColor } from "./utils";
 
 interface FishCategorySelectorProps {
   selectedCategory: FishCategoryKey;
@@ -44,7 +45,10 @@ export default function FishCategorySelector({
             )}
           >
             <div className="flex items-center gap-2">
-              <div className="w-2.5 h-2.5 rounded-full bg-teal-500" />
+              <div 
+                className="w-2.5 h-2.5 rounded-full" 
+                style={{ backgroundColor: selectedCategoryOption ? generateFishCategoryColor(selectedCategoryOption.label) : "#14b8a6" }}
+              />
               <span className="text-sm font-medium truncate">
                 {selectedCategoryOption?.label || t("text-fish-category")}
               </span>
@@ -68,29 +72,34 @@ export default function FishCategorySelector({
           className="w-56 p-1.5 bg-white shadow-lg rounded-lg border border-gray-100"
         >
           <div className="max-h-60 overflow-y-auto">
-            {allCategories.map((option) => (
-              <button
-                key={option.value}
-                onClick={() => {
-                  onCategoryChange(option.value);
-                  setIsOpen(false);
-                }}
-                className={cn(
-                  "w-full px-3 py-1.5 text-left text-sm transition-colors rounded-md flex items-center",
-                  selectedCategory === option.value
-                    ? "bg-teal-50 text-teal-900"
-                    : "text-gray-700 hover:bg-gray-50"
-                )}
-              >
-                <div className="mr-2 w-2 h-2 rounded-full flex-shrink-0"
-                  style={{ 
-                    backgroundColor: selectedCategory === option.value ? "#14b8a6" : 
-                      (["Rest Of Catch", "Scavengers"].includes(option.value) ? "#6b7280" : "#0ea5e9") 
+            {allCategories.map((option) => {
+              // Add console log to verify the actual category label and color
+              console.log(`Fish selector: "${option.label}" → color: ${generateFishCategoryColor(option.label)}`);
+              
+              return (
+                <button
+                  key={option.value}
+                  onClick={() => {
+                    onCategoryChange(option.value);
+                    setIsOpen(false);
                   }}
-                />
-                <span className="truncate">{option.label}</span>
-              </button>
-            ))}
+                  className={cn(
+                    "w-full px-3 py-1.5 text-left text-sm transition-colors rounded-md flex items-center",
+                    selectedCategory === option.value
+                      ? "bg-teal-50 text-teal-900"
+                      : "text-gray-700 hover:bg-gray-50"
+                  )}
+                >
+                  <div 
+                    className="mr-2 w-2 h-2 rounded-full flex-shrink-0"
+                    style={{ 
+                      backgroundColor: generateFishCategoryColor(option.label)
+                    }}
+                  />
+                  <span className="truncate">{option.label}</span>
+                </button>
+              );
+            })}
           </div>
         </Popover.Content>
       </Popover>
