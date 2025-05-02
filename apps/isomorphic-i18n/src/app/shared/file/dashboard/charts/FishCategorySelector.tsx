@@ -20,36 +20,36 @@ export default function FishCategorySelector({
   const [isOpen, setIsOpen] = useState(false);
   const { t } = useTranslation("common");
 
-  // Group fish categories into types
-  const groupedCategories = {
-    main: fishCategories.filter((c) => !["Rest Of Catch", "Scavengers"].includes(c.value)),
-    other: fishCategories.filter((c) => ["Rest Of Catch", "Scavengers"].includes(c.value)),
-  };
+  // Simplified category grouping - just create a single flat list
+  const allCategories = [...fishCategories].sort((a, b) => {
+    // Put "Rest Of Catch" and "Scavengers" at the end
+    if (["Rest Of Catch", "Scavengers"].includes(a.value) && !["Rest Of Catch", "Scavengers"].includes(b.value)) {
+      return 1;
+    }
+    if (!["Rest Of Catch", "Scavengers"].includes(a.value) && ["Rest Of Catch", "Scavengers"].includes(b.value)) {
+      return -1;
+    }
+    return a.label.localeCompare(b.label);
+  });
 
   return (
-    <div className="flex flex-col gap-1 w-full">
-      <div className="flex items-center w-full">
-        <Popover isOpen={isOpen} setIsOpen={setIsOpen} placement="bottom-start">
-          <Popover.Trigger>
-            <ActionIcon
-              variant="text"
-              className={cn(
-                "relative w-full sm:min-w-[200px] h-auto px-5 py-2.5 sm:py-2 rounded-md sm:rounded-full flex items-center justify-between",
-                "bg-teal-50 text-teal-900"
-              )}
-            >
-              <div className="flex flex-col items-start">
-                <span className="text-base sm:text-sm font-medium">
-                  {selectedCategoryOption?.label || t("text-fish-category")}
-                </span>
-                {selectedCategoryOption?.unit && (
-                  <span className="text-xs text-gray-500 font-normal mt-0.5">
-                    ({t("text-unit-kg")})
-                  </span>
-                )}
-              </div>
+    <div className="w-full">
+      <Popover isOpen={isOpen} setIsOpen={setIsOpen} placement="bottom-start">
+        <Popover.Trigger>
+          <ActionIcon
+            variant="text"
+            className={cn(
+              "relative w-full sm:w-auto px-3 py-1.5 rounded-md sm:rounded-full flex items-center justify-between",
+              "bg-teal-50 text-teal-900 border border-teal-100 hover:bg-teal-100 transition-colors"
+            )}
+          >
+            <div className="flex items-center gap-2">
+              <div className="w-2.5 h-2.5 rounded-full bg-teal-500" />
+              <span className="text-sm font-medium truncate">
+                {selectedCategoryOption?.label || t("text-fish-category")}
+              </span>
               <svg
-                className="h-5 w-5 sm:h-4 sm:w-4 ml-2 flex-shrink-0"
+                className="h-4 w-4 flex-shrink-0 text-gray-500"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -61,89 +61,39 @@ export default function FishCategorySelector({
                   d="M19 9l-7 7-7-7"
                 />
               </svg>
-            </ActionIcon>
-          </Popover.Trigger>{" "}
-          <Popover.Content
-            className="w-full max-w-[300px] p-3 bg-white/75 backdrop-blur-sm"
-          >
-            <div className="grid grid-cols-1 gap-2">
-              {/* Main Fish Categories Section */}
-              <div className="space-y-2">
-                <div className="flex items-center gap-2 px-2">
-                  <div className="w-3 h-3 rounded-full bg-teal-500" />
-                  <span className="text-base sm:text-sm font-semibold text-gray-900">
-                    {t("text-fish-main-categories")}
-                  </span>
-                </div>
-                <div className="space-y-2 pl-4">
-                  {groupedCategories.main.map((option) => (
-                    <button
-                      key={option.value}
-                      onClick={() => {
-                        onCategoryChange(option.value);
-                        setIsOpen(false);
-                      }}
-                      className={cn(
-                        "w-full px-4 py-2.5 sm:py-2 text-left text-base sm:text-sm transition duration-200 rounded-md flex items-center justify-between",
-                        selectedCategory === option.value
-                          ? "bg-teal-50/90 text-teal-900"
-                          : "text-gray-600 hover:bg-gray-50/90"
-                      )}
-                    >
-                      <div className="flex flex-col">
-                        <span className="font-medium">{option.label}</span>
-                        <span className="text-xs text-gray-500 mt-0.5">
-                          {t("text-unit-kg")}
-                        </span>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {groupedCategories.other.length > 0 && (
-                <>
-                  <div className="border-t border-gray-200 my-3" />
-
-                  {/* Other Categories Section */}
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2 px-2">
-                      <div className="w-3 h-3 rounded-full bg-gray-500" />
-                      <span className="text-base sm:text-sm font-semibold text-gray-900">
-                        {t("text-other-categories")}
-                      </span>
-                    </div>
-                    <div className="space-y-2 pl-4">
-                      {groupedCategories.other.map((option) => (
-                        <button
-                          key={option.value}
-                          onClick={() => {
-                            onCategoryChange(option.value);
-                            setIsOpen(false);
-                          }}
-                          className={cn(
-                            "w-full px-4 py-2.5 sm:py-2 text-left text-base sm:text-sm transition duration-200 rounded-md flex items-center justify-between",
-                            selectedCategory === option.value
-                              ? "bg-gray-50 text-gray-900"
-                              : "text-gray-600 hover:bg-gray-50"
-                          )}
-                        >
-                          <div className="flex flex-col">
-                            <span className="font-medium">{option.label}</span>
-                            <span className="text-xs text-gray-500 mt-0.5">
-                              {t("text-unit-kg")}
-                            </span>
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </>
-              )}
             </div>
-          </Popover.Content>
-        </Popover>
-      </div>
+          </ActionIcon>
+        </Popover.Trigger>
+        <Popover.Content
+          className="w-56 p-1.5 bg-white shadow-lg rounded-lg border border-gray-100"
+        >
+          <div className="max-h-60 overflow-y-auto">
+            {allCategories.map((option) => (
+              <button
+                key={option.value}
+                onClick={() => {
+                  onCategoryChange(option.value);
+                  setIsOpen(false);
+                }}
+                className={cn(
+                  "w-full px-3 py-1.5 text-left text-sm transition-colors rounded-md flex items-center",
+                  selectedCategory === option.value
+                    ? "bg-teal-50 text-teal-900"
+                    : "text-gray-700 hover:bg-gray-50"
+                )}
+              >
+                <div className="mr-2 w-2 h-2 rounded-full flex-shrink-0"
+                  style={{ 
+                    backgroundColor: selectedCategory === option.value ? "#14b8a6" : 
+                      (["Rest Of Catch", "Scavengers"].includes(option.value) ? "#6b7280" : "#0ea5e9") 
+                  }}
+                />
+                <span className="truncate">{option.label}</span>
+              </button>
+            ))}
+          </div>
+        </Popover.Content>
+      </Popover>
     </div>
   );
 } 
