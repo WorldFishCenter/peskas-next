@@ -437,29 +437,40 @@ export default function FishCompositionChart({
     try {
       console.log("Processing fish distribution data:", monthlyData);
       
-      // Group data by date to create the chart data structure
-      const groupedByDate: Record<string, ChartDataPoint> = {};
+      // Find min and max dates in the data
+      const allDates = monthlyData.map(month => {
+        const date = new Date(month.date);
+        date.setDate(1); // First day of month
+        date.setHours(0, 0, 0, 0); // Normalize time
+        return date.getTime();
+      });
       
-      // Process monthly trends data
+      // Determine date range
+      const minDate = Math.min(...allDates);
+      const maxDate = Math.max(...allDates);
+      
+      // Create a complete timeline of months
+      const allMonths: number[] = [];
+      const currentDate = new Date(minDate);
+      
+      while (currentDate.getTime() <= maxDate) {
+        allMonths.push(new Date(currentDate).getTime());
+        currentDate.setMonth(currentDate.getMonth() + 1); // Move to next month
+      }
+      
+      // Create a map to track which sites have data for which months
+      const dataMap: Record<string, Record<string, number>> = {};
+      
+      // First pass: collect all available data
       monthlyData.forEach(month => {
         const date = new Date(month.date);
-        // Ensure we use the first day of the month for consistent xAxis formatting
         date.setDate(1);
         date.setHours(0, 0, 0, 0);
-        const dateTime = date.getTime();
-        const dateKey = dateTime.toString();
+        const timestamp = date.getTime();
         
-        // Initialize data point for this date if it doesn't exist
-        if (!groupedByDate[dateKey]) {
-          groupedByDate[dateKey] = {
-            date: dateTime,
-            average: 0
-          };
-          
-          // Initialize all BMUs with zero values
-          bmus.forEach(bmu => {
-            groupedByDate[dateKey][bmu] = 0;
-          });
+        // Initialize this date in the data map if needed
+        if (!dataMap[timestamp]) {
+          dataMap[timestamp] = {};
         }
         
         // Get landing site (BMU) from the data
@@ -471,56 +482,31 @@ export default function FishCompositionChart({
         // Find the category that matches our selected category
         const categoryData = month.categories.find((cat: any) => cat.category === selectedCategory);
         
-        // Set the BMU value if we have data
-        if (categoryData) {
-          groupedByDate[dateKey][landingSite] = categoryData.total_catch;
+        // Add the data point if we have it
+        if (categoryData && categoryData.total_catch !== undefined && categoryData.total_catch !== null) {
+          dataMap[timestamp][landingSite] = categoryData.total_catch;
         }
+      });
+      
+      // Build the ChartDataPoint objects for all months
+      const groupedByDate: Record<string, ChartDataPoint> = {};
+      
+      // Create data points for all months in the range
+      allMonths.forEach(timestamp => {
+        groupedByDate[timestamp] = {
+          date: timestamp
+        };
+        
+        // Add data for each BMU - use undefined instead of 0 for missing data
+        bmus.forEach(site => {
+          const monthData = dataMap[timestamp];
+          groupedByDate[timestamp][site] = monthData && monthData[site] !== undefined ? 
+            monthData[site] : undefined;
+        });
       });
       
       // Convert grouped data to array and sort by date
       const sortedData = Object.values(groupedByDate).sort((a, b) => a.date - b.date);
-      
-      // Fill in missing months with zero values to ensure continuous timeline
-      if (sortedData.length > 1) {
-        const filledData: ChartDataPoint[] = [];
-        const startDate = new Date(sortedData[0].date);
-        const endDate = new Date(sortedData[sortedData.length - 1].date);
-        
-        // Create a map of existing dates
-        const existingDates = new Map(
-          sortedData.map(item => [item.date, item])
-        );
-        
-        // Loop through all months in the range and fill in missing ones
-        const currentDate = new Date(startDate);
-        while (currentDate <= endDate) {
-          const timeValue = currentDate.getTime();
-          
-          if (existingDates.has(timeValue)) {
-            filledData.push(existingDates.get(timeValue) as ChartDataPoint);
-          } else {
-            // Create a placeholder data point with zeros
-            const newPoint: ChartDataPoint = {
-              date: timeValue,
-              average: 0
-            };
-            
-            // Add zero values for all BMUs
-            bmus.forEach(bmu => {
-              newPoint[bmu] = 0;
-            });
-            
-            filledData.push(newPoint);
-          }
-          
-          // Move to next month
-          currentDate.setMonth(currentDate.getMonth() + 1);
-        }
-        
-        // Replace sortedData with the filled data
-        sortedData.length = 0;
-        sortedData.push(...filledData.sort((a, b) => a.date - b.date));
-      }
       
       // Get unique sites (BMUs) from the data
       const uniqueSites = Array.from(
@@ -566,7 +552,8 @@ export default function FishCompositionChart({
         if (values.length > 0) {
           dataPoint.average = parseFloat((values.reduce((sum, val) => sum + val, 0) / values.length).toFixed(2));
         } else {
-          dataPoint.average = 0;
+          // Use undefined instead of 0 to show gaps in the chart
+          dataPoint.average = undefined;
         }
       });
       

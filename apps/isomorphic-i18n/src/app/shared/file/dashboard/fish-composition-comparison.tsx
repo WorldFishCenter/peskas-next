@@ -162,6 +162,9 @@ export default function FishCompositionComparison({
         // Process categories for this month/BMU
         if (monthData.categories && Array.isArray(monthData.categories)) {
           monthData.categories.forEach((cat: { category: string; total_catch: number }) => {
+            // Ensure we have a valid category name and catch value
+            if (!cat.category) return;
+            
             const categoryName = cat.category;
             categories.add(categoryName);
             
@@ -170,8 +173,10 @@ export default function FishCompositionComparison({
               totals[bmuName][categoryName] = 0;
             }
             
-            // Add to the total
-            totals[bmuName][categoryName] += cat.total_catch || 0;
+            // Only add to the total if we have a valid catch amount
+            if (cat.total_catch !== undefined && cat.total_catch !== null) {
+              totals[bmuName][categoryName] += cat.total_catch;
+            }
           });
         }
       });
@@ -240,9 +245,8 @@ export default function FishCompositionComparison({
         return bmuData;
       });
       
-      // Filter out BMUs with no data and sort by name
+      // Include all BMUs in the chart and sort by name
       const filteredData = chartDataArray
-        .filter(item => item.totalCatch > 0)
         .sort((a, b) => a.bmuName.localeCompare(b.bmuName));
       
       setChartData(filteredData);
@@ -261,17 +265,23 @@ export default function FishCompositionComparison({
         <div className="bg-white p-3 border border-gray-200 rounded-md shadow-md">
           <p className="font-medium text-gray-900">{label}</p>
           <div className="mt-2 space-y-1">
-            {payload.map((entry: any, index: number) => (
-              <div key={`tooltip-${index}`} className="flex items-center gap-2">
-                <div 
-                  className="w-3 h-3 rounded-full" 
-                  style={{ backgroundColor: entry.color }}
-                />
-                <span className="text-sm text-gray-700">
-                  {entry.name}: {entry.value}%
-                </span>
-              </div>
-            ))}
+            {payload.map((entry: any, index: number) => {
+              // Check if the value is undefined, null, or 0 when it should be N/A
+              const isValidValue = entry.value !== undefined && entry.value !== null;
+              const displayValue = isValidValue ? `${entry.value}%` : t("text-na");
+              
+              return (
+                <div key={`tooltip-${index}`} className="flex items-center gap-2">
+                  <div 
+                    className="w-3 h-3 rounded-full" 
+                    style={{ backgroundColor: entry.color }}
+                  />
+                  <span className="text-sm text-gray-700">
+                    {entry.name}: {displayValue}
+                  </span>
+                </div>
+              );
+            })}
           </div>
         </div>
       );
@@ -381,6 +391,8 @@ export default function FishCompositionComparison({
                       fill={category.color}
                       radius={[0, 0, 0, 0]}
                       fillOpacity={visibilityState[category.id]?.opacity ?? 1}
+                      hide={visibilityState[category.id]?.opacity === 0}
+                      isAnimationActive={false}
                     />
                   ))}
                 </BarChart>
