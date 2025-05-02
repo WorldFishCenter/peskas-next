@@ -83,9 +83,7 @@ function HeaderMenuRight({ lang }: { lang?: string }) {
   return (
     <div className="ms-auto flex shrink-0 items-center gap-1 text-gray-700 xs:gap-2 md:gap-3 xl:gap-4">
       <ReferenceBMU />
-      <div className="hidden sm:block">
-        <FilterSelector />
-      </div>
+      <FilterSelector />
       <ThemeToggle />
       <ProfileMenu
         buttonClassName="w-auto sm:w-auto p-1 border border-gray-300"

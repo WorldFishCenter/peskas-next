@@ -117,18 +117,18 @@ export const FilterSelector = () => {
   return (
     <Popover isOpen={isOpen} setIsOpen={setIsOpen} placement="bottom-end">
       <Popover.Trigger>
-        <ActionIcon variant="text" className="relative">
-          <TbFilterCog className="h-6 w-6 fill-[#D6D6D6] [stroke-width:1.5px]" />
+        <ActionIcon variant="text" className="relative flex items-center justify-center h-[34px] w-[34px] rounded-full md:h-9 md:w-9">
+          <TbFilterCog className="h-5 w-5 md:h-6 md:w-6 fill-[#D6D6D6] [stroke-width:1.5px]" />
         </ActionIcon>
       </Popover.Trigger>
-      <Popover.Content className="w-[350px]">
+      <Popover.Content className="w-[280px] sm:w-[350px]">
         <Input
           placeholder="Search here..."
           value={searchFilter}
           onChange={handleSearchChange}
         />
         <div className="space-y-2 mt-4">
-          <SimpleBar className="max-h-[600px]">
+          <SimpleBar className="max-h-[300px] md:max-h-[600px]">
             {filteredList.map((section, idx) => {
               return (
                 <FilterGroup
