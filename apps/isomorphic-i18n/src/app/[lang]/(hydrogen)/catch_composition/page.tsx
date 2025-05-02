@@ -1,12 +1,12 @@
 "use client";
 import { useState } from "react";
 import { useTranslation } from "@/app/i18n/client";
-import { useSession } from "next-auth/react";
 import type { DefaultSession } from "next-auth";
 import type { TBmu } from "@repo/nosql/schema/bmu";
 import FileStats from "@/app/shared/file/dashboard/file-stats";
 import FishCompositionChart from "@/app/shared/file/dashboard/fish-composition-chart";
 import FishCompositionComparison from "@/app/shared/file/dashboard/fish-composition-comparison";
+import { useUserPermissions } from "@/app/shared/file/dashboard/hooks/useUserPermissions";
 
 type SerializedBmu = {
   _id: string;
@@ -34,10 +34,10 @@ export default function CatchCompositionPage({ params }: PageProps) {
   const [selectedCategory, setSelectedCategory] = useState("Octopus");
   const [activeTab, setActiveTab] = useState("trends");
   const { t } = useTranslation("common");
-  const { data: session } = useSession();
+  const { referenceBMU } = useUserPermissions();
 
-  // Use userBmu from session
-  const userBmu = session?.user?.userBmu?.BMU;
+  // Use reference BMU instead of directly using userBmu from session
+  const effectiveBMU = referenceBMU || undefined;
 
   return (
     <div className="w-full">
@@ -46,7 +46,7 @@ export default function CatchCompositionPage({ params }: PageProps) {
           <div className="col-span-12">
             <FishCompositionChart 
               lang={lang}
-              bmu={userBmu} 
+              bmu={effectiveBMU} 
               selectedCategory={selectedCategory}
               onCategoryChange={setSelectedCategory}
               activeTab={activeTab}
@@ -57,7 +57,7 @@ export default function CatchCompositionPage({ params }: PageProps) {
           <div className="col-span-12">
             <FishCompositionComparison
               lang={lang}
-              bmu={userBmu}
+              bmu={effectiveBMU}
             />
           </div>
         </div>

@@ -10,11 +10,14 @@ import get from 'lodash/get';
 import values from 'lodash/values';
 import isEmpty from 'lodash/isEmpty';
 import { useAtom } from 'jotai';
-import { atomWithStorage, createJSONStorage } from 'jotai/utils';
+import { atomWithStorage } from 'jotai/utils';
 import Fuse from "fuse.js";
 
 import type { TBmu } from "@repo/nosql/schema/bmu";
 import SimpleBar from '@ui/simplebar';
+import useUserPermissions from "../shared/file/dashboard/hooks/useUserPermissions";
+import { useTranslation } from "@/app/i18n/client";
+import cn from "@utils/class-names";
 
 type DropdownTypes = {
   sectionName: string;
@@ -61,15 +64,19 @@ const sessObjectToDropdown = (session: DefaultSession & CustomSession) => {
 
 export const dropdownAtom = atomWithStorage<DropdownTypes[]>('dropdown', [], undefined, { getOnInit: true });
 export const bmusAtom = atomWithStorage<string[]>('bmus', [], undefined, { getOnInit: true });
+export const viewModeAtom = atomWithStorage<'bmu' | 'region'>('viewMode', 'bmu', undefined, { getOnInit: true });
 
 export const FilterSelector = () => {
+  const { t } = useTranslation("common");
   const [searchFilter, setSearchFilter] = useState("");
   const [filteredList, setFilteredList] = useState<DropdownTypes[] | string[]>([]);
   const [fuse, setFuse] = useState<Fuse<string>>();
   const [isOpen, setIsOpen] = useState(false);
-  const { data: session, status } = useSession()
+  const { data: session, status } = useSession();
   const [dropdown, setBmusDropdown] = useAtom(dropdownAtom);
   const [bmus, setBmus] = useAtom(bmusAtom);
+  const [viewMode, setViewMode] = useAtom(viewModeAtom);
+  const { isAdmin, adminReferenceBmu } = useUserPermissions();
 
   useEffect(() => {
     if (status === 'authenticated') {
@@ -114,6 +121,24 @@ export const FilterSelector = () => {
     }
   };
 
+  // Function to handle view mode change
+  const handleViewModeChange = (newMode: 'bmu' | 'region') => {
+    if (viewMode === newMode) return;
+    
+    setViewMode(newMode);
+    
+    // If switching to region view, select one BMU from each region
+    if (newMode === 'region' && session && dropdown.length > 0) {
+      // Select representative BMUs from each region
+      const regionRepresentatives = dropdown.map(region => {
+        // Select the first BMU from each region
+        return region.units[0].value;
+      });
+      
+      setBmus(regionRepresentatives);
+    }
+  };
+
   return (
     <Popover isOpen={isOpen} setIsOpen={setIsOpen} placement="bottom-end">
       <Popover.Trigger>
@@ -122,8 +147,45 @@ export const FilterSelector = () => {
         </ActionIcon>
       </Popover.Trigger>
       <Popover.Content className="w-[280px] sm:w-[350px]">
+        {isAdmin && (
+          <div className="mb-4">
+            <p className="text-sm font-medium text-gray-700 mb-2">
+              {t("text-view-mode") || "View Mode"}
+            </p>
+            <div className="flex gap-2 bg-gray-100 p-1 rounded-md">
+              <button
+                className={cn(
+                  "px-3 py-1.5 rounded-md text-sm flex-1 transition-all",
+                  viewMode === 'bmu' 
+                    ? "bg-white shadow-sm text-primary font-medium" 
+                    : "text-gray-600 hover:bg-gray-200"
+                )}
+                onClick={() => handleViewModeChange('bmu')}
+              >
+                {t("text-bmu-view") || "BMU View"}
+              </button>
+              <button
+                className={cn(
+                  "px-3 py-1.5 rounded-md text-sm flex-1 transition-all",
+                  viewMode === 'region' 
+                    ? "bg-white shadow-sm text-primary font-medium" 
+                    : "text-gray-600 hover:bg-gray-200"
+                )}
+                onClick={() => handleViewModeChange('region')}
+              >
+                {t("text-region-view") || "Region View"}
+              </button>
+            </div>
+            <div className="text-xs text-gray-500 mt-1">
+              {viewMode === 'region' 
+                ? (t("text-region-view-info") || "Showing one representative BMU from each region") 
+                : (t("text-bmu-view-info") || "Showing individually selected BMUs")}
+            </div>
+          </div>
+        )}
+        
         <Input
-          placeholder="Search here..."
+          placeholder={t("text-search-here") || "Search here..."}
           value={searchFilter}
           onChange={handleSearchChange}
         />
@@ -135,6 +197,8 @@ export const FilterSelector = () => {
                   key={`bmu-section-${idx}`}
                   bmuSection={section}
                   searchFilter={searchFilter}
+                  viewMode={viewMode}
+                  referenceBmu={adminReferenceBmu}
                 />
               );
             })}
@@ -148,48 +212,98 @@ export const FilterSelector = () => {
 const FilterGroup = ({
   bmuSection,
   searchFilter,
+  viewMode,
+  referenceBmu
 }: {
   bmuSection: DropdownTypes | string;
   searchFilter: string;
+  viewMode?: 'bmu' | 'region';
+  referenceBmu?: string | null;
 }) => {
   const [bmus, setBmus] = useAtom(bmusAtom);
   const { data: session } = useSession();
-
-  // Determine if the user is part of the CIA group
-  const isCiaUser = session?.user?.groups?.some((group: { name: string }) => group.name === 'CIA');
+  const { isAdmin, isCiaUser } = useUserPermissions();
 
   const handleBmuSelect = (unit: string) => {
     // For the CIA group, ensure only one BMU is selectable
     if (isCiaUser) {
       setBmus([unit]);
+      return;
+    }
+    
+    // For region view in admin mode, ensure only one BMU is selected per region
+    if (isAdmin && viewMode === 'region' && typeof bmuSection !== 'string') {
+      const section = bmuSection as DropdownTypes;
+      const regionName = section.sectionName;
+      
+      // Remove all other BMUs from this region
+      const filteredBmus = bmus.filter(bmu => {
+        // Check if this BMU is from a different region
+        if (section.units.some(u => u.value === bmu)) {
+          return false; // Remove BMUs from this region
+        }
+        return true; // Keep BMUs from other regions
+      });
+      
+      // Add the newly selected BMU
+      setBmus([...filteredBmus, unit]);
+      return;
+    }
+    
+    // Standard multi-select behavior for other cases
+    if (bmus.includes(unit)) {
+      setBmus(bmus.filter((filter) => filter !== unit));
     } else {
-      if (bmus.includes(unit)) {
-        setBmus(bmus.filter((filter) => filter !== unit));
-      } else {
-        setBmus([...bmus, unit]);
-      }
+      setBmus([...bmus, unit]);
     }
   };
 
   if (typeof bmuSection === "string" && searchFilter) {
     const unit = bmuSection as string;
+    const isReferenceBmu = referenceBmu === unit;
 
     return (
       <Checkbox
         key={unit}
-        label={unit}
+        label={
+          <span className={cn(
+            "flex items-center",
+            isReferenceBmu ? "text-yellow-600 font-medium" : ""
+          )}>
+            {unit}
+            {isReferenceBmu && (
+              <span className="ml-1 text-yellow-500">★</span>
+            )}
+          </span>
+        }
         checked={bmus.findIndex((filter) => filter === unit) !== -1}
         onChange={() => handleBmuSelect(unit)}
       />
     );
   } else {
     const section = bmuSection as DropdownTypes;
-    const allSelected = section.units.every((unit) => {
-      return bmus.includes(unit.value);
-    });
+    
+    // In region view, we only check if any BMU from this region is selected
+    const isRegionSelected = isAdmin && viewMode === 'region' 
+      ? section.units.some(unit => bmus.includes(unit.value))
+      : section.units.every(unit => bmus.includes(unit.value));
 
     const handleSectionSelect = () => {
-      if (allSelected) {
+      // For region view in admin mode, select only one BMU per region
+      if (isAdmin && viewMode === 'region') {
+        if (isRegionSelected) {
+          // Remove all BMUs from this region
+          setBmus(bmus.filter(bmu => !section.units.some(unit => unit.value === bmu)));
+        } else {
+          // Add the first BMU from this region, remove any others
+          const filteredBmus = bmus.filter(bmu => !section.units.some(unit => unit.value === bmu));
+          setBmus([...filteredBmus, section.units[0].value]);
+        }
+        return;
+      }
+      
+      // Standard behavior for other cases
+      if (isRegionSelected) {
         setBmus(
           bmus.filter(
             (filter) =>
@@ -204,23 +318,51 @@ const FilterGroup = ({
       }
     };
 
+    // Check if this section has the reference BMU
+    const hasReferenceBmu = referenceBmu && section.units.some(unit => unit.value === referenceBmu);
+
     return (
       <div>
         <Checkbox
-          label={section.sectionName}
-          checked={allSelected}
+          label={
+            <span className={cn(
+              hasReferenceBmu ? "text-yellow-600 font-medium" : ""
+            )}>
+              {section.sectionName}
+              {hasReferenceBmu && (
+                <span className="ml-1 text-yellow-500">★</span>
+              )}
+            </span>
+          }
+          checked={isRegionSelected}
           onChange={handleSectionSelect}
         />
         <div className="mt-2 ml-8 space-y-2">
           {section.units.map((unit) => {
+            // In region view for admin, only one BMU can be selected per region
+            const disabled = isAdmin && viewMode === 'region' && isRegionSelected && 
+              !bmus.includes(unit.value);
+            
+            // Check if this is the reference BMU
+            const isReferenceBmu = referenceBmu === unit.value;
+            
             return (
               <Checkbox
                 key={unit.value}
-                label={unit.value}
-                checked={
-                  bmus.findIndex((filter) => filter === unit.value) !== -1
+                label={
+                  <span className={cn(
+                    isReferenceBmu ? "text-yellow-600 font-medium" : ""
+                  )}>
+                    {unit.value}
+                    {isReferenceBmu && (
+                      <span className="ml-1 text-yellow-500">★</span>
+                    )}
+                  </span>
                 }
+                checked={bmus.includes(unit.value)}
                 onChange={() => handleBmuSelect(unit.value)}
+                disabled={disabled}
+                className={disabled ? "opacity-50" : ""}
               />
             );
           })}

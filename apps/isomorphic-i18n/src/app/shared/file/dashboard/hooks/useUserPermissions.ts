@@ -1,4 +1,9 @@
 import { useSession } from "next-auth/react";
+import { useAtom } from 'jotai';
+import { atomWithStorage } from 'jotai/utils';
+
+// Create an atom to store the admin's selected reference BMU
+export const adminReferenceBmuAtom = atomWithStorage<string | null>('adminReferenceBmu', null);
 
 /**
  * Centralized hook for user permission management
@@ -8,6 +13,7 @@ import { useSession } from "next-auth/react";
  */
 export const useUserPermissions = () => {
   const { data: session } = useSession();
+  const [adminReferenceBmu, setAdminReferenceBmu] = useAtom(adminReferenceBmuAtom);
   
   // Check user groups for permission levels with safety checks
   const hasGroups = Array.isArray(session?.user?.groups);
@@ -26,6 +32,9 @@ export const useUserPermissions = () => {
   
   // Get user's BMU - properly handle the property path
   const userBMU = session?.user?.userBmu?.BMU;
+  
+  // For admin users, they can select a reference BMU
+  const referenceBMU = isAdmin ? adminReferenceBmu : userBMU;
   
   /**
    * Determines which BMUs the user can access based on their role
@@ -50,9 +59,44 @@ export const useUserPermissions = () => {
     }
   };
   
+  /**
+   * Get a limited selection of BMUs to display for admins
+   * 
+   * @param allBMUs - Array of all available BMUs
+   * @param limit - Maximum number of BMUs to return
+   * @returns Limited array of BMUs for visualization
+   */
+  const getLimitedBMUs = (allBMUs: string[], limit: number = 8): string[] => {
+    if (!isAdmin) {
+      return getAccessibleBMUs(allBMUs);
+    }
+    
+    // If admin has a reference BMU, include it in the selection
+    const result: string[] = [];
+    
+    if (adminReferenceBmu && allBMUs.includes(adminReferenceBmu)) {
+      result.push(adminReferenceBmu);
+    }
+    
+    // Add other BMUs up to the limit
+    const remainingBMUs = allBMUs.filter(bmu => bmu !== adminReferenceBmu);
+    const remainingLimit = limit - result.length;
+    
+    if (remainingLimit > 0) {
+      result.push(...remainingBMUs.slice(0, remainingLimit));
+    }
+    
+    return result;
+  };
+  
   return {
     // User information
     userBMU,
+    referenceBMU,
+    
+    // Admin reference BMU management
+    adminReferenceBmu,
+    setAdminReferenceBmu,
     
     // Role checks
     isCiaUser,
@@ -61,6 +105,7 @@ export const useUserPermissions = () => {
     
     // Helper functions
     getAccessibleBMUs,
+    getLimitedBMUs,
     
     // Useful flags for components
     hasRestrictedAccess: isCiaUser && !!userBMU,

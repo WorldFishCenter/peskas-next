@@ -6,15 +6,24 @@ import RingBellSolidIcon from "@components/icons/ring-bell-solid";
 import ChatSolidIcon from "@components/icons/chat-solid";
 import LanguageSwitcher from "@/app/i18n/language-switcher";
 import { useTranslation } from "@/app/i18n/client";
+import AdminReferenceSelector from "@/app/components/admin-reference-selector";
+import { useUserPermissions } from "@/app/shared/file/dashboard/hooks/useUserPermissions";
 
 export default function HeaderMenuRight({ lang }: { lang?: string }) {
   const { t } = useTranslation(lang!, 'common');
+  const { isAdmin } = useUserPermissions();
+
+  // Adjust grid columns based on whether admin reference selector is shown
+  const gridClass = isAdmin ? "grid-cols-5" : "grid-cols-4";
 
   return (
     <div className="ms-auto flex shrink-0 items-center gap-2 xs:gap-3 xl:gap-4">
       <LanguageSwitcher lang={lang!} />
 
-      <div className="grid grid-cols-4 items-center gap-2 text-gray-700 xs:gap-3 xl:gap-4">
+      <div className={`grid ${gridClass} items-center gap-2 text-gray-700 xs:gap-3 xl:gap-4`}>
+        {isAdmin && (
+          <AdminReferenceSelector lang={lang} />
+        )}
         <ActionIcon
           aria-label="Notification"
           variant="text"

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import WidgetCard from "@components/cards/widget-card";
 import { Title, Text, Badge } from "rizzui";
 import cn from "@utils/class-names";
@@ -24,6 +24,7 @@ import { useTranslation } from "@/app/i18n/client";
 import { api } from "@/trpc/react";
 import { useGlobalFilter } from "@/app/components/global-filter-provider";
 import { bmusAtom } from "@/app/components/filter-selector";
+import { useUserPermissions } from "@/app/shared/file/dashboard/hooks/useUserPermissions";
 
 function CustomYAxisTick({ x, y, payload }: any) {
   return (
@@ -55,8 +56,19 @@ export default function AggregatedCatch({
   const isTablet = useMedia("(max-width: 800px)", false);
   const { t } = useTranslation(lang!, "common");
   const [bmus] = useAtom(bmusAtom);
+  const { isAdmin, referenceBMU, getLimitedBMUs } = useUserPermissions();
 
-  const { data: monthlyData } = api.aggregatedCatch.monthly.useQuery({ bmus });
+  // For admin users, limit the number of BMUs shown and prioritize reference BMU
+  const effectiveBmus = useMemo(() => {
+    if (isAdmin) {
+      return getLimitedBMUs(bmus, 8);
+    }
+    return bmus;
+  }, [isAdmin, bmus, getLimitedBMUs]);
+
+  const { data: monthlyData } = api.aggregatedCatch.monthly.useQuery({ 
+    bmus: effectiveBmus 
+  });
 
   useEffect(() => {
     if (!monthlyData) return

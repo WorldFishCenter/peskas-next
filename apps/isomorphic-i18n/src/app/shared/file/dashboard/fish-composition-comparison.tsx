@@ -10,6 +10,7 @@ import { useTranslation } from "@/app/i18n/client";
 import SimpleBar from "@ui/simplebar";
 import useUserPermissions from "./hooks/useUserPermissions";
 import { generateFishCategoryColor } from "./charts/utils";
+import { adminReferenceBmuAtom } from "./hooks/useUserPermissions";
 
 // Define fish category display data
 interface CategoryDisplay {
@@ -59,15 +60,24 @@ export default function FishCompositionComparison({
   const [bmus] = useAtom(bmusAtom);
   
   // Get BMUs based on permissions
-  const { userBMU, isAdmin, hasRestrictedAccess } = useUserPermissions();
-  const effectiveBMU = bmu || userBMU;
+  const { userBMU, isAdmin, hasRestrictedAccess, referenceBMU, getLimitedBMUs } = useUserPermissions();
+  const effectiveBMU = bmu || referenceBMU || userBMU;
   
   // Memoize queryBmus to prevent it from recalculating on every render
   const queryBmus = useMemo(() => {
-    return isAdmin 
-      ? bmus 
-      : (hasRestrictedAccess ? [effectiveBMU].filter(Boolean) as string[] : bmus);
-  }, [isAdmin, hasRestrictedAccess, effectiveBMU, bmus]);
+    // For admin users, use a limited set of BMUs (max 8)
+    if (isAdmin) {
+      return getLimitedBMUs(bmus, 8);
+    }
+    
+    // For restricted users, only show their BMU
+    if (hasRestrictedAccess) {
+      return [effectiveBMU].filter(Boolean) as string[];
+    }
+    
+    // For others, show all selected BMUs
+    return bmus;
+  }, [isAdmin, hasRestrictedAccess, effectiveBMU, bmus, getLimitedBMUs]);
   
   // Get fish distribution data from the API
   const { data: fishDistributionData, isLoading: isLoadingData, error: apiError } = api.fishDistribution.monthlyTrends.useQuery({ 
@@ -320,7 +330,9 @@ export default function FishCompositionComparison({
                 {t("text-fish-composition-by-bmu") || "Fish Composition by BMU"}
               </div>
               <div className="text-xs text-gray-500 text-center mt-1">
-                {t("text-comparison-chart-description") || "Compare fish group distribution across BMUs"}
+                {isAdmin 
+                  ? (t("text-admin-chart-description") || "Showing limited BMU selection. Use reference selector to highlight a BMU.")
+                  : (t("text-comparison-chart-description") || "Compare fish group distribution across BMUs")}
               </div>
             </div>
           </div>

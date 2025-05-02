@@ -247,23 +247,33 @@ export default function FishCompositionChart({
     getAccessibleBMUs,
     hasRestrictedAccess,
     shouldShowAggregated,
-    canCompareWithOthers
+    canCompareWithOthers,
+    referenceBMU,
+    getLimitedBMUs
   } = useUserPermissions();
 
-  // Determine which BMU to use for filtering - prefer passed prop, then user's BMU
-  const effectiveBMU = useMemo(() => bmu || userBMU, [bmu, userBMU]);
+  // Determine which BMU to use for filtering - prefer passed prop, then reference BMU for admin users, then user's BMU
+  const effectiveBMU = useMemo(() => bmu || referenceBMU || userBMU, [bmu, userBMU, referenceBMU]);
+
+  // For admin users, limit the number of BMUs shown
+  const effectiveBmus = useMemo(() => {
+    if (isAdmin) {
+      return getLimitedBMUs(bmus, 8);
+    }
+    return bmus;
+  }, [isAdmin, bmus, getLimitedBMUs]);
 
   // Force refetch when bmus changes by adding bmus to the query key
   const { data: monthlyData, refetch } = api.fishDistribution.monthlyTrends.useQuery(
     { 
-      bmus,
+      bmus: effectiveBmus,
       categories: [selectedCategory]
     },
     {
       refetchOnMount: true, 
       refetchOnWindowFocus: false,
       retry: 3,
-      enabled: bmus.length > 0 && selectedCategory.length > 0,
+      enabled: effectiveBmus.length > 0 && selectedCategory.length > 0,
     }
   );
 
@@ -283,16 +293,16 @@ export default function FishCompositionChart({
   // Force refetch when bmus changes
   useEffect(() => {
     // Check if bmus array has changed
-    if (JSON.stringify(previousBmus.current) !== JSON.stringify(bmus)) {
+    if (JSON.stringify(previousBmus.current) !== JSON.stringify(effectiveBmus)) {
       console.log('BMUs changed, refetching data');
       setChartData([]);
       setRecentData([]);
       setAnnualData([]);
       dataProcessed.current = false;
-      previousBmus.current = [...bmus];
+      previousBmus.current = [...effectiveBmus];
       refetch();
     }
-  }, [bmus, refetch]);
+  }, [effectiveBmus, refetch]);
 
   // Keep in sync with parent component, handling old tab names too
   useEffect(() => {
@@ -421,7 +431,7 @@ export default function FishCompositionChart({
 
   // Process main data when monthlyData changes
   useEffect(() => {
-    if (!monthlyData || bmus.length === 0) return;
+    if (!monthlyData || effectiveBmus.length === 0) return;
     
     // Reset processing flag if category changed
     if (previousCategoryRef.current !== selectedCategory) {
@@ -431,7 +441,7 @@ export default function FishCompositionChart({
     
     // Prevent re-processing data unnecessarily
     if (chartData.length > 0 && !loading && 
-        JSON.stringify(previousBmus.current) === JSON.stringify(bmus) && 
+        JSON.stringify(previousBmus.current) === JSON.stringify(effectiveBmus) && 
         previousCategoryRef.current === selectedCategory) return;
 
     try {
@@ -477,7 +487,7 @@ export default function FishCompositionChart({
         const landingSite = month.landing_site;
         
         // Skip if this BMU isn't in our list
-        if (!bmus.includes(landingSite)) return;
+        if (!effectiveBmus.includes(landingSite)) return;
         
         // Find the category that matches our selected category
         const categoryData = month.categories.find((cat: any) => cat.category === selectedCategory);
@@ -498,7 +508,7 @@ export default function FishCompositionChart({
         };
         
         // Add data for each BMU - use undefined instead of 0 for missing data
-        bmus.forEach(site => {
+        effectiveBmus.forEach(site => {
           const monthData = dataMap[timestamp];
           groupedByDate[timestamp][site] = monthData && monthData[site] !== undefined ? 
             monthData[site] : undefined;
@@ -510,7 +520,7 @@ export default function FishCompositionChart({
       
       // Get unique sites (BMUs) from the data
       const uniqueSites = Array.from(
-        new Set(bmus)
+        new Set(effectiveBmus)
       );
       
       // Apply user permissions
@@ -610,14 +620,14 @@ export default function FishCompositionChart({
 
       setFiveYearMarks(marks);
       setChartData(sortedData);
-      previousBmus.current = [...bmus];
+      previousBmus.current = [...effectiveBmus];
       previousCategoryRef.current = selectedCategory;
     } catch (error) {
       console.error("Error processing data:", error);
     } finally {
       setLoading(false);
     }
-  }, [monthlyData, selectedCategory, effectiveBMU, hasRestrictedAccess, getAccessibleBMUs, bmus, isCiaUser, localActiveTab]);
+  }, [monthlyData, selectedCategory, effectiveBMU, hasRestrictedAccess, getAccessibleBMUs, effectiveBmus, isCiaUser, localActiveTab]);
 
   // Calculate derived data when chartData changes
   useEffect(() => {
