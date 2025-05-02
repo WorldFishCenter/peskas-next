@@ -72,7 +72,7 @@ function ReferenceBMU() {
   if (!userBmu) return null;
 
   return (
-    <div className="flex items-center gap-2 px-3 py-1.5 text-sm bg-gray-100 rounded-full">
+    <div className="hidden md:flex items-center gap-2 px-3 py-1.5 text-sm bg-gray-100 rounded-full">
       <PiMapPinDuotone className="h-4 w-4 text-gray-600" />
       <span className="font-medium text-gray-900">{userBmu}</span>
     </div>
@@ -81,9 +81,11 @@ function ReferenceBMU() {
 
 function HeaderMenuRight({ lang }: { lang?: string }) {
   return (
-    <div className="ms-auto flex shrink-0 items-center gap-2 text-gray-700 xs:gap-3 xl:gap-4">
+    <div className="ms-auto flex shrink-0 items-center gap-1 text-gray-700 xs:gap-2 md:gap-3 xl:gap-4">
       <ReferenceBMU />
-      <FilterSelector />
+      <div className="hidden sm:block">
+        <FilterSelector />
+      </div>
       <ThemeToggle />
       <ProfileMenu
         buttonClassName="w-auto sm:w-auto p-1 border border-gray-300"
@@ -97,7 +99,7 @@ function HeaderMenuRight({ lang }: { lang?: string }) {
 export default function Header({ lang }: { lang?: string }) {
   return (
     <StickyHeader
-      className={"z-[990] justify-between 2xl:py-5 2xl:pl-6  3xl:px-8"}
+      className={"z-[990] justify-between 2xl:py-5 2xl:pl-6 3xl:px-8"}
     >
       <div className="hidden items-center gap-3 xl:flex">
         <LanguageLink
@@ -112,21 +114,22 @@ export default function Header({ lang }: { lang?: string }) {
         </LanguageLink>
         <HeaderMenuLeft lang={lang} />
       </div>
-      <div className="flex w-full items-center gap-5 xl:w-auto 3xl:gap-6">
+      <div className="flex w-full items-center gap-2 sm:gap-3 md:gap-5 xl:w-auto 3xl:gap-6">
         <div className="flex w-full max-w-2xl items-center xl:w-auto">
           <HamburgerButton
             view={<Sidebar className="static w-full 2xl:w-full" lang={lang} />}
+            customSize="90%"
           />
           <LanguageLink
             aria-label="Site Logo"
             href="/"
-            className="me-4 w-9 shrink-0 text-gray-800 hover:text-gray-900 lg:me-5 xl:hidden"
+            className="me-2 w-8 sm:me-3 sm:w-9 shrink-0 text-gray-800 hover:text-gray-900 lg:me-5 xl:hidden"
           >
             <Logo iconOnly={true} />
           </LanguageLink>
           <LanguageSwitcher
             lang={lang!}
-            className="me-3 rounded-none shadow-none"
+            className="me-2 sm:me-3 rounded-none shadow-none"
           />
           {/*
           <SearchWidget

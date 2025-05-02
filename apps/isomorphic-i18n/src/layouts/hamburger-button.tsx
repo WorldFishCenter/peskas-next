@@ -17,7 +17,7 @@ interface Props {
 export default function HamburgerButton({
   view,
   placement = 'left',
-  customSize = '320px',
+  customSize = '90%',
   className,
 }: Props) {
   const { openDrawer } = useDrawer();

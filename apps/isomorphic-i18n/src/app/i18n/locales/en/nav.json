@@ -123,5 +123,17 @@
   "sidebar-menu-invoice-description": "Professional-looking invoices for each customer order",
   "sidebar-menu-logistics-description": "Streamline Shipments: Discover Efficiency with our Logistics!",
   "sidebar-menu-file-manager-description": "Organize, Access, and Share: Simplify your Digital World with us!",
-  "sidebar-menu-groups": "Groups"
+  "sidebar-menu-groups": "Groups",
+  "CATCH": "CATCH",
+  "WIDGETS": "WIDGETS",
+  "FORMS": "FORMS",
+  "Catch Composition": "Catch Composition",
+  "About": "About",
+  "Cards": "Cards",
+  "Charts": "Charts",
+  "Account Settings": "Account Settings",
+  "Notification Preference": "Notification Preference",
+  "Personal Information": "Personal Information",
+  "Newsletter": "Newsletter",
+  "Home": "Home"
 }

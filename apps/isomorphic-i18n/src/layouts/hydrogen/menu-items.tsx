@@ -1,101 +1,29 @@
 import { routes } from '@/config/routes';
 import { DUMMY_ID } from '@/config/constants';
 import {
-  PiShoppingCartDuotone,
-  PiHeadsetDuotone,
-  PiPackageDuotone,
-  PiChartBarDuotone,
-  PiCurrencyDollarDuotone,
-  PiSquaresFourDuotone,
-  PiGridFourDuotone,
-  PiFeatherDuotone,
-  PiChartLineUpDuotone,
-  PiMapPinLineDuotone,
-  PiUserGearDuotone,
-  PiBellSimpleRingingDuotone,
-  PiUserDuotone,
-  PiEnvelopeSimpleOpenDuotone,
-  PiStepsDuotone,
-  PiCreditCardDuotone,
-  PiTableDuotone,
-  PiBrowserDuotone,
-  PiHourglassSimpleDuotone,
-  PiUserCircleDuotone,
-  PiShootingStarDuotone,
-  PiRocketLaunchDuotone,
-  PiFolderLockDuotone,
-  PiBinocularsDuotone,
-  PiHammerDuotone,
-  PiNoteBlankDuotone,
-  PiUserPlusDuotone,
-  PiShieldCheckDuotone,
-  PiLockKeyDuotone,
-  PiChatCenteredDotsDuotone,
-  PiCalendarPlusDuotone,
-  PiEnvelopeDuotone,
-  PiCurrencyCircleDollarDuotone,
-  PiBriefcaseDuotone,
-  PiHouseLineDuotone,
-  PiAirplaneTiltDuotone,
-  PiFoldersDuotone,
-  PiCaretCircleUpDownDuotone,
-  PiListNumbersDuotone,
-  PiCoinDuotone,
-  PiCalendarDuotone,
-  PiShapesDuotone,
-  PiNewspaperClippingDuotone,
+  PiFishDuotone,
+  PiInfoDuotone,
+  PiHouseLineDuotone
 } from 'react-icons/pi';
 
 // Note: do not add href in the label object, it is rendering as label
 export const menuItems = [
-  // label start
+  // Home
   {
-    name: 'sidebar-menu-overview',
-  },
-  // label end
-  {
-    name: 'sidebar-menu-file-manager',
+    name: 'Home',
     href: '/',
-    icon: <PiFoldersDuotone />,
+    icon: <PiHouseLineDuotone />,
   },
-  // label start
+  // Catch Composition
   {
-    name: 'sidebar-menu-widgets',
+    name: 'Catch Composition',
+    href: routes.catch_composition,
+    icon: <PiFishDuotone />,
   },
-  // label end
+  // About page
   {
-    name: 'sidebar-menu-cards',
-    href: routes.widgets.cards,
-    icon: <PiSquaresFourDuotone />,
-  },
-  {
-    name: 'sidebar-menu-charts',
-    href: routes.widgets.charts,
-    icon: <PiChartLineUpDuotone />,
-  },
-  // label start
-  {
-    name: 'sidebar-menu-forms',
-  },
-  // label end
-  {
-    name: 'sidebar-menu-account-settings',
-    href: routes.forms.profileSettings,
-    icon: <PiUserGearDuotone />,
-  },
-  {
-    name: 'sidebar-menu-notification-preference',
-    href: routes.forms.notificationPreference,
-    icon: <PiBellSimpleRingingDuotone />,
-  },
-  {
-    name: 'sidebar-menu-personal-information',
-    href: routes.forms.personalInformation,
-    icon: <PiUserDuotone />,
-  },
-  {
-    name: 'sidebar-menu-newsletter',
-    href: routes.forms.newsletter,
-    icon: <PiEnvelopeSimpleOpenDuotone />,
+    name: 'About',
+    href: routes.about,
+    icon: <PiInfoDuotone />,
   },
 ];

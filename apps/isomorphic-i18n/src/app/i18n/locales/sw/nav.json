@@ -123,5 +123,17 @@
   "sidebar-menu-invoice-description": "Ankara zenye mtaala wa kitaalamu kwa kila agizo la mteja",
   "sidebar-menu-logistics-description": "Punguza Usafirishaji: Gundua Ufanisi na Usafirishaji wetu!",
   "sidebar-menu-file-manager-description": "Panga, Pata na Shiriki: Rahisisha Dunia yako ya Kidigitali na sisi!",
-  "sidebar-menu-groups": "Makundi"
+  "sidebar-menu-groups": "Makundi",
+  "CATCH": "UVUVI",
+  "WIDGETS": "VIDHIBITI",
+  "FORMS": "FOMU",
+  "Catch Composition": "Muundo wa Uvuvi",
+  "About": "Kuhusu",
+  "Cards": "Kadi",
+  "Charts": "Chati",
+  "Account Settings": "Mipangilio ya Akaunti",
+  "Notification Preference": "Mapendeleo ya Arifa",
+  "Personal Information": "Habari Binafsi",
+  "Newsletter": "Jarida la Habari",
+  "Home": "Nyumbani"
 }
