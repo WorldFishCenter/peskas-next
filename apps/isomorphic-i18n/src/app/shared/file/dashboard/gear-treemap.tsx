@@ -140,14 +140,21 @@ const LoadingState = () => {
 
 // Custom tooltip consistent with other charts
 const CustomTooltip = ({ active, payload, label, selectedMetricOption }: any) => {
+  const { t } = useTranslation("common");
+  
   if (active && payload && payload.length) {
     return (
       <div className="bg-white p-4 border border-gray-200 rounded-lg shadow-lg">
         <p className="text-sm font-medium text-gray-600 mb-2">{label}</p>
         <div className="space-y-1.5">
           {payload
-            .filter((p: any) => p.value !== undefined && p.value !== null)
-            .sort((a: any, b: any) => b.value - a.value)
+            // Don't filter out undefined values anymore
+            .sort((a: any, b: any) => {
+              // Handle sorting when values could be undefined/null
+              if (a.value === undefined || a.value === null) return 1;
+              if (b.value === undefined || b.value === null) return -1;
+              return b.value - a.value;
+            })
             .map((entry: any, index: number) => (
               <div key={index} className="flex items-center gap-2">
                 <div
@@ -156,7 +163,11 @@ const CustomTooltip = ({ active, payload, label, selectedMetricOption }: any) =>
                 />
                 <p className="text-sm">
                   <span className="font-medium">{entry.name}:</span>{" "}
-                  <span className="font-semibold">{formatNumber(entry.value)}</span>
+                  <span className="font-semibold">
+                    {entry.value !== undefined && entry.value !== null 
+                      ? formatNumber(entry.value) 
+                      : t("text-na")}
+                  </span>
                 </p>
               </div>
             ))}
@@ -196,8 +207,12 @@ const CustomLegend = ({ payload, visibilityState, handleLegendClick }: any) => {
 
 // Custom treemap tooltip for ranking view
 const TreemapTooltip = ({ active, payload, selectedMetricOption }: any) => {
+  const { t } = useTranslation("common");
+  
   if (active && payload && payload.length) {
     const data = payload[0].payload;
+    const isValidValue = data.value !== undefined && data.value !== null;
+    
     return (
       <div className="bg-white p-4 border border-gray-200 rounded-lg shadow-lg">
         <p className="text-sm font-medium text-gray-600 mb-2">{data.name}</p>
@@ -207,8 +222,10 @@ const TreemapTooltip = ({ active, payload, selectedMetricOption }: any) => {
             style={{ backgroundColor: data.fill }}
           />
           <p className="text-sm">
-            <span className="font-semibold">{formatNumber(data.value)}</span>
-            {data.percentage && (
+            <span className="font-semibold">
+              {isValidValue ? formatNumber(data.value) : t("text-na")}
+            </span>
+            {isValidValue && data.percentage && (
               <span className="text-gray-500 ml-1">({data.percentage}%)</span>
             )}
           </p>
@@ -423,19 +440,23 @@ export default function GearHeatmap({
         new Set(rawData.map((d: GearData) => d.gear))
       ).sort((a, b) => {
         const aValue = rawData.reduce(
-          (sum, curr) =>
-            sum +
-            (curr.gear === a && typeof curr[selectedMetric] === "number"
-              ? curr[selectedMetric]
-              : 0),
+          (sum, curr) => {
+            // Only add values that are actually numbers and not null/undefined
+            if (curr.gear === a && curr[selectedMetric] !== undefined && curr[selectedMetric] !== null) {
+              return sum + (typeof curr[selectedMetric] === "number" ? curr[selectedMetric] : 0);
+            }
+            return sum;
+          },
           0
         );
         const bValue = rawData.reduce(
-          (sum, curr) =>
-            sum +
-            (curr.gear === b && typeof curr[selectedMetric] === "number"
-              ? curr[selectedMetric]
-              : 0),
+          (sum, curr) => {
+            // Only add values that are actually numbers and not null/undefined
+            if (curr.gear === b && curr[selectedMetric] !== undefined && curr[selectedMetric] !== null) {
+              return sum + (typeof curr[selectedMetric] === "number" ? curr[selectedMetric] : 0);
+            }
+            return sum;
+          },
           0
         );
         return bValue - aValue;
@@ -447,9 +468,14 @@ export default function GearHeatmap({
           name: capitalizeGearType(gear.replace(/_/g, " ")),
         };
 
-        // Add data for each BMU
+        // First initialize all BMUs with undefined
+        uniqueBMUs.forEach(bmu => {
+          gearData[bmu] = undefined;
+        });
+
+        // Add data for each BMU that has values
         rawData.forEach((d: GearData) => {
-          if (d.gear === gear && typeof d[selectedMetric] === "number") {
+          if (d.gear === gear && d[selectedMetric] !== undefined && d[selectedMetric] !== null) {
             gearData[d.BMU] = Number(d[selectedMetric].toFixed(2));
           }
         });

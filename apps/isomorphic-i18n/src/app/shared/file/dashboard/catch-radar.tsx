@@ -84,18 +84,24 @@ const CustomTooltip = ({ active, payload, metric, t }: any) => {
             payload[0]?.payload?.month || ""}
         </p>
         <div className="space-y-1.5">
-          {payload.map((entry: any) => (
-            <div key={entry.dataKey} className="flex items-center gap-2">
-              <div
-                className="w-3 h-3 rounded-full"
-                style={{ backgroundColor: entry.color }}
-              />
-              <p className="text-sm">
-                <span className="font-medium">{entry.name}:</span>{" "}
-                <span className="font-semibold">{entry.value?.toFixed(1) ?? t("text-na")}</span>
-              </p>
-            </div>
-          ))}
+          {payload.map((entry: any) => {
+            // Check if the value is undefined, null, or 0 when it should be N/A
+            const isValidValue = entry.value !== undefined && entry.value !== null;
+            const displayValue = isValidValue ? entry.value.toFixed(1) : t("text-na");
+            
+            return (
+              <div key={entry.dataKey} className="flex items-center gap-2">
+                <div
+                  className="w-3 h-3 rounded-full"
+                  style={{ backgroundColor: entry.color }}
+                />
+                <p className="text-sm">
+                  <span className="font-medium">{entry.name}:</span>{" "}
+                  <span className="font-semibold">{displayValue}</span>
+                </p>
+              </div>
+            );
+          })}
         </div>
       </div>
     );
@@ -294,24 +300,41 @@ export default function CatchRadarChart({
           );
         setVisibilityState(newVisibilityState);
 
+        // Create a map to track which sites have data for which months
+        const dataMap: Record<string, Record<string, number | string>> = {};
+        
+        // First pass: collect all available data
+        meanCatch.forEach((item) => {
+          const month = item.month;
+          if (!dataMap[month]) {
+            dataMap[month] = { month, monthDisplay: month };
+          }
+          
+          // Add any data values present in this item
+          Object.entries(item).forEach(([key, value]) => {
+            if (key !== 'month' && key !== 'monthDisplay' && value !== undefined && value !== null) {
+              dataMap[month][key] = value as string | number;
+            }
+          });
+        });
+        
         // Process and sort the data by month
-        let processedData = [...meanCatch]
-          .sort(
-            (a, b) =>
-              MONTH_ORDER.indexOf(a.month) - MONTH_ORDER.indexOf(b.month)
-          )
-          .map((item) => {
+        let processedData = MONTH_ORDER
+          .filter(month => dataMap[month]) // Only include months that have data
+          .map(month => {
             const completeItem: RadarData = { 
-              month: item.month,
-              monthDisplay: item.month
+              month, 
+              monthDisplay: month 
             };
             
-            uniqueSites.forEach((site) => {
-              completeItem[site] =
-                (item as Record<string, number | string>)[site] !== undefined
-                  ? (item as Record<string, number | string>)[site]
-                  : 0;
+            // For each site, use the value from dataMap if available, otherwise undefined
+            // Using undefined instead of 0 ensures proper gaps in visualizations
+            uniqueSites.forEach(site => {
+              completeItem[site] = dataMap[month][site] !== undefined 
+                ? dataMap[month][site] 
+                : undefined; // Use undefined instead of 0 to show gaps
             });
+            
             return completeItem;
           });
 
@@ -472,6 +495,7 @@ export default function CatchRadarChart({
                     dot
                     activeDot={{ r: 6, strokeWidth: 0 }}
                     isAnimationActive={false}
+                    connectNulls={false}
                   />
                 );
               })}

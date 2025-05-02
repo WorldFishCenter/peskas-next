@@ -47,7 +47,18 @@ interface PerformanceData {
 
 const BAR_COLOR = "#0c526e";
 
-const PerformanceIndicator = ({ value }: { value: number }) => {
+const PerformanceIndicator = ({ value }: { value: number | undefined | null }) => {
+  if (value === undefined || value === null) {
+    return (
+      <div className="text-xs font-medium flex items-center gap-2 text-gray-500">
+        <span>N/A</span>
+        <Tooltip content="No data available">
+          <Info className="h-4 w-4" />
+        </Tooltip>
+      </div>
+    );
+  }
+  
   let color;
   if (value >= 80) color = "text-green-600";
   else if (value >= 50) color = "text-yellow-600";
@@ -240,12 +251,12 @@ export default function PerformanceTable({
         render: (_: unknown, row: PerformanceData) => (
           <div className="space-y-1 text-center">
             <div className="font-medium flex items-center justify-center gap-1">
-              {typeof row.avgEffort === "number"
+              {typeof row.avgEffort === "number" && row.avgEffort !== null
                 ? row.avgEffort.toFixed(1)
                 : "N/A"}
             </div>
             <div className="flex justify-center">
-              <PerformanceIndicator value={row.effortPerformance ?? 0} />
+              <PerformanceIndicator value={row.effortPerformance} />
             </div>
           </div>
         ),
@@ -275,10 +286,12 @@ export default function PerformanceTable({
         render: (_: unknown, row: PerformanceData) => (
           <div className="space-y-1 text-center">
             <div className="font-medium flex items-center justify-center gap-1">
-              {typeof row.avgCPUE === "number" ? row.avgCPUE.toFixed(1) : "N/A"}
+              {typeof row.avgCPUE === "number" && row.avgCPUE !== null
+                ? row.avgCPUE.toFixed(1)
+                : "N/A"}
             </div>
             <div className="flex justify-center">
-              <PerformanceIndicator value={row.cpuePerformance ?? 0} />
+              <PerformanceIndicator value={row.cpuePerformance} />
             </div>
           </div>
         ),
@@ -308,10 +321,12 @@ export default function PerformanceTable({
         render: (_: unknown, row: PerformanceData) => (
           <div className="space-y-1 text-center">
             <div className="font-medium flex items-center justify-center gap-1">
-              {typeof row.avgCPUA === "number" ? row.avgCPUA.toFixed(1) : "N/A"}
+              {typeof row.avgCPUA === "number" && row.avgCPUA !== null
+                ? row.avgCPUA.toFixed(1)
+                : "N/A"}
             </div>
             <div className="flex justify-center">
-              <PerformanceIndicator value={row.cpuaPerformance ?? 0} />
+              <PerformanceIndicator value={row.cpuaPerformance} />
             </div>
           </div>
         ),
@@ -341,10 +356,12 @@ export default function PerformanceTable({
         render: (_: unknown, row: PerformanceData) => (
           <div className="space-y-1 text-center">
             <div className="font-medium flex items-center justify-center gap-1">
-              {typeof row.avgRPUE === "number" ? row.avgRPUE.toFixed(1) : "N/A"}
+              {typeof row.avgRPUE === "number" && row.avgRPUE !== null
+                ? row.avgRPUE.toFixed(1)
+                : "N/A"}
             </div>
             <div className="flex justify-center">
-              <PerformanceIndicator value={row.rpuePerformance ?? 0} />
+              <PerformanceIndicator value={row.rpuePerformance} />
             </div>
           </div>
         ),
@@ -374,10 +391,12 @@ export default function PerformanceTable({
         render: (_: unknown, row: PerformanceData) => (
           <div className="space-y-1 text-center">
             <div className="font-medium flex items-center justify-center gap-1">
-              {typeof row.avgRPUA === "number" ? row.avgRPUA.toFixed(1) : "N/A"}
+              {typeof row.avgRPUA === "number" && row.avgRPUA !== null
+                ? row.avgRPUA.toFixed(1)
+                : "N/A"}
             </div>
             <div className="flex justify-center">
-              <PerformanceIndicator value={row.rpuaPerformance ?? 0} />
+              <PerformanceIndicator value={row.rpuaPerformance} />
             </div>
           </div>
         ),
