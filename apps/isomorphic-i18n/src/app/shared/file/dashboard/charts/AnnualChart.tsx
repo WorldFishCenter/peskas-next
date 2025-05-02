@@ -150,7 +150,7 @@ export default function AnnualChart({
           data={chartData}
           margin={{ top: 10, right: 30, left: 10, bottom: 0 }}
           barGap={2}
-          barCategoryGap={40}
+          barCategoryGap="30%"
         >
           <CartesianGrid strokeDasharray="3 3" vertical={false} />
           <XAxis

@@ -316,9 +316,8 @@ export default function ComparisonChart({
         <BarChart
           data={chartData}
           margin={{ top: 10, right: 30, left: 10, bottom: 0 }}
-          barGap={0}
-          barCategoryGap={200}
-          barSize={30}
+          barCategoryGap="30%"
+          barSize={20}
         >
           <CartesianGrid 
             strokeDasharray="3 3" 
