@@ -98,6 +98,7 @@ export default function TrendsChart({
         hide={visibilityState[site]?.opacity === 0}
         strokeOpacity={visibilityState[site]?.opacity}
         isAnimationActive={false}
+        connectNulls={false}
       />
     ));
   };
@@ -211,6 +212,7 @@ export default function TrendsChart({
               strokeDasharray="5 5"
               name={getTranslation("text-average-of-all-bmus")}
               isAnimationActive={false}
+              connectNulls={false}
             />
           )}
           

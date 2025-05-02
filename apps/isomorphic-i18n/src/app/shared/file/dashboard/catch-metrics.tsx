@@ -516,40 +516,77 @@ export default function CatchMetricsChart({
         return year >= 2023;
       });
 
-      // Group data by date
-      const groupedData = filteredData.reduce<Record<string, ChartDataPoint>>(
-        (acc, item: ApiDataPoint) => {
-          const date = new Date(item.date).getTime();
-          if (!acc[date]) {
-            acc[date] = {
-              date,
-              ...uniqueSites.reduce(
-                (sites, site) => ({ ...sites, [site as string]: undefined }),
-                {}
-              ),
+      // Get all dates in the range
+      const dates = filteredData.map((item: ApiDataPoint) => new Date(item.date));
+      const minDate = new Date(Math.min(...dates.map(d => d.getTime())));
+      const maxDate = new Date(Math.max(...dates.map(d => d.getTime())));
+
+      // Create an array with all months in the range
+      const allMonths: number[] = [];
+      const currentDate = new Date(minDate);
+      // Ensure date is set to the first day of the month for consistent comparisons
+      currentDate.setDate(1);
+      currentDate.setHours(0, 0, 0, 0);
+
+      while (currentDate <= maxDate) {
+        allMonths.push(new Date(currentDate).getTime());
+        currentDate.setMonth(currentDate.getMonth() + 1); // Move to next month
+      }
+
+      // Create a map to track which sites have data for which months
+      const dataMap: Record<string, Record<string, number>> = {};
+
+      // Process the raw data first to ensure we don't miss any values
+      filteredData.forEach((item: ApiDataPoint) => {
+        const value = item[selectedMetric];
+        if (value === undefined || value === null) return;
+        
+        // Normalize the date to first day of month
+        const date = new Date(item.date);
+        date.setDate(1);
+        date.setHours(0, 0, 0, 0);
+        const timestamp = date.getTime();
+        
+        // Initialize the month entry if needed
+        if (!dataMap[timestamp]) {
+          dataMap[timestamp] = {};
+        }
+        
+        // Store the value
+        dataMap[timestamp][item.landing_site] = value;
+      });
+
+      // Initialize groupedData with all months in the range
+      const groupedData: Record<string, ChartDataPoint> = {};
+      allMonths.forEach(timestamp => {
+        groupedData[timestamp] = {
+          date: timestamp,
+          ...uniqueSites.reduce((sites, site) => {
+            // Use the stored value if available, otherwise undefined
+            const monthData = dataMap[timestamp];
+            return { 
+              ...sites, 
+              [site as string]: monthData ? monthData[site as string] : undefined 
             };
-          }
-          acc[date][item.landing_site] = item[selectedMetric];
-          return acc;
-        },
-        {}
-      );
+          }, {}),
+        };
+      });
 
       // Calculate average value for each date point
-        Object.keys(groupedData).forEach(dateKey => {
-          const dateData = groupedData[dateKey];
-          const values = Object.entries(dateData)
-            .filter(([key, value]) => key !== "date" && value !== undefined)
-            .map(([_, value]) => value as number);
-          
-          if (values.length > 0) {
-            const avg = values.reduce((sum, val) => sum + val, 0) / values.length;
-            groupedData[dateKey].average = parseFloat(avg.toFixed(2));
-          } else {
-            // Ensure we have an average property even if it's 0
-            groupedData[dateKey].average = 0;
-          }
-        });
+      Object.keys(groupedData).forEach(dateKey => {
+        const dateData = groupedData[dateKey];
+        const values = Object.entries(dateData)
+          .filter(([key, value]) => key !== "date" && value !== undefined)
+          .map(([_, value]) => value as number);
+        
+        if (values.length > 0) {
+          const avg = values.reduce((sum, val) => sum + val, 0) / values.length;
+          groupedData[dateKey].average = parseFloat(avg.toFixed(2));
+        } else {
+          // Set to undefined instead of 0 to create a gap in the chart
+          groupedData[dateKey].average = undefined;
+        }
+      });
 
       const processedData = Object.values(groupedData).sort(
         (a, b) => a.date - b.date

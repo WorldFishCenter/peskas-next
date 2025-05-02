@@ -355,17 +355,24 @@ export default function ComparisonChart({
           {/* Zero reference line - critical for negative values visualization */}
           <ReferenceLine y={0} stroke="#000" strokeWidth={1} />
           
-          {/* Month delimiters */}
-          {chartData.map((item) => (
-            <ReferenceLine 
-              key={`vline-${item.date}`}
-              x={item.date}
-              stroke="#e2e8f0"
-              strokeWidth={1}
-              strokeOpacity={0.7}
-              strokeDasharray="3 3"
-            />
-          ))}
+          {/* Month delimiters - ensure all months are shown */}
+          {(() => {
+            // Get all dates in sorted order
+            const dates = chartData.map(item => item.date).sort((a, b) => a - b);
+            if (dates.length === 0) return null;
+            
+            // Only show every other month's delimiter to avoid overcrowding
+            return dates.filter((_, index) => index % 2 === 0).map(date => (
+              <ReferenceLine 
+                key={`vline-${date}`}
+                x={date}
+                stroke="#e2e8f0"
+                strokeWidth={1}
+                strokeOpacity={0.7}
+                strokeDasharray="3 3"
+              />
+            ));
+          })()}
           
           {/* CIA mode with difference data */}
           {isCiaHistoricalMode && hasNewDataFormat ? (
