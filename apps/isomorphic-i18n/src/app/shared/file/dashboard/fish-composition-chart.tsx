@@ -555,8 +555,10 @@ export default function FishCompositionChart({
         
         // Get all non-zero values for the average calculation
         uniqueSites.forEach(site => {
-          if (dataPoint[site] !== undefined && dataPoint[site] > 0) {
-            values.push(dataPoint[site] as number);
+          // Use optional access pattern with nullish coalescing for TypeScript safety
+          const value = dataPoint[site] ?? undefined;
+          if (value !== undefined && value > 0) {
+            values.push(value as number);
           }
         });
         
