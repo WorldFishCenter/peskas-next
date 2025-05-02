@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useAtom } from "jotai";
 import { BarChart, Bar, ResponsiveContainer, XAxis, YAxis, CartesianGrid, Tooltip } from "recharts";
 import WidgetCard from "@components/cards/widget-card";
@@ -74,9 +74,13 @@ export default function FishCompositionComparison({
   // Get BMUs based on permissions
   const { userBMU, isAdmin, hasRestrictedAccess } = useUserPermissions();
   const effectiveBMU = bmu || userBMU;
-  const queryBmus = isAdmin 
-    ? bmus 
-    : (hasRestrictedAccess ? [effectiveBMU].filter(Boolean) as string[] : bmus);
+  
+  // Memoize queryBmus to prevent it from recalculating on every render
+  const queryBmus = useMemo(() => {
+    return isAdmin 
+      ? bmus 
+      : (hasRestrictedAccess ? [effectiveBMU].filter(Boolean) as string[] : bmus);
+  }, [isAdmin, hasRestrictedAccess, effectiveBMU, bmus]);
   
   // Get fish distribution data from the API
   const { data: fishDistributionData, isLoading: isLoadingData, error: apiError } = api.fishDistribution.monthlyTrends.useQuery({ 
@@ -101,6 +105,17 @@ export default function FishCompositionComparison({
       return newState;
     });
   };
+  
+  // Memoize the initialization of visibility state to prevent it from changing on each render
+  useEffect(() => {
+    if (categoryDisplays.length > 0 && Object.keys(visibilityState).length === 0) {
+      const initialVisibility: VisibilityState = {};
+      categoryDisplays.forEach(category => {
+        initialVisibility[category.id] = { opacity: 1 };
+      });
+      setVisibilityState(initialVisibility);
+    }
+  }, [categoryDisplays, visibilityState]);
   
   // Process data when it changes
   useEffect(() => {
@@ -169,15 +184,6 @@ export default function FishCompositionComparison({
       }));
       
       setCategoryDisplays(categoryArray);
-      
-      // Initialize visibility state if empty
-      if (Object.keys(visibilityState).length === 0) {
-        const initialVisibility: VisibilityState = {};
-        categoryArray.forEach(category => {
-          initialVisibility[category.id] = { opacity: 1 };
-        });
-        setVisibilityState(initialVisibility);
-      }
       
       // Create chart data for each BMU
       const chartDataArray = queryBmus.map(bmu => {
