@@ -6,6 +6,7 @@ import type { DefaultSession } from "next-auth";
 import type { TBmu } from "@repo/nosql/schema/bmu";
 import FileStats from "@/app/shared/file/dashboard/file-stats";
 import FishCompositionChart from "@/app/shared/file/dashboard/fish-composition-chart";
+import FishCompositionComparison from "@/app/shared/file/dashboard/fish-composition-comparison";
 
 type SerializedBmu = {
   _id: string;
@@ -20,7 +21,15 @@ type CustomSession = {
   } & DefaultSession["user"]
 }
 
-export default function CatchCompositionPage({ lang }: { lang?: string }) {
+// Fix for Next.js 14: Use proper param typing for app router pages
+interface PageProps {
+  params: {
+    lang: string;
+  };
+}
+
+export default function CatchCompositionPage({ params }: PageProps) {
+  const lang = params.lang;
   // Use simple useState like in index.tsx
   const [selectedCategory, setSelectedCategory] = useState("Octopus");
   const [activeTab, setActiveTab] = useState("trends");
@@ -33,16 +42,22 @@ export default function CatchCompositionPage({ lang }: { lang?: string }) {
   return (
     <div className="w-full">
       <div className="grid grid-cols-1 gap-5 xl:gap-6">
-        <FileStats lang={lang} bmu={userBmu} />
         <div className="grid grid-cols-12 gap-5 xl:gap-6">
           <div className="col-span-12">
             <FishCompositionChart 
-              lang={lang} 
+              lang={lang}
               bmu={userBmu} 
               selectedCategory={selectedCategory}
               onCategoryChange={setSelectedCategory}
               activeTab={activeTab}
               onTabChange={setActiveTab}
+            />
+          </div>
+          
+          <div className="col-span-12">
+            <FishCompositionComparison
+              lang={lang}
+              bmu={userBmu}
             />
           </div>
         </div>
