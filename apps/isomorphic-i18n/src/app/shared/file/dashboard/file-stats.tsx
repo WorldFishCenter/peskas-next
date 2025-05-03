@@ -289,6 +289,8 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
     const entry = data.activePayload[0];
     const metricId = entry.payload.metricId;
     const day = entry.payload.day;
+    const currentIndex = entry.payload.index;
+    const chartData = statsData.find(s => s.id === metricId)?.chart || [];
     
     setSelectedMonth(day);
     setComparisonValues(prev => ({
@@ -299,16 +301,41 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
         date: getMonthName(day)
       }
     }));
-  }, [canCompareWithOthers]);
+
+    // Update hoveredPercentages for clicked bar
+    if (currentIndex > 0 && chartData.length > 0) {
+      const currentMonth = getMonthName(day);
+      const prevMonth = getMonthName(chartData[currentIndex - 1].day);
+      const monthComparison = `${prevMonth} → ${currentMonth}`;
+      
+      const currentValue = entry.payload.reference;
+      const previousValue = chartData[currentIndex - 1].reference;
+      
+      if (previousValue && previousValue !== 0) {
+        const change = ((currentValue - previousValue) / previousValue) * 100;
+        if (!isNaN(change)) {
+          const percentage = change > 0 ? `+${Math.round(change)}%` : `${Math.round(change)}%`;
+          setHoveredPercentages(prev => ({
+            ...prev,
+            [metricId]: {
+              percentage,
+              increased: change > 0,
+              monthComparison
+            }
+          }));
+        }
+      }
+    }
+  }, [canCompareWithOthers, statsData]);
 
   const handleMouseMove = useCallback((state: any) => {
     if (state.activePayload && state.activePayload.length > 0) {
       const entry = state.activePayload[0];
       const currentIndex = entry.payload.index;
-      const data = entry.payload.data;
       const metricId = entry.payload.metricId;
+      const chartData = statsData.find(s => s.id === metricId)?.chart || [];
       
-      if (currentIndex >= 0 && data) {
+      if (currentIndex >= 0 && chartData.length > 0) {
         // Update comparison values
         setComparisonValues(prev => ({
           ...prev,
@@ -321,12 +348,12 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
         
         // Calculate percentage change
         if (currentIndex > 0) {
-          const currentMonth = getMonthName(data[currentIndex].day);
-          const prevMonth = getMonthName(data[currentIndex - 1].day);
+          const currentMonth = getMonthName(entry.payload.day);
+          const prevMonth = getMonthName(chartData[currentIndex - 1].day);
           const monthComparison = `${prevMonth} → ${currentMonth}`;
           
-          const currentValue = entry.value;
-          const previousValue = data[currentIndex - 1].sale;
+          const currentValue = entry.payload.reference;
+          const previousValue = chartData[currentIndex - 1].reference;
           
           if (previousValue && previousValue !== 0) {
             const change = ((currentValue - previousValue) / previousValue) * 100;
@@ -345,7 +372,7 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
         }
       }
     }
-  }, [canCompareWithOthers]);
+  }, [canCompareWithOthers, statsData]);
 
   if (loading) return <LoadingState />;
   if (error) return <div className="min-w-[292px] w-full p-4 text-center text-gray-500">{error}</div>;
@@ -426,6 +453,12 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
                   hide={true} 
                   domain={[(dataMin: number) => 0, (dataMax: number) => dataMax * 1.1]} 
                 />
+                <Tooltip 
+                  cursor={{fill: 'rgba(200, 200, 200, 0.1)'}} 
+                  content={<></>} // Empty content to disable default tooltip but keep hover behavior
+                  isAnimationActive={false}
+                  allowEscapeViewBox={{ x: true, y: true }}
+                />
                 <Bar
                   dataKey="reference"
                   fill="#fc3468"
@@ -433,6 +466,8 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
                   radius={[2, 2, 0, 0]}
                   maxBarSize={7}
                   minPointSize={3}
+                  isAnimationActive={false}
+                  activeBar={{ fill: '#d81b4a', stroke: '#d81b4a', strokeWidth: 1 }}
                 />
                 {canCompareWithOthers && effectiveBMU && (
                   <Bar
@@ -442,6 +477,8 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
                     radius={[2, 2, 0, 0]}
                     maxBarSize={7}
                     minPointSize={3}
+                    isAnimationActive={false}
+                    activeBar={{ fill: 'rgba(128, 188, 188, 1)', stroke: 'rgba(128, 188, 188, 1)', strokeWidth: 1 }}
                   />
                 )}
               </BarChart>
