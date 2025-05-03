@@ -64,7 +64,7 @@ const sessObjectToDropdown = (session: DefaultSession & CustomSession) => {
 
 export const dropdownAtom = atomWithStorage<DropdownTypes[]>('dropdown', [], undefined, { getOnInit: true });
 export const bmusAtom = atomWithStorage<string[]>('bmus', [], undefined, { getOnInit: true });
-export const viewModeAtom = atomWithStorage<'bmu' | 'region'>('viewMode', 'bmu', undefined, { getOnInit: true });
+export const viewModeAtom = atomWithStorage<'bmu' | 'region'>('viewMode', 'region', undefined, { getOnInit: true });
 
 export const FilterSelector = () => {
   const { t } = useTranslation("common");
@@ -76,7 +76,7 @@ export const FilterSelector = () => {
   const [dropdown, setBmusDropdown] = useAtom(dropdownAtom);
   const [bmus, setBmus] = useAtom(bmusAtom);
   const [viewMode, setViewMode] = useAtom(viewModeAtom);
-  const { isAdmin, adminReferenceBmu } = useUserPermissions();
+  const { isAdmin, adminReferenceBmu, setAdminReferenceBmu } = useUserPermissions();
 
   useEffect(() => {
     if (status === 'authenticated') {
@@ -181,6 +181,23 @@ export const FilterSelector = () => {
                 ? (t("text-region-view-info") || "Showing one representative BMU from each region") 
                 : (t("text-bmu-view-info") || "Showing individually selected BMUs")}
             </div>
+            
+            <p className="text-sm font-medium text-gray-700 mb-2 mt-4">
+              {t("text-reference-bmu") || "Reference BMU"}
+            </p>
+            <div className="text-xs text-gray-500 mb-2">
+              {adminReferenceBmu 
+                ? t("text-reference-selected") || `Using ${adminReferenceBmu} as reference` 
+                : t("text-no-reference") || "Click a BMU star (★) to set as reference"}
+            </div>
+            {adminReferenceBmu && (
+              <button
+                className="text-xs text-red-600 hover:text-red-700 font-medium"
+                onClick={() => setAdminReferenceBmu(null)}
+              >
+                {t("text-clear-selection") || "Clear selection"}
+              </button>
+            )}
           </div>
         )}
         
@@ -222,7 +239,8 @@ const FilterGroup = ({
 }) => {
   const [bmus, setBmus] = useAtom(bmusAtom);
   const { data: session } = useSession();
-  const { isAdmin, isCiaUser } = useUserPermissions();
+  const { isAdmin, isCiaUser, setAdminReferenceBmu } = useUserPermissions();
+  const { t } = useTranslation("common");
 
   const handleBmuSelect = (unit: string) => {
     // For the CIA group, ensure only one BMU is selectable
@@ -257,28 +275,71 @@ const FilterGroup = ({
       setBmus([...bmus, unit]);
     }
   };
+  
+  const handleReferenceSelect = (unit: string) => {
+    if (isAdmin) {
+      // Toggle reference BMU
+      setAdminReferenceBmu(referenceBmu === unit ? null : unit);
+      
+      // Also select the BMU if it's not already selected
+      if (referenceBmu !== unit && !bmus.includes(unit)) {
+        // For region view, we need to handle region selection differently
+        if (viewMode === 'region' && typeof bmuSection !== 'string') {
+          const section = bmuSection as DropdownTypes;
+          
+          // Remove all other BMUs from this region
+          const filteredBmus = bmus.filter(bmu => {
+            if (section.units.some(u => u.value === bmu)) {
+              return false; // Remove BMUs from this region
+            }
+            return true; // Keep BMUs from other regions
+          });
+          
+          // Add the newly selected BMU
+          setBmus([...filteredBmus, unit]);
+        } else {
+          // Standard selection for BMU view
+          setBmus([...bmus, unit]);
+        }
+      }
+    }
+  };
 
   if (typeof bmuSection === "string" && searchFilter) {
     const unit = bmuSection as string;
     const isReferenceBmu = referenceBmu === unit;
 
     return (
-      <Checkbox
-        key={unit}
-        label={
-          <span className={cn(
-            "flex items-center",
-            isReferenceBmu ? "text-yellow-600 font-medium" : ""
-          )}>
-            {unit}
-            {isReferenceBmu && (
-              <span className="ml-1 text-yellow-500">★</span>
+      <div className="flex items-center justify-between">
+        <Checkbox
+          key={unit}
+          label={
+            <span className={cn(
+              "flex items-center",
+              isReferenceBmu ? "text-yellow-600 font-medium" : ""
+            )}>
+              {unit}
+              {isReferenceBmu && (
+                <span className="ml-1 text-yellow-500">★</span>
+              )}
+            </span>
+          }
+          checked={bmus.findIndex((filter) => filter === unit) !== -1}
+          onChange={() => handleBmuSelect(unit)}
+        />
+        {isAdmin && (
+          <button
+            className={cn(
+              "ml-2 text-lg", 
+              isReferenceBmu ? "text-yellow-500" : "text-gray-300 hover:text-yellow-500"
             )}
-          </span>
-        }
-        checked={bmus.findIndex((filter) => filter === unit) !== -1}
-        onChange={() => handleBmuSelect(unit)}
-      />
+            onClick={() => handleReferenceSelect(unit)}
+            title={t("text-set-as-reference") || "Set as reference BMU"}
+          >
+            ★
+          </button>
+        )}
+      </div>
     );
   } else {
     const section = bmuSection as DropdownTypes;
@@ -347,23 +408,36 @@ const FilterGroup = ({
             const isReferenceBmu = referenceBmu === unit.value;
             
             return (
-              <Checkbox
-                key={unit.value}
-                label={
-                  <span className={cn(
-                    isReferenceBmu ? "text-yellow-600 font-medium" : ""
-                  )}>
-                    {unit.value}
-                    {isReferenceBmu && (
-                      <span className="ml-1 text-yellow-500">★</span>
+              <div key={unit.value} className="flex items-center justify-between">
+                <Checkbox
+                  label={
+                    <span className={cn(
+                      isReferenceBmu ? "text-yellow-600 font-medium" : ""
+                    )}>
+                      {unit.value}
+                      {isReferenceBmu && (
+                        <span className="ml-1 text-yellow-500">★</span>
+                      )}
+                    </span>
+                  }
+                  checked={bmus.includes(unit.value)}
+                  onChange={() => handleBmuSelect(unit.value)}
+                  disabled={disabled}
+                  className={disabled ? "opacity-50" : ""}
+                />
+                {isAdmin && !disabled && (
+                  <button
+                    className={cn(
+                      "ml-2 text-lg", 
+                      isReferenceBmu ? "text-yellow-500" : "text-gray-300 hover:text-yellow-500"
                     )}
-                  </span>
-                }
-                checked={bmus.includes(unit.value)}
-                onChange={() => handleBmuSelect(unit.value)}
-                disabled={disabled}
-                className={disabled ? "opacity-50" : ""}
-              />
+                    onClick={() => handleReferenceSelect(unit.value)}
+                    title={t("text-set-as-reference") || "Set as reference BMU"}
+                  >
+                    ★
+                  </button>
+                )}
+              </div>
             );
           })}
         </div>

@@ -72,15 +72,15 @@ export default function FishCompositionComparison({
     
     // For restricted users, only show their BMU
     if (hasRestrictedAccess) {
-      return [effectiveBMU].filter(Boolean) as string[];
+      return effectiveBMU ? [effectiveBMU] : [];
     }
     
     // For others, show all selected BMUs
     return bmus;
-  }, [isAdmin, hasRestrictedAccess, effectiveBMU, bmus, getLimitedBMUs]);
+  }, [isAdmin, hasRestrictedAccess, effectiveBMU, bmus]);
   
-  // Get fish distribution data from the API
-  const { data: fishDistributionData, isLoading: isLoadingData, error: apiError } = api.fishDistribution.monthlyTrends.useQuery({ 
+  // Memoize the API query to prevent re-fetching on every render
+  const fishDistributionQuery = api.fishDistribution.monthlyTrends.useQuery({ 
     bmus: queryBmus,
   }, {
     retry: 3,
@@ -88,6 +88,11 @@ export default function FishCompositionComparison({
     staleTime: 1000 * 60 * 5,
     enabled: queryBmus.length > 0,
   });
+  
+  // Extract data from the query
+  const fishDistributionData = fishDistributionQuery.data;
+  const isLoadingData = fishDistributionQuery.isLoading;
+  const apiError = fishDistributionQuery.error;
 
   // Handle legend item click
   const handleLegendClick = (categoryId: string) => {
@@ -112,7 +117,7 @@ export default function FishCompositionComparison({
       });
       setVisibilityState(initialVisibility);
     }
-  }, [categoryDisplays, visibilityState]);
+  }, [categoryDisplays.length, Object.keys(visibilityState).length]);
   
   // Process data when it changes
   useEffect(() => {
@@ -256,7 +261,7 @@ export default function FishCompositionComparison({
       setError("Error processing data");
       setLoading(false);
     }
-  }, [fishDistributionData, isLoadingData, apiError, queryBmus]);
+  }, [fishDistributionData, isLoadingData, apiError, queryBmus.join(',')]);
   
   // Custom tooltip for the chart
   const CustomTooltip = ({ active, payload, label }: any) => {

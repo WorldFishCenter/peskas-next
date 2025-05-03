@@ -105,15 +105,16 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
     getAccessibleBMUs,
     hasRestrictedAccess,
     shouldShowAggregated,
-    canCompareWithOthers
+    canCompareWithOthers,
+    referenceBMU
   } = useUserPermissions();
   
-  const effectiveBMU = bmu || userBMU;
+  const effectiveBMU = bmu || referenceBMU || userBMU;
   
-  const displayName = isAdmin ? "All BMUs" : effectiveBMU || "Selected BMU";
+  const displayName = effectiveBMU || "All BMUs";
   
   const { data: statsData1, isLoading: isLoading1, error: error1 } = api.monthlyStats.allStats.useQuery({ 
-    bmus: isAdmin ? bmus : (hasRestrictedAccess ? [effectiveBMU].filter(Boolean) as string[] : bmus)
+    bmus: effectiveBMU ? [effectiveBMU] : (isAdmin ? bmus : (hasRestrictedAccess ? [effectiveBMU].filter(Boolean) as string[] : bmus))
   }, {
     retry: 3,
     retryDelay: 1000,
@@ -383,7 +384,7 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
                 <div className="w-1.5 h-1.5 rounded-full bg-[#fc3468]" />
                 <span>{displayName}</span>
               </div>
-              {canCompareWithOthers && (
+              {canCompareWithOthers && effectiveBMU && (
                 <div className="flex items-center gap-1">
                   <div className="w-1.5 h-1.5 rounded-full bg-[rgba(178,216,216,0.75)]" />
                   <span>Other BMUs</span>
@@ -416,7 +417,7 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
                   maxBarSize={7}
                   minPointSize={3}
                 />
-                {canCompareWithOthers && (
+                {canCompareWithOthers && effectiveBMU && (
                   <Bar
                     dataKey="others"
                     fill="rgba(178, 216, 216, 0.75)"
@@ -435,7 +436,7 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
               <span className="text-2xs text-gray-500">{displayName}</span>
               <span className="font-medium">{comparisonValues[stat.id]?.reference || "-"}</span>
             </div>
-            {canCompareWithOthers && (
+            {canCompareWithOthers && effectiveBMU && (
               <div className="flex flex-col">
                 <span className="text-2xs text-gray-500">Other BMUs</span>
                 <span className="font-medium">{comparisonValues[stat.id]?.others || "-"}</span>

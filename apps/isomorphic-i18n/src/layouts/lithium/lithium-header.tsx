@@ -30,7 +30,6 @@ import { useSession } from "next-auth/react";
 import type { TBmu } from "@repo/nosql/schema/bmu";
 import LanguageLink from "@/app/i18n/language-link";
 import useUserPermissions from "@/app/shared/file/dashboard/hooks/useUserPermissions";
-import AdminReferenceSelector from "@/app/components/admin-reference-selector";
 
 type SerializedBmu = {
   _id: string;
@@ -82,12 +81,9 @@ function ReferenceBMU() {
 }
 
 function HeaderMenuRight({ lang }: { lang?: string }) {
-  const { isAdmin } = useUserPermissions();
-  
   return (
     <div className="ms-auto flex shrink-0 items-center gap-1 text-gray-700 xs:gap-2 md:gap-3 xl:gap-4">
       <ReferenceBMU />
-      {isAdmin && <AdminReferenceSelector lang={lang} />}
       <FilterSelector />
       <ThemeToggle />
       <ProfileMenu
