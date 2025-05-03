@@ -313,17 +313,19 @@ const FilterGroup = ({
     const isReferenceBmu = referenceBmu === unit;
 
     return (
-      <div className="flex items-center justify-between">
-        <Checkbox
-          key={unit}
-          label={unit}
-          checked={bmus.includes(unit)}
-          onChange={() => handleBmuSelect(unit)}
-        />
+      <div className="flex items-center justify-between pr-2">
+        <div className="flex-grow">
+          <Checkbox
+            key={unit}
+            label={unit}
+            checked={bmus.includes(unit)}
+            onChange={() => handleBmuSelect(unit)}
+          />
+        </div>
         {isAdmin && (
           <button
             className={cn(
-              "ml-1 text-lg", 
+              "ml-4 text-lg flex-shrink-0 w-6 h-6 flex items-center justify-center", 
               isReferenceBmu ? "text-yellow-500" : "text-gray-300 hover:text-yellow-500"
             )}
             onClick={() => handleReferenceSelect(unit)}
@@ -401,18 +403,20 @@ const FilterGroup = ({
             const isReferenceBmu = referenceBmu === unit.value;
             
             return (
-              <div key={unit.value} className="flex items-center justify-between">
-                <Checkbox
-                  label={unit.value}
-                  checked={bmus.includes(unit.value)}
-                  onChange={() => handleBmuSelect(unit.value)}
-                  disabled={disabled}
-                  className={disabled ? "opacity-50" : ""}
-                />
+              <div key={unit.value} className="flex items-center justify-between pr-2">
+                <div className="flex-grow">
+                  <Checkbox
+                    label={unit.value}
+                    checked={bmus.includes(unit.value)}
+                    onChange={() => handleBmuSelect(unit.value)}
+                    disabled={disabled}
+                    className={disabled ? "opacity-50" : ""}
+                  />
+                </div>
                 {isAdmin && !disabled && (
                   <button
                     className={cn(
-                      "ml-1 text-lg", 
+                      "ml-4 text-lg flex-shrink-0 w-6 h-6 flex items-center justify-center", 
                       isReferenceBmu ? "text-yellow-500" : "text-gray-300 hover:text-yellow-500"
                     )}
                     onClick={() => handleReferenceSelect(unit.value)}
