@@ -24,8 +24,8 @@ type FileStatsType = {
 
 interface ChartPoint {
   day: string;
-  reference: number;
-  others?: number;
+  reference: number | null;
+  others?: number | null;
   index: number;
   metricId: string;
 }
@@ -41,33 +41,33 @@ interface StatsResponse {
   effort: {
     current: number;
     percentage: number;
-    trend: Array<{ day: string; sale: number }>;
+    trend: Array<{ day: string; sale: number | null }>;
   };
   cpue: {
     current: number;
     percentage: number;
-    trend: Array<{ day: string; sale: number }>;
+    trend: Array<{ day: string; sale: number | null }>;
   };
   cpua: {
     current: number;
     percentage: number;
-    trend: Array<{ day: string; sale: number }>;
+    trend: Array<{ day: string; sale: number | null }>;
   };
   rpue: {
     current: number;
     percentage: number;
-    trend: Array<{ day: string; sale: number }>;
+    trend: Array<{ day: string; sale: number | null }>;
   };
   rpua: {
     current: number;
     percentage: number;
-    trend: Array<{ day: string; sale: number }>;
+    trend: Array<{ day: string; sale: number | null }>;
   };
 }
 
 interface ComparisonValue {
-  reference: number;
-  others?: number;
+  reference: number | null;
+  others?: number | null;
   date: string;
 }
 
@@ -199,7 +199,8 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
           const prevMonth = getMonthName(trend[trend.length - 2].day);
           monthComparison = `${prevMonth} → ${lastMonth}`;
           
-          if (previousValue && previousValue !== 0) {
+          if (previousValue !== null && previousValue !== undefined && previousValue !== 0 && 
+              lastValue !== null && lastValue !== undefined) {
             const change = ((lastValue - previousValue) / previousValue) * 100;
             if (!isNaN(change)) {
               defaultPercentage = change > 0 ? `+${Math.round(change)}%` : `${Math.round(change)}%`;
@@ -238,8 +239,10 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
         // Create chart data points
         const chartData = trend.map((point, index) => ({
           day: point.day || '',
-          reference: point.sale || 0,
-          others: canCompareWithOthers && otherBmusMetric?.trend?.[index]?.sale || 0,
+          reference: point.sale === null || point.sale === undefined ? null : point.sale,
+          others: canCompareWithOthers && otherBmusMetric?.trend?.[index] ? 
+            (otherBmusMetric.trend[index].sale === null || otherBmusMetric.trend[index].sale === undefined ? 
+              null : otherBmusMetric.trend[index].sale) : null,
           index,
           metricId: metric.id
         }));
@@ -412,9 +415,9 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
             
             <div className="flex items-baseline gap-2 mt-0.5">
               <Text className="text-xl font-bold text-gray-900">
-                {comparisonValues[stat.id]?.reference ? 
-                  comparisonValues[stat.id].reference.toLocaleString() : 
-                  stat.metric}
+                {!comparisonValues[stat.id] ? stat.metric : 
+                  (comparisonValues[stat.id]?.reference === null || comparisonValues[stat.id]?.reference === undefined ? 
+                  "N/A" : comparisonValues[stat.id]?.reference?.toLocaleString() || "-")}
               </Text>
               {hoveredPercentages[stat.id] && (
                 <span className="text-2xs text-gray-500">
@@ -454,7 +457,7 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
                   domain={[(dataMin: number) => 0, (dataMax: number) => dataMax * 1.1]} 
                 />
                 <Tooltip 
-                  cursor={{fill: 'rgba(200, 200, 200, 0.1)'}} 
+                  cursor={false} 
                   content={<></>} // Empty content to disable default tooltip but keep hover behavior
                   isAnimationActive={false}
                   allowEscapeViewBox={{ x: true, y: true }}
@@ -488,12 +491,20 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
           <div className="px-3 py-2 border-t border-gray-100 bg-gray-50/30 flex justify-between text-xs">
             <div className="flex flex-col">
               <span className="text-2xs text-gray-500">{displayName}</span>
-              <span className="font-medium">{comparisonValues[stat.id]?.reference || "-"}</span>
+              <span className="font-medium">
+                {!comparisonValues[stat.id] ? "-" : 
+                  (comparisonValues[stat.id]?.reference === null || comparisonValues[stat.id]?.reference === undefined ? 
+                  "N/A" : comparisonValues[stat.id]?.reference?.toLocaleString() || "-")}
+              </span>
             </div>
             {canCompareWithOthers && effectiveBMU && (
               <div className="flex flex-col">
                 <span className="text-2xs text-gray-500">Other BMUs</span>
-                <span className="font-medium">{comparisonValues[stat.id]?.others || "-"}</span>
+                <span className="font-medium">
+                  {!comparisonValues[stat.id] ? "-" : 
+                    (comparisonValues[stat.id]?.others === null || comparisonValues[stat.id]?.others === undefined ? 
+                    "N/A" : comparisonValues[stat.id]?.others?.toLocaleString() || "-")}
+                </span>
               </div>
             )}
           </div>
