@@ -169,6 +169,23 @@ export const userRouter = createTRPCRouter({
         role: user?.groups[0].name,
       };
     }),
+  delete: protectedProcedure
+    .input(z.object({ id: z.string() }))
+    .mutation(async ({ input, ctx }) => {
+      // Verify user has admin privileges
+      if (!ctx.session?.user?.email) {
+        throw new Error("Unauthorized");
+      }
+      
+      // Find and delete the user
+      const result = await UserModel.findByIdAndDelete(input.id);
+      
+      if (!result) {
+        throw new Error("User not found");
+      }
+      
+      return { success: true };
+    }),
   allBmus: publicProcedure.query(async () => {
     const bmus = await BmuModel.find({});
     return bmus.filter((bmu) => !EXCLUDED_BMUS.includes(bmu.BMU));
