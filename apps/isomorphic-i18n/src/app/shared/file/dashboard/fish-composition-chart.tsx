@@ -736,14 +736,14 @@ export default function FishCompositionChart({
       switch(tab) {
         case 'trends':
         case 'standard':
-          return t("text-monthly-trends-over-time");
+          return t("text-monthly-trends-over-time") + " (kg)";
         case 'comparison':
         case 'recent':
-          return t("text-performance-vs-6-month-average") || "Performance vs 6-Month Average";
+          return t("text-performance-vs-6-month-average") + " (kg)" || "Performance vs 6-Month Average (kg)";
         case 'annual':
-          return t("text-yearly-summary");
+          return t("text-yearly-summary") + " (kg)";
         default:
-          return t("text-monthly-trends-over-time");
+          return t("text-monthly-trends-over-time") + " (kg)";
       }
     }
     
@@ -751,14 +751,14 @@ export default function FishCompositionChart({
     switch(tab) {
       case 'trends':
       case 'standard':
-        return t("text-monthly-trends-over-time");
+        return t("text-monthly-trends-over-time") + " (kg)";
       case 'comparison':
       case 'recent':
-        return t("text-performance-vs-average");
+        return t("text-performance-vs-average") + " (kg)";
       case 'annual':
-        return t("text-yearly-summary");
+        return t("text-yearly-summary") + " (kg)";
       default:
-        return t("text-monthly-trends-over-time");
+        return t("text-monthly-trends-over-time") + " (kg)";
     }
   };
   
@@ -768,14 +768,14 @@ export default function FishCompositionChart({
       switch(tab) {
         case 'trends':
         case 'standard':
-          return t("text-trends-explanation");
+          return t("text-trends-explanation") || "Shows how fish catch weight changes month by month";
         case 'comparison':
         case 'recent':
-          return t("text-cia-comparison-explanation") || "Shows values compared to your 6-month average";
+          return t("text-cia-comparison-explanation") || "Shows fish catch weight compared to your 6-month average";
         case 'annual':
-          return t("text-yearly-explanation");
+          return t("text-yearly-explanation") || "Shows average fish catch weight for each year";
         default:
-          return t("text-trends-explanation");
+          return t("text-trends-explanation") || "Shows how fish catch weight changes month by month";
       }
     }
     
@@ -783,21 +783,21 @@ export default function FishCompositionChart({
     switch(tab) {
       case 'trends':
       case 'standard':
-        return t("text-trends-explanation");
+        return t("text-trends-explanation") || "Shows how fish catch weight changes month by month";
       case 'comparison':
       case 'recent':
-        return t("text-comparison-explanation");
+        return t("text-comparison-explanation") || "Shows fish catch weight compared to the average";
       case 'annual':
-        return t("text-yearly-explanation");
+        return t("text-yearly-explanation") || "Shows average fish catch weight for each year";
       default:
-        return t("text-trends-explanation");
+        return t("text-trends-explanation") || "Shows how fish catch weight changes month by month";
     }
   };
 
   if (loading) return <LoadingState />;
   if (!chartData || chartData.length === 0) {
     return (
-      <WidgetCard title={t("text-fish-distribution")}>
+      <WidgetCard title={t("text-fish-distribution") + " (kg)"}>
         <div className="h-96 w-full flex items-center justify-center">
           <span className="text-sm text-gray-500">{t("text-no-data")}</span>
         </div>
@@ -810,12 +810,15 @@ export default function FishCompositionChart({
       title={
         <div className="flex flex-col sm:flex-row items-start sm:items-center sm:justify-between w-full gap-3">
           <div className="w-full sm:w-auto">
-            <FishCategorySelector
-              selectedCategory={selectedCategory}
-              onCategoryChange={onCategoryChange}
-              selectedCategoryOption={selectedCategoryOption}
-              fishCategories={FISH_CATEGORIES}
-            />
+            <div className="flex items-center">
+              <FishCategorySelector
+                selectedCategory={selectedCategory}
+                onCategoryChange={onCategoryChange}
+                selectedCategoryOption={selectedCategoryOption}
+                fishCategories={FISH_CATEGORIES}
+              />
+              <span className="ml-2 text-xs text-gray-500">(kg)</span>
+            </div>
           </div>
           <div className="hidden sm:block text-base font-medium text-gray-800 mx-auto">
             <div className="text-center">
