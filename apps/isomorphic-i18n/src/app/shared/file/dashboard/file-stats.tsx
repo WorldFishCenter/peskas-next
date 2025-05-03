@@ -13,7 +13,6 @@ import TrendingDownIcon from "@components/icons/trending-down";
 import { useTranslation } from "@/app/i18n/client";
 import { api } from "@/trpc/react";
 import { bmusAtom } from "@/app/components/filter-selector";
-import WidgetCard from "@components/cards/widget-card";
 import useUserPermissions from "./hooks/useUserPermissions";
 
 type FileStatsType = {
@@ -121,12 +120,8 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
   // Get user permissions
   const {
     userBMU,
-    isCiaUser,
-    isWbciaUser,
     isAdmin,
-    getAccessibleBMUs,
     hasRestrictedAccess,
-    shouldShowAggregated,
     canCompareWithOthers,
     referenceBMU
   } = useUserPermissions();
@@ -229,8 +224,10 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
           setComparisonValues(prev => ({
             ...prev,
             [metric.id]: {
-              reference: Math.round(lastPoint.sale || 0),
-              others: canCompareWithOthers ? Math.round(lastOthersPoint?.sale || 0) : undefined,
+              reference: lastPoint.sale === null || lastPoint.sale === undefined ? null : Math.round(lastPoint.sale),
+              others: canCompareWithOthers && lastOthersPoint ? 
+                (lastOthersPoint.sale === null || lastOthersPoint.sale === undefined ? 
+                null : Math.round(lastOthersPoint.sale)) : undefined,
               date: getMonthName(lastPoint.day)
             }
           }));
@@ -314,7 +311,8 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
       const currentValue = entry.payload.reference;
       const previousValue = chartData[currentIndex - 1].reference;
       
-      if (previousValue && previousValue !== 0) {
+      if (previousValue !== null && previousValue !== undefined && previousValue !== 0 && 
+          currentValue !== null && currentValue !== undefined) {
         const change = ((currentValue - previousValue) / previousValue) * 100;
         if (!isNaN(change)) {
           const percentage = change > 0 ? `+${Math.round(change)}%` : `${Math.round(change)}%`;
@@ -358,7 +356,8 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
           const currentValue = entry.payload.reference;
           const previousValue = chartData[currentIndex - 1].reference;
           
-          if (previousValue && previousValue !== 0) {
+          if (previousValue !== null && previousValue !== undefined && previousValue !== 0 && 
+              currentValue !== null && currentValue !== undefined) {
             const change = ((currentValue - previousValue) / previousValue) * 100;
             if (!isNaN(change)) {
               const percentage = change > 0 ? `+${Math.round(change)}%` : `${Math.round(change)}%`;
@@ -457,10 +456,8 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
                   domain={[(dataMin: number) => 0, (dataMax: number) => dataMax * 1.1]} 
                 />
                 <Tooltip 
-                  cursor={false} 
-                  content={<></>} // Empty content to disable default tooltip but keep hover behavior
+                  content={<></>}
                   isAnimationActive={false}
-                  allowEscapeViewBox={{ x: true, y: true }}
                 />
                 <Bar
                   dataKey="reference"
@@ -469,7 +466,6 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
                   radius={[2, 2, 0, 0]}
                   maxBarSize={7}
                   minPointSize={3}
-                  isAnimationActive={false}
                   activeBar={{ fill: '#d81b4a', stroke: '#d81b4a', strokeWidth: 1 }}
                 />
                 {canCompareWithOthers && effectiveBMU && (
@@ -480,7 +476,6 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
                     radius={[2, 2, 0, 0]}
                     maxBarSize={7}
                     minPointSize={3}
-                    isAnimationActive={false}
                     activeBar={{ fill: 'rgba(128, 188, 188, 1)', stroke: 'rgba(128, 188, 188, 1)', strokeWidth: 1 }}
                   />
                 )}
