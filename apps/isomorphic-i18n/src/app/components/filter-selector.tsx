@@ -178,7 +178,7 @@ export const FilterSelector = () => {
               </button>
               <button
                 className={cn(
-                  "px-3 py-1.5 rounded-md text-sm flex-1 transition-all",
+                  "px-3 py-1.5 rounded-md text-sm flex-1 transition-all relative",
                   viewMode === 'region' 
                     ? "bg-white shadow-sm text-primary font-medium" 
                     : "text-gray-600 hover:bg-gray-200"
@@ -186,6 +186,7 @@ export const FilterSelector = () => {
                 onClick={() => handleViewModeChange('region')}
               >
                 Region View
+                <span className="absolute -top-1 -right-1 px-1.5 py-0.5 text-[9px] font-medium bg-yellow-100 text-yellow-800 rounded-full">Beta</span>
               </button>
             </div>
             
