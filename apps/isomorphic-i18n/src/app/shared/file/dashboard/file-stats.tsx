@@ -1,7 +1,7 @@
 "use client";
 
 import { BarChart, Bar, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useAtom } from "jotai";
 import { Button, Text } from "rizzui";
 import cn from "@utils/class-names";
@@ -13,7 +13,6 @@ import TrendingDownIcon from "@components/icons/trending-down";
 import { useTranslation } from "@/app/i18n/client";
 import { api } from "@/trpc/react";
 import { bmusAtom } from "@/app/components/filter-selector";
-import { useSession } from "next-auth/react";
 import WidgetCard from "@components/cards/widget-card";
 import useUserPermissions from "./hooks/useUserPermissions";
 
@@ -27,15 +26,14 @@ interface ChartPoint {
   day: string;
   reference: number;
   others?: number;
+  index: number;
+  metricId: string;
 }
 
 interface StatData {
   id: string;
   title: string;
   metric: string;
-  increased?: boolean;
-  decreased?: boolean;
-  percentage?: string;
   chart: ChartPoint[];
 }
 
@@ -67,6 +65,29 @@ interface StatsResponse {
   };
 }
 
+interface ComparisonValue {
+  reference: number;
+  others?: number;
+  date: string;
+}
+
+interface HoveredPercentage {
+  percentage: string;
+  increased: boolean;
+  monthComparison: string;
+}
+
+// Utility function to get month name from date string
+const getMonthName = (dateStr: string): string => {
+  if (!dateStr) return '';
+  const parts = dateStr.split('-');
+  if (parts.length < 2) return dateStr;
+  const year = parts[0];
+  const month = parts[1];
+  const date = new Date(parseInt(year), parseInt(month) - 1);
+  return date.toLocaleString('default', { month: 'short' });
+};
+
 const LoadingState = () => {
   return (
     <MetricCard
@@ -92,11 +113,12 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
   const [statsData, setStatsData] = useState<StatData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [hoveredPercentages, setHoveredPercentages] = useState<{[key: string]: {percentage: string, increased: boolean, monthComparison: string}}>({});
+  const [hoveredPercentages, setHoveredPercentages] = useState<{[key: string]: HoveredPercentage}>({});
   const [selectedMonth, setSelectedMonth] = useState<string | null>(null);
-  const [comparisonValues, setComparisonValues] = useState<{[key: string]: {reference: number, others?: number, date: string}}>({});
+  const [comparisonValues, setComparisonValues] = useState<{[key: string]: ComparisonValue}>({});
   const [bmus] = useAtom(bmusAtom);
   
+  // Get user permissions
   const {
     userBMU,
     isCiaUser,
@@ -109,77 +131,64 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
     referenceBMU
   } = useUserPermissions();
   
-  const effectiveBMU = bmu || referenceBMU || userBMU;
+  // Determine effective BMU and display name
+  const effectiveBMU = useMemo(() => bmu || referenceBMU || userBMU, [bmu, referenceBMU, userBMU]);
+  const displayName = useMemo(() => effectiveBMU || "All BMUs", [effectiveBMU]);
   
-  const displayName = effectiveBMU || "All BMUs";
+  // Memoize query parameters to prevent unnecessary refetches
+  const referenceBmus = useMemo(() => 
+    effectiveBMU ? [effectiveBMU] : (isAdmin ? bmus : (hasRestrictedAccess ? [effectiveBMU].filter(Boolean) as string[] : bmus)),
+    [effectiveBMU, isAdmin, hasRestrictedAccess, bmus]
+  );
   
-  const { data: statsData1, isLoading: isLoading1, error: error1 } = api.monthlyStats.allStats.useQuery({ 
-    bmus: effectiveBMU ? [effectiveBMU] : (isAdmin ? bmus : (hasRestrictedAccess ? [effectiveBMU].filter(Boolean) as string[] : bmus))
-  }, {
+  const otherBmus = useMemo(() => 
+    canCompareWithOthers && effectiveBMU ? bmus.filter(b => b !== effectiveBMU) : [],
+    [bmus, canCompareWithOthers, effectiveBMU]
+  );
+  
+  // Fetch reference BMU data
+  const { 
+    data: statsData1, 
+    isLoading: isLoading1, 
+    error: error1 
+  } = api.monthlyStats.allStats.useQuery({ bmus: referenceBmus }, {
     retry: 3,
     retryDelay: 1000,
     staleTime: 1000 * 60 * 5,
   }) as { data: StatsResponse | undefined, isLoading: boolean, error: any };
   
-  const { data: statsData2, isLoading: isLoading2, error: error2 } = api.monthlyStats.allStats.useQuery({ 
-    bmus: canCompareWithOthers && effectiveBMU ? bmus.filter(b => b !== effectiveBMU) : []
-  }, {
+  // Fetch other BMUs data (only if needed)
+  const { 
+    data: statsData2, 
+    isLoading: isLoading2, 
+    error: error2 
+  } = api.monthlyStats.allStats.useQuery({ bmus: otherBmus }, {
     retry: 3,
     retryDelay: 1000,
     staleTime: 1000 * 60 * 5,
-    enabled: canCompareWithOthers && !!effectiveBMU,
+    enabled: otherBmus.length > 0,
   }) as { data: StatsResponse | undefined, isLoading: boolean, error: any };
 
-  useEffect(() => {
-    const otherQuery = canCompareWithOthers && effectiveBMU ? bmus.filter(b => b !== effectiveBMU) : [];
-  }, [statsData1, statsData2, isLoading1, isLoading2, error1, error2, isAdmin, bmus, effectiveBMU, canCompareWithOthers]);
+  // Define metrics once
+  const metrics = useMemo(() => [
+    { id: 'effort', field: 'effort', title: t('text-metrics-effort') },
+    { id: 'catch-rate', field: 'cpue', title: t('text-metrics-catch-rate') },
+    { id: 'catch-density', field: 'cpua', title: t('text-metrics-catch-density') },
+    { id: 'fisher-revenue', field: 'rpue', title: t('text-metrics-fisher-revenue') },
+    { id: 'area-revenue', field: 'rpua', title: t('text-metrics-area-revenue') }
+  ] as const, [t]);
 
-  useEffect(() => {
-    setLoading(isLoading1 || isLoading2);
+  // Process data with useMemo to avoid unnecessary recalculations
+  const processedData = useMemo(() => {
+    if (!statsData1 || isLoading1) return null;
     
-    if (error1 || error2) {
-      console.error("API error:", error1 || error2);
-      setError("Failed to load statistics data");
-      setLoading(false);
-      return;
-    }
-    
-    if (!isLoading1 && !statsData1) {
-      console.warn("No statistics data available");
-      setError("No statistics data available");
-      setLoading(false);
-      return;
-    }
-
-    if (!statsData1) {
-      setLoading(true);
-      return;
-    }
-
     try {
-      const metrics = [
-        { id: 'effort', field: 'effort', title: t('text-metrics-effort') },
-        { id: 'catch-rate', field: 'cpue', title: t('text-metrics-catch-rate') },
-        { id: 'catch-density', field: 'cpua', title: t('text-metrics-catch-density') },
-        { id: 'fisher-revenue', field: 'rpue', title: t('text-metrics-fisher-revenue') },
-        { id: 'area-revenue', field: 'rpua', title: t('text-metrics-area-revenue') }
-      ] as const;
-
-      const getMonthName = (dateStr: string) => {
-        if (!dateStr) return '';
-        const parts = dateStr.split('-');
-        if (parts.length < 2) return dateStr;
-        const year = parts[0];
-        const month = parts[1];
-        const date = new Date(parseInt(year), parseInt(month) - 1);
-        return date.toLocaleString('default', { month: 'short' });
-      };
-      
-      const transformedStats = metrics.map(metric => {
+      return metrics.map(metric => {
         const referenceMetric = statsData1?.[metric.field] || { current: 0, percentage: 0, trend: [] };
         const otherBmusMetric = statsData2?.[metric.field];
         const trend = referenceMetric.trend || [];
 
+        // Initialize default percentage and comparison for the last two months
         let defaultPercentage = '';
         let defaultIncreased = false;
         let monthComparison = '';
@@ -199,6 +208,7 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
           }
         }
 
+        // Initialize hover percentages
         if (defaultPercentage) {
           setHoveredPercentages(prev => ({
             ...prev,
@@ -210,6 +220,7 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
           }));
         }
 
+        // Initialize comparison values
         if (trend.length > 0) {
           const lastPoint = trend[trend.length - 1];
           const lastOthersPoint = otherBmusMetric?.trend?.[otherBmusMetric.trend.length - 1];
@@ -224,12 +235,12 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
           }));
         }
 
+        // Create chart data points
         const chartData = trend.map((point, index) => ({
           day: point.day || '',
           reference: point.sale || 0,
           others: canCompareWithOthers && otherBmusMetric?.trend?.[index]?.sale || 0,
           index,
-          data: trend,
           metricId: metric.id
         }));
 
@@ -240,18 +251,39 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
           chart: chartData
         };
       });
-
-      setStatsData(transformedStats);
-      setError(null);
     } catch (error) {
       console.error("Error transforming data:", error);
-      setError("Error processing statistics data");
-    } finally {
+      return null;
+    }
+  }, [statsData1, statsData2, metrics, canCompareWithOthers]);
+
+  // Update state based on processed data
+  useEffect(() => {
+    setLoading(isLoading1 || isLoading2);
+    
+    if (error1 || error2) {
+      console.error("API error:", error1 || error2);
+      setError("Failed to load statistics data");
+      setLoading(false);
+      return;
+    }
+    
+    if (!isLoading1 && !statsData1) {
+      console.warn("No statistics data available");
+      setError("No statistics data available");
+      setLoading(false);
+      return;
+    }
+
+    if (processedData) {
+      setStatsData(processedData);
+      setError(null);
       setLoading(false);
     }
-  }, [statsData1, statsData2, isLoading1, isLoading2, error1, error2, t, canCompareWithOthers]);
+  }, [processedData, isLoading1, isLoading2, error1, error2, statsData1]);
 
-  const handleBarClick = (data: any) => {
+  // Memoized handlers to prevent unnecessary recreations
+  const handleBarClick = useCallback((data: any) => {
     if (!data || !data.activePayload || data.activePayload.length === 0) return;
     
     const entry = data.activePayload[0];
@@ -267,57 +299,42 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
         date: getMonthName(day)
       }
     }));
-  };
-  
-  const getMonthName = (dateStr: string) => {
-    if (!dateStr) return '';
-    const parts = dateStr.split('-');
-    if (parts.length < 2) return dateStr;
-    const year = parts[0];
-    const month = parts[1];
-    const date = new Date(parseInt(year), parseInt(month) - 1);
-    return date.toLocaleString('default', { month: 'short' });
-  };
-  
-  const handleMouseMove = (state: any) => {
+  }, [canCompareWithOthers]);
+
+  const handleMouseMove = useCallback((state: any) => {
     if (state.activePayload && state.activePayload.length > 0) {
       const entry = state.activePayload[0];
       const currentIndex = entry.payload.index;
       const data = entry.payload.data;
+      const metricId = entry.payload.metricId;
       
       if (currentIndex >= 0 && data) {
-        const getMonthName = (dateStr: string) => {
-          if (!dateStr) return '';
-          const parts = dateStr.split('-');
-          if (parts.length < 2) return dateStr;
-          const year = parts[0];
-          const month = parts[1];
-          const date = new Date(parseInt(year), parseInt(month) - 1);
-          return date.toLocaleString('default', { month: 'short' });
-        };
-        
+        // Update comparison values
         setComparisonValues(prev => ({
           ...prev,
-          [entry.payload.metricId]: {
+          [metricId]: {
             reference: Math.round(entry.payload.reference),
             others: canCompareWithOthers ? Math.round(entry.payload.others || 0) : undefined,
             date: getMonthName(entry.payload.day)
           }
         }));
         
+        // Calculate percentage change
         if (currentIndex > 0) {
           const currentMonth = getMonthName(data[currentIndex].day);
           const prevMonth = getMonthName(data[currentIndex - 1].day);
           const monthComparison = `${prevMonth} → ${currentMonth}`;
           
+          const currentValue = entry.value;
           const previousValue = data[currentIndex - 1].sale;
+          
           if (previousValue && previousValue !== 0) {
-            const change = ((entry.value - previousValue) / previousValue) * 100;
+            const change = ((currentValue - previousValue) / previousValue) * 100;
             if (!isNaN(change)) {
               const percentage = change > 0 ? `+${Math.round(change)}%` : `${Math.round(change)}%`;
               setHoveredPercentages(prev => ({
                 ...prev,
-                [entry.payload.metricId]: {
+                [metricId]: {
                   percentage,
                   increased: change > 0,
                   monthComparison
@@ -328,7 +345,7 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
         }
       }
     }
-  };
+  }, [canCompareWithOthers]);
 
   if (loading) return <LoadingState />;
   if (error) return <div className="min-w-[292px] w-full p-4 text-center text-gray-500">{error}</div>;
