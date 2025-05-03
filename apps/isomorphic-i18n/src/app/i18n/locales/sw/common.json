@@ -753,6 +753,8 @@
   "text-metrics-area-revenue": "Mapato ya Eneo",
   "text-fish-composition-by-bmu": "Mgawanyiko wa Aina za Samaki",
   "text-comparison-chart-description": "Uchambuzi wa mgawanyiko wa vikundi vya samaki",
+  "text-fish-composition-for-bmu": "Mgawanyiko wa Samaki kwa {{bmuName}}",
+  "text-cia-chart-description": "Mgawanyiko wa vikundi vya samaki kwenye BMU yako",
   "text-monthly-trends-over-time": "Mwenendo wa Kila Mwezi",
   "text-performance-vs-average": "Utendaji Dhidi ya Wastani",
   "text-performance-vs-historical-average": "Utendaji Dhidi ya Wastani wa Miezi 6",

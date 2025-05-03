@@ -29,6 +29,68 @@ import useUserPermissions from "./hooks/useUserPermissions";
 // Import the fish category selector component
 import FishCategorySelector from "./charts/FishCategorySelector";
 
+// Custom function to prepare data for CIA users' comparison view
+const prepareDataForCiaComparison = (chartData: ChartDataPoint[], bmuName: string) => {
+  if (!chartData.length) return [];
+  
+  // Need at least 6 data points to calculate 6-month average
+  if (chartData.length < 6) return chartData;
+  
+  // Calculate a single historical average using the most recent 6 months of data
+  // Sort the data by date (descending) to get most recent data first
+  const sortedData = [...chartData].sort((a, b) => b.date - a.date);
+  const recentSixMonths = sortedData.slice(0, 6);
+  
+  // Calculate the average from these 6 months
+  let sum = 0;
+  let count = 0;
+  
+  for (let i = 0; i < recentSixMonths.length; i++) {
+    const value = recentSixMonths[i][bmuName];
+    if (value !== undefined && !isNaN(Number(value))) {
+      sum += Number(value);
+      count++;
+    }
+  }
+  
+  // Calculate the fixed historical average
+  const historicalAverage = count > 0 ? sum / count : 0;
+  
+  // Create result array with the fixed historical average
+  let result: ChartDataPoint[] = [];
+  
+  // Process each data point with the fixed historical average
+  for (const point of chartData) {
+    // Clone the current point
+    const currentPoint = { ...point };
+    
+    // Set the same historical average for all points
+    currentPoint['historical_average'] = historicalAverage;
+    
+    // Calculate the difference from the historical average
+    if (currentPoint[bmuName] !== undefined) {
+      const actualValue = Number(currentPoint[bmuName]);
+      const difference = actualValue - historicalAverage;
+      
+      // Store the difference directly
+      currentPoint['difference'] = difference;
+      
+      // Store whether this is above or below average (as a number 1/0)
+      currentPoint['isAboveAverage'] = difference > 0 ? 1 : 0;
+      
+      // Also store the actual BMU value for reference
+      currentPoint['actualValue'] = actualValue;
+      
+      result.push(currentPoint);
+    }
+  }
+  
+  // Sort the result by date for chronological display
+  result = result.sort((a, b) => a.date - b.date);
+  
+  return result;
+};
+
 // Define FishCategoryKey type and options
 export type FishCategoryKey = string;
 
@@ -183,6 +245,7 @@ export default function FishCompositionChart({
   const [fiveYearMarks, setFiveYearMarks] = useState<number[]>([]);
   const [visibilityState, setVisibilityState] = useState<VisibilityState>({});
   const [siteColors, setSiteColors] = useState<Record<string, string>>({});
+  const [ciaComparisonData, setCiaComparisonData] = useState<ChartDataPoint[]>([]);
   
   // Add refs to track initialization states
   const visibilityInitialized = useRef<boolean>(false);
@@ -640,7 +703,11 @@ export default function FishCompositionChart({
     if (canCompareWithOthers) {
       setRecentData(getRecentData(chartData, false) as ChartDataPoint[]);
     } 
-    
+    // For CIA users, create comparison against historical average if they have a BMU
+    else if (isCiaUser && effectiveBMU) {
+      setCiaComparisonData(prepareDataForCiaComparison(chartData, effectiveBMU));
+    }
+      
     // Annual data is the same for all users
     setAnnualData(getAnnualData(chartData, !canCompareWithOthers, siteColors));
     
@@ -850,9 +917,9 @@ export default function FishCompositionChart({
                 )}
               />
             ) : (
-              // CIA users get a different view
+              // CIA users get a historical comparison view
               <ComparisonChart
-                chartData={recentData}
+                chartData={ciaComparisonData}
                 selectedMetricOption={toMetricOption(selectedCategoryOption)}
                 siteColors={siteColors}
                 visibilityState={visibilityState}

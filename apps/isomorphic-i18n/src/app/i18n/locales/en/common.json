@@ -897,6 +897,8 @@
   "text-metrics-area-revenue": "Area Revenue",
   "text-fish-composition-by-bmu": "Fish Composition Distribution",
   "text-comparison-chart-description": "Fish group distribution analysis",
+  "text-fish-composition-for-bmu": "Fish Composition for {{bmuName}}",
+  "text-cia-chart-description": "Distribution of fish groups in your BMU",
   "text-monthly-trends-over-time": "Monthly Trends Over Time",
   "text-performance-vs-average": "Performance vs Average",
   "text-performance-vs-historical-average": "Performance vs 6-Month Average",

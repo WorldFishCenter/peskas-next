@@ -15,6 +15,7 @@ import { GlobalFilterProvider } from "../components/global-filter-provider";
 import { TRPCReactProvider } from "@/trpc/react";
 import LanguageInitializer from "../i18n/language-initializer";
 import Script from "next/script";
+import ModalSwitcher from "@/app/_components/modal/modal-switcher";
 
 const NextProgress = dynamic(() => import("@components/next-progress"), {
   ssr: false,
@@ -53,6 +54,7 @@ export default async function RootLayout({
                 <Toaster />
                 <GlobalDrawer />
                 <GlobalModal />
+                <ModalSwitcher />
               </ThemeProvider>
             </AuthProvider>
           </TRPCReactProvider>

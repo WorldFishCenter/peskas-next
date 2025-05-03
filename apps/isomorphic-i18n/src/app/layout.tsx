@@ -12,18 +12,5 @@ export const metadata = {
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  return (
-    <html suppressHydrationWarning={true}>
-      <body
-        // to prevent any warning that is caused by third party extensions like Grammerly
-        suppressHydrationWarning={true}
-        className={cn(inter.variable, lexendDeca.variable, "font-inter")}
-      >
-        <TRPCReactProvider>
-          {children}
-          <ModalSwitcher />
-        </TRPCReactProvider>
-      </body>
-    </html>
-  );
+  return children;
 }
