@@ -413,6 +413,9 @@ export default function FishCompositionChart({
 
   // Handle tab changes while preserving language state
   const handleTabChange = useCallback((tab: string) => {
+    // Save current scroll position
+    const scrollPosition = window.scrollY || document.documentElement.scrollTop;
+    
     // Save current language before tab change
     const currentClientLang = getClientLanguage();
     
@@ -447,6 +450,14 @@ export default function FishCompositionChart({
         window.dispatchEvent(new CustomEvent('i18n-language-changed', {
           detail: { language: currentClientLang }
         }));
+        
+        // Restore scroll position
+        window.scrollTo(0, scrollPosition);
+      }, 10);
+    } else {
+      // Restore scroll position even if no parent callback
+      setTimeout(() => {
+        window.scrollTo(0, scrollPosition);
       }, 10);
     }
   }, [i18n, onTabChange]);

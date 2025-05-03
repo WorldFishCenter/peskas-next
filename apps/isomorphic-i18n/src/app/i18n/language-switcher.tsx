@@ -27,6 +27,9 @@ const languageOptions = [
 export function changeAppLanguage(newLang: string): void {
   if (!['en', 'sw'].includes(newLang)) return;
   
+  // Save current scroll position
+  const scrollPosition = window.scrollY || document.documentElement.scrollTop;
+  
   // Update localStorage
   localStorage.setItem('i18nextLng', newLang);
   localStorage.setItem('selectedLanguage', newLang);
@@ -52,6 +55,11 @@ export function changeAppLanguage(newLang: string): void {
   window.dispatchEvent(new CustomEvent('i18n-language-changed', {
     detail: { language: newLang }
   }));
+  
+  // Restore scroll position after a short delay to ensure DOM updates
+  setTimeout(() => {
+    window.scrollTo(0, scrollPosition);
+  }, 50);
 }
 
 /**
