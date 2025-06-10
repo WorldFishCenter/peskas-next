@@ -345,6 +345,7 @@ export default function UserModal({
         value: user.userBmu._id?.toString() ?? "",
         label: user.userBmu.BMU ?? "",
       } : undefined,
+      fisherId: user?.fisherId ?? "",
     },
   });
 
@@ -379,6 +380,7 @@ export default function UserModal({
         value: user.userBmu._id?.toString() ?? "",
         label: user.userBmu.BMU ?? "",
       } : undefined,
+      fisherId: user?.fisherId ?? "",
     });
   }, [form, user]);
 
@@ -644,6 +646,28 @@ export default function UserModal({
                   </FormItem>
                 )}
               />
+
+              {/* Fisher ID field - only for IIA users */}
+              {form.watch('role') === 'IIA' && (
+                <FormField
+                  control={form.control}
+                  name="fisherId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Fisher ID</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="Enter fisher ID (e.g., f_1001)"
+                          {...field}
+                          value={field.value ?? ""}
+                          className="bg-background"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
 
               <FormField
                 control={form.control}

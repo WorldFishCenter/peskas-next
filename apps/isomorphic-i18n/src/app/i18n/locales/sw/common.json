@@ -807,5 +807,20 @@
   "text-6-month-average": "Wastani wa Miezi 6",
   "text-no-comparison-data-available": "Hakuna data ya ulinganisho inayopatikana",
   "text-difference-from-average": "Tofauti Kutoka kwa Wastani",
-  "text-actual-value": "Thamani Halisi"
+  "text-actual-value": "Thamani Halisi",
+  "dashboard": {
+    "yourPerformance": "Utendaji Wako",
+    "performanceDescription": "Vipimo muhimu kutoka shughuli zako za uvuvi",
+    "cpue": "Kiwango cha Uvuvi",
+    "rpue": "Mapato",
+    "cost": "Gharama",
+    "netProfit": "Faida Halisi",
+    "yourDailyTrends": "Mwenendo Wako wa Kila Siku",
+    "last": "Siku",
+    "fishingDays": "za uvuvi zilizopita",
+    "yourGearPerformance": "Utendaji wa Vifaa Vyako"
+  },
+  "common": {
+    "loading": "Inapakia..."
+  }
 }

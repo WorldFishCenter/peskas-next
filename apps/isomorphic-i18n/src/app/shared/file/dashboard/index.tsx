@@ -9,6 +9,8 @@ import FileStats from "@/app/shared/file/dashboard/file-stats";
 import GearTreemap from "@/app/shared/file/dashboard/gear-treemap";
 import CatchRadarChart from "@/app/shared/file/dashboard/catch-radar";
 import BMURanking from "@/app/shared/file/dashboard/bmu-ranking";
+import IndividualFisherStats from "@/app/shared/file/dashboard/individual-fisher-stats";
+import IndividualFisherTrends from "@/app/shared/file/dashboard/individual-fisher-trends";
 import { selectedMetricAtom } from "@/app/components/filter-selector";
 import { useUserPermissions } from "./hooks/useUserPermissions";
 
@@ -29,11 +31,37 @@ export default function FileDashboard({ lang }: { lang?: string }) {
   const [selectedMetric, setSelectedMetric] = useAtom(selectedMetricAtom);
   const [activeTab, setActiveTab] = useState("trends");
   const { t } = useTranslation("common");
-  const { referenceBMU } = useUserPermissions();
+  const { referenceBMU, isIiaUser, userFisherId } = useUserPermissions();
 
   // Use reference BMU if available or fall back to user's BMU
   const effectiveBMU = referenceBMU || undefined;
 
+  // If user is IIA, show individual fisher dashboard
+  if (isIiaUser && userFisherId) {
+    return (
+      <div className="w-full">
+        <div className="grid grid-cols-1 gap-5 xl:gap-6">
+          {/* Individual fisher stats cards */}
+          <IndividualFisherStats lang={lang} />
+          
+          {/* Individual fisher daily trends */}
+          <IndividualFisherTrends lang={lang} />
+          
+          {/* Individual gear performance - coming soon */}
+          <div className="rounded-lg border border-gray-200 bg-white p-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">
+              {t('dashboard.yourGearPerformance')}
+            </h3>
+            <p className="text-sm text-gray-500">
+              Performance breakdown by gear type will be shown here
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Default BMU-level dashboard for non-IIA users
   return (
     <div className="w-full">
       <div className="grid grid-cols-1 gap-5 xl:gap-6">

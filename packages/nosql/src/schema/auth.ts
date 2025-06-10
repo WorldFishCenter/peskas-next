@@ -15,6 +15,7 @@ export type TUser = {
   groups: TGroup[];
   bmus: TBmu[];
   userBmu?: TBmu;
+  fisherId?: string;
   status: string;
   created_at: Date;
   updated_at: Date;
@@ -84,6 +85,7 @@ const userSchema = new Schema<TUser>({
   groups: [{ type: Schema.Types.ObjectId, ref: "Group" }],
   bmus: [{ type: Schema.Types.ObjectId, ref: "Bmu" }],
   userBmu: { type: Schema.Types.ObjectId, ref: "Bmu", required: false },
+  fisherId: { type: String, required: false },
   status: { type: String, default: 'active' },
   created_at: { type: Date, default: Date.now },
   updated_at: Date,

@@ -23,17 +23,20 @@ declare module "next-auth" {
           groups: TGroup[];
           bmus: TBmu[];
           userBmu?: SerializedBmu;
+          fisherId?: string;
         })
       | undefined;
   }
   interface JWT extends DefaultJWT {
     signinunixsecondsepoch: number;
+    fisherId?: string;
   }
   interface User {
     maxAge: number;
     groups: TGroup[];
     bmus: TBmu[];
     userBmu?: SerializedBmu;
+    fisherId?: string;
   }
 }
 

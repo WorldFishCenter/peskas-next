@@ -8,7 +8,7 @@ import { useUserPermissions } from "./useUserPermissions";
  * based on user permissions and selected BMUs.
  */
 export const useIndividualData = () => {
-  const { getAccessibleBMUs } = useUserPermissions();
+  const { getAccessibleBMUs, isIiaUser, userFisherId } = useUserPermissions();
   
   // For now, we'll use a basic set of BMUs - this should be replaced with actual BMU data
   const accessibleBMUs = getAccessibleBMUs(['BMU1', 'BMU2', 'BMU3']); // This should come from actual BMU data
@@ -59,26 +59,66 @@ export const useIndividualData = () => {
     { enabled: accessibleBMUs.length > 0 }
   );
 
+  // IIA-specific queries - only enabled for IIA users with a valid fisherId
+  const {
+    data: fisherData,
+    isLoading: isLoadingFisherData,
+    error: errorFisherData,
+  } = api.individualData.byFisherId.useQuery(
+    { fisherId: userFisherId || '' },
+    { enabled: isIiaUser && !!userFisherId }
+  );
+
+  const {
+    data: fisherMonthlyTrends,
+    isLoading: isLoadingFisherTrends,
+    error: errorFisherTrends,
+  } = api.individualData.fisherMonthlyTrends.useQuery(
+    { 
+      fisherId: userFisherId || '',
+      metric: 'fisher_cpue'
+    },
+    { enabled: isIiaUser && !!userFisherId }
+  );
+
+  const {
+    data: fisherPerformanceSummary,
+    isLoading: isLoadingFisherSummary,
+    error: errorFisherSummary,
+  } = api.individualData.fisherPerformanceSummary.useQuery(
+    { fisherId: userFisherId || '' },
+    { enabled: isIiaUser && !!userFisherId }
+  );
+
   return {
     // Data
     individualData,
     gearData,
     performanceData,
     monthlyTrendsData,
+    fisherData,
+    fisherMonthlyTrends,
+    fisherPerformanceSummary,
     
     // Loading states
     isLoadingAll,
     isLoadingGear,
     isLoadingPerformance,
     isLoadingTrends,
-    isLoading: isLoadingAll || isLoadingGear || isLoadingPerformance || isLoadingTrends,
+    isLoadingFisherData,
+    isLoadingFisherTrends,
+    isLoadingFisherSummary,
+    isLoading: isLoadingAll || isLoadingGear || isLoadingPerformance || isLoadingTrends || isLoadingFisherData || isLoadingFisherTrends || isLoadingFisherSummary,
     
     // Error states
     errorAll,
     errorGear,
     errorPerformance,
     errorTrends,
-    hasError: !!(errorAll || errorGear || errorPerformance || errorTrends),
+    errorFisherData,
+    errorFisherTrends,
+    errorFisherSummary,
+    hasError: !!(errorAll || errorGear || errorPerformance || errorTrends || errorFisherData || errorFisherTrends || errorFisherSummary),
     
     // Utility
     accessibleBMUs,

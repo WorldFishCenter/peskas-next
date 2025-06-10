@@ -30,6 +30,7 @@ export const authOptions: NextAuthOptions = {
         token.groups = user.groups;
         token.bmus = user.bmus;
         token.userBmu = user.userBmu;
+        token.fisherId = user.fisherId;
       }
       return token;
     },
@@ -54,6 +55,7 @@ export const authOptions: NextAuthOptions = {
           groups: token.groups,
           bmus: token.bmus,
           userBmu: token.userBmu,
+          fisherId: token.fisherId as string | undefined,
         },
       };
     },
@@ -77,6 +79,7 @@ export const authOptions: NextAuthOptions = {
           const { email, password } = parsedCredentials.data;
           await getDb();
           const user = await UserModel.findOne({ email: email })
+            .select('+fisherId') // Explicitly include fisherId
             .populate([
               {
                 path: "groups",
@@ -95,6 +98,9 @@ export const authOptions: NextAuthOptions = {
               },
             ])
             .lean();
+          
+
+          
           if (!user) throw new UserNotFoundError();
 
           if (!user.password) {
@@ -120,7 +126,7 @@ export const authOptions: NextAuthOptions = {
             } : undefined;
 
             return {
-              ...pick(user, ["id", "email", "groups", "bmus", "name"]),
+              ...pick(user, ["id", "email", "groups", "bmus", "name", "fisherId"]),
               userBmu: serializedUserBmu,
               maxAge,
             };

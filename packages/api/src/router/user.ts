@@ -31,6 +31,7 @@ export const UpsertUserSchema = z.object({
   status: z.string().min(1),
   bmuNames: z.array(z.object({ value: z.string(), label: z.string() })),
   userBmu: z.object({ value: z.string(), label: z.string() }).optional(),
+  fisherId: z.string().optional(),
 });
 
 export const GenerateResetPasswordTokenSchema = z.object({
@@ -213,6 +214,7 @@ export const userRouter = createTRPCRouter({
           groups: [userGroup?._id],
           bmus: bmuGroups.map((bmu) => bmu._id),
           userBmu: userBmu?._id,
+          fisherId: input.fisherId,
           ...(!isEmpty(input?.password) && {
             password: bcryptjs.hashSync(input?.password ?? "", 10),
           }),

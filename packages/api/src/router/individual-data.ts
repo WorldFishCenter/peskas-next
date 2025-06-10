@@ -36,6 +36,54 @@ export const individualDataRouter = createTRPCRouter({
       }
     }),
 
+  // Get individual data by fisher_id (for IIA users)
+  byFisherId: protectedProcedure
+    .input(z.object({ 
+      fisherId: z.string(),
+      startDate: z.string().optional(),
+      endDate: z.string().optional(),
+    }))
+    .query(async ({ input }) => {
+      try {
+        await getDb();
+        
+        // Prepare match stage with optional date filtering
+        const matchStage: any = {
+          fisher_id: input.fisherId,
+        };
+        
+        if (input.startDate || input.endDate) {
+          matchStage.landing_date = {};
+          if (input.startDate) {
+            matchStage.landing_date.$gte = new Date(input.startDate);
+          }
+          if (input.endDate) {
+            matchStage.landing_date.$lte = new Date(input.endDate);
+          }
+        }
+        
+        return await IndividualDataModel.find(matchStage)
+          .select({
+            _id: 0,
+            landing_date: 1,
+            BMU: 1,
+            gear: 1,
+            fisher_cpue: 1,
+            fisher_rpue: 1,
+            fisher_cost: 1,
+          })
+          .sort({ landing_date: -1 })
+          .exec();
+      } catch (error) {
+        console.error('Error in individual data byFisherId query:', error);
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: 'Failed to fetch individual fisher data',
+          cause: error,
+        });
+      }
+    }),
+
   // Get aggregated individual data by gear type
   gearSummary: protectedProcedure
     .input(z.object({ 
@@ -209,6 +257,132 @@ export const individualDataRouter = createTRPCRouter({
         throw new TRPCError({
           code: 'INTERNAL_SERVER_ERROR',
           message: 'Failed to fetch monthly trends',
+          cause: error,
+        });
+      }
+    }),
+
+  // Get monthly trends for a specific fisher (for IIA users)
+  fisherMonthlyTrends: protectedProcedure
+    .input(z.object({ 
+      fisherId: z.string(),
+      metric: z.enum(['fisher_cpue', 'fisher_rpue', 'fisher_cost']).optional().default('fisher_cpue'),
+    }))
+    .query(async ({ input }) => {
+      try {
+        await getDb();
+        
+        return await IndividualDataModel.aggregate([
+          {
+            $match: {
+              fisher_id: input.fisherId,
+              [input.metric]: { $ne: null },
+            },
+          },
+          {
+            $group: {
+              _id: { $dateToString: { format: "%Y-%m", date: "$landing_date" } },
+              avg_value: { $avg: `$${input.metric}` },
+              count: { $sum: 1 },
+              gear_breakdown: {
+                $push: {
+                  gear: "$gear",
+                  value: `$${input.metric}`,
+                },
+              },
+            },
+          },
+          {
+            $project: {
+              _id: 0,
+              month: "$_id",
+              date: { $dateFromString: { dateString: { $concat: ["$_id", "-01"] } } },
+              avg_value: { $round: ["$avg_value", 2] },
+              count: 1,
+              gear_breakdown: 1,
+            },
+          },
+          {
+            $sort: { date: 1 },
+          },
+        ]).exec();
+      } catch (error) {
+        console.error('Error in fisher monthly trends query:', error);
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: 'Failed to fetch fisher monthly trends',
+          cause: error,
+        });
+      }
+    }),
+
+  // Get performance summary for a specific fisher (for IIA users)
+  fisherPerformanceSummary: protectedProcedure
+    .input(z.object({ 
+      fisherId: z.string(),
+      startDate: z.string().optional(),
+      endDate: z.string().optional(),
+    }))
+    .query(async ({ input }) => {
+      try {
+        await getDb();
+        
+        // Prepare match stage with optional date filtering
+        const matchStage: any = {
+          fisher_id: input.fisherId,
+        };
+        
+        if (input.startDate || input.endDate) {
+          matchStage.landing_date = {};
+          if (input.startDate) {
+            matchStage.landing_date.$gte = new Date(input.startDate);
+          }
+          if (input.endDate) {
+            matchStage.landing_date.$lte = new Date(input.endDate);
+          }
+        }
+        
+        return await IndividualDataModel.aggregate([
+          {
+            $match: matchStage,
+          },
+          {
+            $group: {
+              _id: null,
+              total_trips: { $sum: 1 },
+              avg_cpue: { $avg: "$fisher_cpue" },
+              avg_rpue: { $avg: "$fisher_rpue" },
+              avg_cost: { $avg: "$fisher_cost" },
+              total_cost: { $sum: "$fisher_cost" },
+              total_revenue: { $sum: "$fisher_rpue" },
+              gears_used: { $addToSet: "$gear" },
+              bmus_visited: { $addToSet: "$BMU" },
+              latest_trip: { $max: "$landing_date" },
+              earliest_trip: { $min: "$landing_date" },
+            },
+          },
+          {
+            $project: {
+              _id: 0,
+              total_trips: 1,
+              avg_cpue: { $round: ["$avg_cpue", 2] },
+              avg_rpue: { $round: ["$avg_rpue", 2] },
+              avg_cost: { $round: ["$avg_cost", 2] },
+              total_cost: { $round: ["$total_cost", 2] },
+              total_revenue: { $round: ["$total_revenue", 2] },
+              net_profit: { $round: [{ $subtract: ["$total_revenue", "$total_cost"] }, 2] },
+              gears_used: 1,
+              bmus_visited: 1,
+              latest_trip: 1,
+              earliest_trip: 1,
+            },
+          },
+        ]).exec();
+      } catch (error) {
+        console.error('Error in fisher performance summary query:', error);
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: 'Failed to fetch fisher performance summary',
           cause: error,
         });
       }

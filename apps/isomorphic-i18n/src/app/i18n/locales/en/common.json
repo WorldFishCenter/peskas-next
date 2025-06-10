@@ -949,5 +949,20 @@
   "text-6-month-average": "6-Month Average",
   "text-no-comparison-data-available": "No comparison data available",
   "text-difference-from-average": "Difference from Average",
-  "text-actual-value": "Actual Value"
+  "text-actual-value": "Actual Value",
+  "dashboard": {
+    "yourPerformance": "Your Performance",
+    "performanceDescription": "Key metrics from your fishing activities",
+    "cpue": "Catch Rate",
+    "rpue": "Revenue",
+    "cost": "Cost",
+    "netProfit": "Net Profit",
+    "yourDailyTrends": "Your Daily Trends",
+    "last": "Last",
+    "fishingDays": "fishing days",
+    "yourGearPerformance": "Your Gear Performance"
+  },
+  "common": {
+    "loading": "Loading..."
+  }
 }

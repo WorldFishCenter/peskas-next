@@ -15,6 +15,8 @@ export const useUserPermissions = () => {
   const { data: session } = useSession();
   const [adminReferenceBmu, setAdminReferenceBmu] = useAtom(adminReferenceBmuAtom);
   
+
+  
   // Check user groups for permission levels with safety checks
   const hasGroups = Array.isArray(session?.user?.groups);
   
@@ -30,8 +32,15 @@ export const useUserPermissions = () => {
     (group: { name: string }) => group.name === 'admin' || group.name === 'Admin'
   );
   
+  const isIiaUser = hasGroups && session?.user?.groups?.some(
+    (group: { name: string }) => group.name === 'IIA'
+  );
+  
   // Get user's BMU - properly handle the property path
   const userBMU = session?.user?.userBmu?.BMU;
+  
+  // Get user's fisher ID for IIA users
+  const userFisherId = session?.user?.fisherId;
   
   // For admin users, they can select a reference BMU
   const referenceBMU = isAdmin ? adminReferenceBmu : userBMU;
@@ -53,6 +62,9 @@ export const useUserPermissions = () => {
     } else if (isCiaUser && userBMU) {
       // CIA users can only see their assigned BMU
       return [userBMU];
+    } else if (isIiaUser) {
+      // IIA users don't see BMU-level data, return empty array
+      return [];
     } else {
       // Default fallback - show all but with limited interactions
       return allBMUs;
@@ -93,6 +105,7 @@ export const useUserPermissions = () => {
     // User information
     userBMU,
     referenceBMU,
+    userFisherId,
     
     // Admin reference BMU management
     adminReferenceBmu,
@@ -102,15 +115,18 @@ export const useUserPermissions = () => {
     isCiaUser,
     isWbciaUser,
     isAdmin,
+    isIiaUser,
     
     // Helper functions
     getAccessibleBMUs,
     getLimitedBMUs,
     
     // Useful flags for components
-    hasRestrictedAccess: isCiaUser && !!userBMU,
-    shouldShowAggregated: isAdmin || isWbciaUser,
-    canCompareWithOthers: !isCiaUser || isAdmin || isWbciaUser,
+    hasRestrictedAccess: (isCiaUser && !!userBMU) || (isIiaUser && !!userFisherId),
+    shouldShowAggregated: isAdmin || isWbciaUser || isCiaUser,
+    shouldShowIndividualData: isIiaUser,
+    canCompareWithOthers: (!isCiaUser && !isIiaUser) || isAdmin || isWbciaUser,
+    canSeeBMUData: !isIiaUser,
   };
 };
 
