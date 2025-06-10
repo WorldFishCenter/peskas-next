@@ -7,6 +7,7 @@ import { monthlyStatsRouter } from "./monthly-stats";
 import { fishDistributionRouter } from "./fish-distribution";
 import { pingRouter } from "./ping";
 import { mapDistributionRouter } from "./map-distribution";
+import { individualDataRouter } from "./individual-data";
 
 // Export all routers for easier imports
 export {
@@ -19,4 +20,5 @@ export {
   fishDistributionRouter,
   pingRouter,
   mapDistributionRouter,
+  individualDataRouter,
 }; 

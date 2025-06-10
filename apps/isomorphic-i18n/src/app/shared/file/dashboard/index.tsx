@@ -2,12 +2,10 @@
 import { useState } from "react";
 import { useAtom } from "jotai";
 import { useTranslation } from "@/app/i18n/client";
-import { MetricKey } from "./charts/types"; 
 import CatchMetricsChart from "./catch-metrics";
 import type { DefaultSession } from "next-auth";
 import type { TBmu } from "@repo/nosql/schema/bmu";
 import FileStats from "@/app/shared/file/dashboard/file-stats";
-import PerformanceTable from "@/app/shared/file/dashboard/file-list/table";
 import GearTreemap from "@/app/shared/file/dashboard/gear-treemap";
 import CatchRadarChart from "@/app/shared/file/dashboard/catch-radar";
 import BMURanking from "@/app/shared/file/dashboard/bmu-ranking";

@@ -21,7 +21,7 @@ import {
 } from "recharts";
 
 // Import shared components and types
-import { MetricKey, MetricOption } from "./charts/types";
+import { MetricOption } from "./charts/types";
 import useUserPermissions from "./hooks/useUserPermissions";
 import { generateColor, updateBmuColorRegistry } from "./charts/utils";
 
