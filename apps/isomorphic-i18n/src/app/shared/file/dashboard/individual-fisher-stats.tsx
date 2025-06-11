@@ -9,10 +9,34 @@ import MetricCard from "@components/cards/metric-card";
 import cn from "@utils/class-names";
 import { PiTrendUp, PiTrendDown, PiEquals } from "react-icons/pi";
 import { api } from "@/trpc/react";
-import { useMemo } from "react";
+import { useMemo, useEffect, useState } from "react";
+import { getClientLanguage } from "@/app/i18n/language-link";
 
 export default function IndividualFisherStats({ lang }: { lang?: string }) {
-  const { t } = useTranslation("common");
+  // Use client language instead of lang prop
+  const clientLang = getClientLanguage();
+  const { t, i18n } = useTranslation(clientLang);
+  
+  // Track current language with state
+  const [currentLang, setCurrentLang] = useState(clientLang);
+  
+  // Listen for language changes
+  useEffect(() => {
+    const handleLanguageChange = (event: CustomEvent) => {
+      setCurrentLang(event.detail.language);
+      
+      // Make sure i18n instance is updated
+      if (i18n.language !== event.detail.language) {
+        i18n.changeLanguage(event.detail.language);
+      }
+    };
+    
+    window.addEventListener('i18n-language-changed', handleLanguageChange as EventListener);
+    return () => {
+      window.removeEventListener('i18n-language-changed', handleLanguageChange as EventListener);
+    };
+  }, [i18n]);
+  
   const { userFisherId, isIiaUser } = useUserPermissions();
   const { fisherPerformanceSummary, isLoadingFisherSummary, fisherData } = useIndividualData();
 

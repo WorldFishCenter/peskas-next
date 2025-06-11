@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useTranslation } from "@/app/i18n/client";
 import { useIndividualData } from "./hooks/useIndividualData";
 import { useUserPermissions } from "./hooks/useUserPermissions";
@@ -20,6 +20,7 @@ import {
 } from "recharts";
 import cn from "@utils/class-names";
 import { api } from "@/trpc/react";
+import { getClientLanguage } from "@/app/i18n/language-link";
 
 const GEAR_COLORS: Record<string, string> = {
   handline: "#3b82f6", // blue
@@ -50,7 +51,30 @@ const capitalizeGearType = (gear: string) => {
 type MetricType = "fisher_cpue" | "fisher_rpue" | "fisher_cost";
 
 export default function IndividualFisherGearPerformance({ lang }: { lang?: string }) {
-  const { t } = useTranslation("common");
+  // Use client language instead of lang prop
+  const clientLang = getClientLanguage();
+  const { t, i18n } = useTranslation(clientLang);
+  
+  // Track current language with state
+  const [currentLang, setCurrentLang] = useState(clientLang);
+  
+  // Listen for language changes
+  useEffect(() => {
+    const handleLanguageChange = (event: CustomEvent) => {
+      setCurrentLang(event.detail.language);
+      
+      // Make sure i18n instance is updated
+      if (i18n.language !== event.detail.language) {
+        i18n.changeLanguage(event.detail.language);
+      }
+    };
+    
+    window.addEventListener('i18n-language-changed', handleLanguageChange as EventListener);
+    return () => {
+      window.removeEventListener('i18n-language-changed', handleLanguageChange as EventListener);
+    };
+  }, [i18n]);
+  
   const { userFisherId, isIiaUser } = useUserPermissions();
   const { fisherData, isLoadingFisherData } = useIndividualData();
   const [selectedMetric, setSelectedMetric] = useState<MetricType>("fisher_cpue");
