@@ -6,8 +6,8 @@ import { useIndividualData } from "./hooks/useIndividualData";
 import { useUserPermissions } from "./hooks/useUserPermissions";
 import WidgetCard from "@components/cards/widget-card";
 import {
-  BarChart,
-  Bar,
+  LineChart,
+  Line,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -18,6 +18,7 @@ import {
 } from "recharts";
 import { format } from "date-fns";
 import cn from "@utils/class-names";
+import { api } from "@/trpc/react";
 
 // Custom Y-axis tick component for consistent styling
 function CustomYAxisTick({ x = 0, y = 0, payload = { value: 0 }, selectedMetric }: any) {
@@ -64,6 +65,75 @@ export default function IndividualFisherTrends({ lang }: { lang?: string }) {
     return null;
   }
 
+  // Get the fisher's BMU from their data
+  const fisherBMU = useMemo(() => {
+    if (!fisherData || fisherData.length === 0) return null;
+    return fisherData[0]?.BMU; // Assuming all records have the same BMU
+  }, [fisherData]);
+
+  // Fetch all data for the fisher's BMU to calculate average
+  const { data: bmuData, isLoading: isLoadingBmuData } = api.individualData.all.useQuery(
+    { bmus: fisherBMU ? [fisherBMU] : [] },
+    { enabled: !!fisherBMU }
+  );
+
+  // Calculate BMU average data (excluding current fisher)
+  const bmuAverageData = useMemo(() => {
+    if (!bmuData || !userFisherId) return {};
+    
+    // Group by date and calculate averages excluding current fisher
+    const dateGroups: Record<string, { 
+      totalCpue: number; 
+      totalRpue: number; 
+      totalCost: number; 
+      countCpue: number;
+      countRpue: number;
+      countCost: number;
+    }> = {};
+    
+    bmuData.forEach(record => {
+      // Skip current fisher's data
+      if (record.fisher_id === userFisherId) return;
+      
+      const dateKey = record.date.toString();
+      if (!dateGroups[dateKey]) {
+        dateGroups[dateKey] = {
+          totalCpue: 0,
+          totalRpue: 0,
+          totalCost: 0,
+          countCpue: 0,
+          countRpue: 0,
+          countCost: 0,
+        };
+      }
+      
+      if (record.fisher_cpue != null) {
+        dateGroups[dateKey].totalCpue += record.fisher_cpue;
+        dateGroups[dateKey].countCpue++;
+      }
+      if (record.fisher_rpue != null) {
+        dateGroups[dateKey].totalRpue += record.fisher_rpue;
+        dateGroups[dateKey].countRpue++;
+      }
+      if (record.fisher_cost != null) {
+        dateGroups[dateKey].totalCost += record.fisher_cost;
+        dateGroups[dateKey].countCost++;
+      }
+    });
+    
+    // Calculate averages
+    const averages: Record<string, { cpue?: number; rpue?: number; cost?: number }> = {};
+    Object.entries(dateGroups).forEach(([date, totals]) => {
+      averages[date] = {
+        cpue: totals.countCpue > 0 ? totals.totalCpue / totals.countCpue : undefined,
+        rpue: totals.countRpue > 0 ? totals.totalRpue / totals.countRpue : undefined,
+        cost: totals.countCost > 0 ? totals.totalCost / totals.countCost : undefined,
+      };
+    });
+    
+    return averages;
+  }, [bmuData, userFisherId]);
+
   // Process daily data for chart
   const chartData = useMemo(() => {
     if (!fisherData || fisherData.length === 0) return [];
@@ -71,18 +141,25 @@ export default function IndividualFisherTrends({ lang }: { lang?: string }) {
     // Sort by date and format for chart
     return fisherData
       .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-      .map(record => ({
-        date: new Date(record.date).getTime(),
-        dateDisplay: format(new Date(record.date), "MMM dd"),
-        fullDate: record.date,
-        // Convert null to undefined for gap rendering
-        cpue: record.fisher_cpue ?? undefined,
-        rpue: record.fisher_rpue ?? undefined,
-        cost: record.fisher_cost ?? undefined,
-        gear: record.gear ?? undefined,
-        bmu: record.BMU,
-      }));
-  }, [fisherData]);
+      .map(record => {
+        const avgData = bmuAverageData[record.date.toString()] || {};
+        return {
+          date: new Date(record.date).getTime(),
+          dateDisplay: format(new Date(record.date), "MMM dd"),
+          fullDate: record.date,
+          // Fisher's own data
+          cpue: record.fisher_cpue ?? undefined,
+          rpue: record.fisher_rpue ?? undefined,
+          cost: record.fisher_cost ?? undefined,
+          // BMU average data
+          avgCpue: avgData.cpue,
+          avgRpue: avgData.rpue,
+          avgCost: avgData.cost,
+          gear: record.gear ?? undefined,
+          bmu: record.BMU,
+        };
+      });
+  }, [fisherData, bmuAverageData]);
 
   // Calculate summary statistics (excluding NA values)
   const summaryStats = useMemo(() => {
@@ -128,43 +205,48 @@ export default function IndividualFisherTrends({ lang }: { lang?: string }) {
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
       const data = payload[0].payload;
-      const value = payload[0].value;
-      
-      // Show "No data" for missing values
-      if (value === undefined) {
-        return (
-          <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
-            <p className="text-sm font-medium text-gray-600 mb-2">{data.dateDisplay}</p>
-            <p className="text-sm text-gray-500 italic">No data</p>
-          </div>
-        );
-      }
       
       return (
         <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
           <p className="text-sm font-medium text-gray-600 mb-2">{data.dateDisplay}</p>
           <div className="space-y-1.5">
-            <div className="flex items-center gap-2">
-              <div
-                className="w-2 h-2 rounded-full"
-                style={{ backgroundColor: COLORS[getMetricKey(selectedMetric)] }}
-              />
-              <p className="text-sm">
-                <span className="font-medium">
-                  {selectedMetric === "fisher_cpue" && "CPUE"}
-                  {selectedMetric === "fisher_rpue" && "Revenue"}
-                  {selectedMetric === "fisher_cost" && "Cost"}:
-                </span>{" "}
-                <span className="font-semibold">
-                  {selectedMetric === "fisher_cpue" && `${value.toFixed(2)} kg/trip`}
-                  {selectedMetric === "fisher_rpue" && `$${value.toFixed(2)}`}
-                  {selectedMetric === "fisher_cost" && `$${value.toFixed(2)}`}
-                </span>
-              </p>
-            </div>
+            {payload.map((entry: any, index: number) => {
+              const value = entry.value;
+              
+              // Skip if no value
+              if (value === undefined || value === null) return null;
+              
+              const isAverage = entry.dataKey.startsWith('avg');
+              const color = isAverage ? "#6b7280" : COLORS[getMetricKey(selectedMetric)];
+              
+              return (
+                <div key={index} className="flex items-center gap-2">
+                  <div
+                    className="w-2 h-2 rounded-full"
+                    style={{ backgroundColor: color }}
+                  />
+                  <p className="text-sm">
+                    <span className="font-medium">
+                      {isAverage ? `${fisherBMU} ${t('text-average')}` : t('text-your')} 
+                      {selectedMetric === "fisher_cpue" && ` ${t('text-cpue')}`}
+                      {selectedMetric === "fisher_rpue" && ` ${t('text-rpue')}`}
+                      {selectedMetric === "fisher_cost" && ` ${t('text-cost')}`}:
+                    </span>{" "}
+                    <span className="font-semibold">
+                      {selectedMetric === "fisher_cpue" && `${value.toFixed(2)} kg/trip`}
+                      {selectedMetric === "fisher_rpue" && `$${value.toFixed(2)}`}
+                      {selectedMetric === "fisher_cost" && `$${value.toFixed(2)}`}
+                    </span>
+                  </p>
+                </div>
+              );
+            })}
+            {payload.length === 0 && (
+              <p className="text-sm text-gray-500 italic">{t('text-no-data')}</p>
+            )}
             {data.gear && (
-              <p className="text-xs text-gray-500 mt-1">
-                Gear: {data.gear} | BMU: {data.bmu}
+              <p className="text-xs text-gray-500 mt-1 border-t pt-1">
+                {data.gear} | {data.bmu}
               </p>
             )}
           </div>
@@ -174,16 +256,16 @@ export default function IndividualFisherTrends({ lang }: { lang?: string }) {
     return null;
   };
 
-  if (isLoadingFisherData) {
+  if (isLoadingFisherData || isLoadingBmuData) {
     return (
       <WidgetCard
-        title={t('dashboard.yourDailyTrends')}
+        title={t('text-your-daily-trends')}
         className="h-full"
       >
         <div className="h-96 w-full flex items-center justify-center">
           <div className="flex flex-col items-center gap-2">
             <div className="w-8 h-8 border-4 border-gray-200 border-t-gray-500 rounded-full animate-spin" />
-            <span className="text-sm text-gray-500">{t('common.loading')}</span>
+            <span className="text-sm text-gray-500">{t('text-loading')}</span>
           </div>
         </div>
       </WidgetCard>
@@ -195,9 +277,9 @@ export default function IndividualFisherTrends({ lang }: { lang?: string }) {
   };
 
   return (
-    <WidgetCard
-      title={t('dashboard.yourDailyTrends')}
-      description={`${summaryStats.fishingDays} ${t('dashboard.fishingDays')} (${summaryStats.totalDays} total days)`}
+          <WidgetCard
+        title={t('text-your-daily-trends')}
+        description={`${summaryStats.fishingDays} ${t('text-fishing-days')} (${summaryStats.totalDays} ${t('text-total-days')}) - ${t('text-compared-with-bmu-average', { bmu: fisherBMU })}`}
       headerClassName="pb-2"
     >
       {/* Metric selector buttons */}
@@ -211,7 +293,7 @@ export default function IndividualFisherTrends({ lang }: { lang?: string }) {
               : "bg-gray-100 text-gray-600 hover:bg-gray-200"
           )}
         >
-          CPUE {Number(summaryStats.avgCpue) > 0 && `(${summaryStats.avgCpue} avg)`}
+          {t('text-cpue')} {Number(summaryStats.avgCpue) > 0 && `(${summaryStats.avgCpue} ${t('text-average').toLowerCase()})`}
         </button>
         <button
           onClick={() => setSelectedMetric("fisher_rpue")}
@@ -222,7 +304,7 @@ export default function IndividualFisherTrends({ lang }: { lang?: string }) {
               : "bg-gray-100 text-gray-600 hover:bg-gray-200"
           )}
         >
-          RPUE {Number(summaryStats.avgRpue) > 0 && `($${summaryStats.avgRpue} avg)`}
+          {t('text-rpue')} {Number(summaryStats.avgRpue) > 0 && `($${summaryStats.avgRpue} ${t('text-average').toLowerCase()})`}
         </button>
         <button
           onClick={() => setSelectedMetric("fisher_cost")}
@@ -233,26 +315,24 @@ export default function IndividualFisherTrends({ lang }: { lang?: string }) {
               : "bg-gray-100 text-gray-600 hover:bg-gray-200"
           )}
         >
-          Cost {Number(summaryStats.avgCost) > 0 && `($${summaryStats.avgCost} avg)`}
+          {t('text-cost')} {Number(summaryStats.avgCost) > 0 && `($${summaryStats.avgCost} ${t('text-average').toLowerCase()})`}
         </button>
       </div>
 
       {/* Chart */}
       <div className="h-96 w-full pt-9">
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart
+          <LineChart
             data={chartData}
             margin={{ top: 10, right: 30, left: 10, bottom: 0 }}
-            barCategoryGap="10%"
           >
             <XAxis
               dataKey="date"
               tickFormatter={(timestamp) => format(new Date(timestamp), "MMM dd")}
               tickMargin={10}
-              minTickGap={30}
+              minTickGap={20}
               axisLine={false}
               tick={{ fontSize: 12 }}
-              interval="preserveStartEnd"
             />
             <YAxis
               axisLine={false}
@@ -262,12 +342,38 @@ export default function IndividualFisherTrends({ lang }: { lang?: string }) {
             <CartesianGrid strokeDasharray="3 3" vertical={false} />
             <Tooltip content={<CustomTooltip />} />
             
-            <Bar
+            <Line
               dataKey={selectedMetric === "fisher_cpue" ? "cpue" : selectedMetric === "fisher_rpue" ? "rpue" : "cost"}
-              fill={COLORS[getMetricKey(selectedMetric)]}
+              stroke={COLORS[getMetricKey(selectedMetric)]}
+              strokeWidth={2}
+              dot={{ fill: COLORS[getMetricKey(selectedMetric)], strokeWidth: 0, r: 4 }}
+              activeDot={{ r: 6, strokeWidth: 0 }}
+              connectNulls={false}
               isAnimationActive={false}
+              name={t('text-your-performance')}
             />
-          </BarChart>
+            
+            {/* BMU Average Line */}
+            <Line
+              dataKey={selectedMetric === "fisher_cpue" ? "avgCpue" : selectedMetric === "fisher_rpue" ? "avgRpue" : "avgCost"}
+              stroke="#6b7280"
+              strokeWidth={2}
+              strokeDasharray="5 5"
+              dot={{ fill: "#6b7280", strokeWidth: 0, r: 3 }}
+              activeDot={{ r: 5, strokeWidth: 0 }}
+              connectNulls={false}
+              isAnimationActive={false}
+              name={`${fisherBMU} ${t('text-average')}`}
+            />
+            
+            {/* Legend */}
+            <Legend 
+              verticalAlign="bottom" 
+              height={36}
+              iconType="line"
+              wrapperStyle={{ paddingTop: '10px' }}
+            />
+          </LineChart>
         </ResponsiveContainer>
       </div>
     </WidgetCard>

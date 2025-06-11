@@ -1,5 +1,6 @@
 import { api } from "@/trpc/react";
 import { useUserPermissions } from "./useUserPermissions";
+import { useSession } from "next-auth/react";
 
 /**
  * Custom hook for fetching individual fisher data
@@ -9,6 +10,7 @@ import { useUserPermissions } from "./useUserPermissions";
  */
 export const useIndividualData = () => {
   const { getAccessibleBMUs, isIiaUser, userFisherId } = useUserPermissions();
+  const { data: session } = useSession();
   
   // For now, we'll use a basic set of BMUs - this should be replaced with actual BMU data
   const accessibleBMUs = getAccessibleBMUs(['BMU1', 'BMU2', 'BMU3']); // This should come from actual BMU data

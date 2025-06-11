@@ -8,18 +8,50 @@ import WidgetCard from "@components/cards/widget-card";
 import MetricCard from "@components/cards/metric-card";
 import cn from "@utils/class-names";
 import { PiTrendUp, PiTrendDown, PiEquals } from "react-icons/pi";
+import { api } from "@/trpc/react";
+import { useMemo } from "react";
 
 export default function IndividualFisherStats({ lang }: { lang?: string }) {
   const { t } = useTranslation("common");
   const { userFisherId, isIiaUser } = useUserPermissions();
-  const { fisherPerformanceSummary, isLoadingFisherSummary } = useIndividualData();
+  const { fisherPerformanceSummary, isLoadingFisherSummary, fisherData } = useIndividualData();
+
+  // Get fisher's BMU from their data
+  const fisherBMU = useMemo(() => {
+    if (!fisherData || fisherData.length === 0) return null;
+    return fisherData[0]?.BMU;
+  }, [fisherData]);
+
+  // Fetch all data for the fisher's BMU to calculate averages
+  const { data: bmuData, isLoading: isLoadingBmuData } = api.individualData.all.useQuery(
+    { bmus: fisherBMU ? [fisherBMU] : [] },
+    { enabled: !!fisherBMU }
+  );
+
+  // Calculate BMU averages (excluding current fisher)
+  const bmuAverages = useMemo(() => {
+    if (!bmuData || !userFisherId) return null;
+    
+    const otherFishersData = bmuData.filter(record => record.fisher_id !== userFisherId);
+    if (otherFishersData.length === 0) return null;
+
+    const cpueValues = otherFishersData.filter(d => d.fisher_cpue != null).map(d => d.fisher_cpue);
+    const rpueValues = otherFishersData.filter(d => d.fisher_rpue != null).map(d => d.fisher_rpue);
+    const costValues = otherFishersData.filter(d => d.fisher_cost != null).map(d => d.fisher_cost);
+
+    return {
+      avgCpue: cpueValues.length > 0 ? cpueValues.reduce((a, b) => a + b, 0) / cpueValues.length : 0,
+      avgRpue: rpueValues.length > 0 ? rpueValues.reduce((a, b) => a + b, 0) / rpueValues.length : 0,
+      avgCost: costValues.length > 0 ? costValues.reduce((a, b) => a + b, 0) / costValues.length : 0,
+    };
+  }, [bmuData, userFisherId]);
 
   // Only render for IIA users
   if (!isIiaUser || !userFisherId) {
     return null;
   }
 
-  if (isLoadingFisherSummary) {
+  if (isLoadingFisherSummary || isLoadingBmuData) {
     return (
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
         {[...Array(4)].map((_, i) => (
@@ -37,34 +69,59 @@ export default function IndividualFisherStats({ lang }: { lang?: string }) {
 
   const summary = fisherPerformanceSummary?.[0] || {};
 
+  const getPerformanceStatus = (fisherValue: number, bmuAvg: number, metric: string) => {
+    if (!bmuAvg) return 'neutral';
+    const percentDiff = ((fisherValue - bmuAvg) / bmuAvg) * 100;
+    
+    // For cost, lower is better
+    if (metric === 'cost') {
+      if (percentDiff < -10) return 'up';
+      if (percentDiff > 10) return 'down';
+      return 'neutral';
+    }
+    
+    // For other metrics, higher is better
+    if (percentDiff > 10) return 'up';
+    if (percentDiff < -10) return 'down';
+    return 'neutral';
+  };
+
   const stats = [
     {
-      title: t('dashboard.cpue'),
+      title: t('text-cpue'),
       value: summary.avg_cpue || 0,
+      bmuAvg: bmuAverages?.avgCpue || 0,
       format: (val: number) => `${val.toFixed(2)} kg/trip`,
-      trend: summary.avg_cpue > 10 ? 'up' : summary.avg_cpue < 5 ? 'down' : 'neutral',
+      trend: getPerformanceStatus(summary.avg_cpue || 0, bmuAverages?.avgCpue || 0, 'cpue'),
       color: 'blue' as const,
+      metric: 'cpue',
     },
     {
-      title: t('dashboard.rpue'),
+      title: t('text-rpue'),
       value: summary.avg_rpue || 0,
+      bmuAvg: bmuAverages?.avgRpue || 0,
       format: (val: number) => `$${val.toFixed(2)}`,
-      trend: summary.avg_rpue > 5000 ? 'up' : summary.avg_rpue < 2000 ? 'down' : 'neutral',
+      trend: getPerformanceStatus(summary.avg_rpue || 0, bmuAverages?.avgRpue || 0, 'rpue'),
       color: 'green' as const,
+      metric: 'rpue',
     },
     {
-      title: t('dashboard.cost'),
+      title: t('text-cost'),
       value: summary.avg_cost || 0,
+      bmuAvg: bmuAverages?.avgCost || 0,
       format: (val: number) => `$${val.toFixed(2)}`,
-      trend: summary.avg_cost < 1500 ? 'up' : summary.avg_cost > 2000 ? 'down' : 'neutral',
+      trend: getPerformanceStatus(summary.avg_cost || 0, bmuAverages?.avgCost || 0, 'cost'),
       color: 'purple' as const,
+      metric: 'cost',
     },
     {
-      title: t('dashboard.netProfit'),
+      title: t('text-net-profit'),
       value: summary.net_profit || 0,
+      bmuAvg: null, // We don't have BMU average for net profit
       format: (val: number) => `$${val.toFixed(2)}`,
       trend: summary.net_profit > 0 ? 'up' : summary.net_profit < 0 ? 'down' : 'neutral',
       color: 'orange' as const,
+      metric: 'profit',
     },
   ];
 
@@ -93,36 +150,90 @@ export default function IndividualFisherStats({ lang }: { lang?: string }) {
     <div className="space-y-5">
       {/* User info header */}
       <WidgetCard
-        title={t('dashboard.yourPerformance')}
-        description={t('dashboard.performanceDescription')}
+        title={t('text-your-performance')}
+        description={t('text-performance-description')}
         headerClassName="pb-3"
         className="border-0"
       >
         <div className="flex items-center justify-between">
-          <Text className="text-sm text-gray-500">
-            Fisher ID: {userFisherId}
-          </Text>
-          <Text className="text-sm text-gray-500">
-            Total trips: {summary.total_trips || 0}
-          </Text>
+                      <Text className="text-sm text-gray-500">
+              {t('text-fisher-id')}: {userFisherId}
+            </Text>
+            <Text className="text-sm text-gray-500">
+              {t('text-total-trips')}: {summary.total_trips || 0}
+            </Text>
         </div>
       </WidgetCard>
 
       {/* Stats cards */}
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
-        {stats.map((stat, index) => (
-          <MetricCard
-            key={index}
-            title={stat.title}
-            metric={stat.format(stat.value)}
-            icon={getTrendIcon(stat.trend)}
-            iconClassName="h-10 w-10"
-            className={cn(
-              "border-2",
-              getCardColors(stat.color)
-            )}
-          />
-        ))}
+        {stats.map((stat, index) => {
+          const percentDiff = stat.bmuAvg && stat.bmuAvg > 0
+            ? ((stat.value - stat.bmuAvg) / stat.bmuAvg * 100)
+            : null;
+          
+          return (
+            <div
+              key={index}
+              className={cn(
+                "rounded-lg border-2 p-6 relative overflow-hidden",
+                getCardColors(stat.color)
+              )}
+            >
+              {/* Performance indicator */}
+              {stat.trend !== 'neutral' && (
+                <div className="absolute top-3 right-3">
+                  {getTrendIcon(stat.trend)}
+                </div>
+              )}
+              
+              {/* Title */}
+              <Text className="text-sm font-medium text-gray-600 mb-2">
+                {stat.title}
+              </Text>
+              
+              {/* Fisher's value */}
+              <div className="mb-3">
+                <Text className="text-2xl font-bold text-gray-900">
+                  {stat.format(stat.value)}
+                </Text>
+                <Text className="text-xs text-gray-500 mt-1">
+                  {t('text-your-average')}
+                </Text>
+              </div>
+              
+              {/* BMU comparison */}
+              {stat.bmuAvg !== null && bmuAverages && (
+                <div className="border-t pt-3 space-y-1">
+                  <div className="flex items-center justify-between">
+                    <Text className="text-xs text-gray-500">
+                      {fisherBMU} {t('text-average')}:
+                    </Text>
+                    <Text className="text-xs font-medium text-gray-700">
+                      {stat.format(stat.bmuAvg)}
+                    </Text>
+                  </div>
+                  
+                  {percentDiff !== null && (
+                    <div className="flex items-center justify-between">
+                      <Text className="text-xs text-gray-500">
+                        {t('text-difference')}:
+                      </Text>
+                      <Text className={cn(
+                        "text-xs font-medium",
+                        stat.metric === 'cost' 
+                          ? percentDiff < 0 ? "text-green-600" : percentDiff > 0 ? "text-red-600" : "text-gray-600"
+                          : percentDiff > 0 ? "text-green-600" : percentDiff < 0 ? "text-red-600" : "text-gray-600"
+                      )}>
+                        {percentDiff > 0 ? '+' : ''}{percentDiff.toFixed(1)}%
+                      </Text>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
     </div>
   );
