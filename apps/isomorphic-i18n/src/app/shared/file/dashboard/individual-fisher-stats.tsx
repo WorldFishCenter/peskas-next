@@ -173,7 +173,7 @@ export default function IndividualFisherStats({ lang }: { lang?: string }) {
   return (
     <div className="space-y-5">
       {/* User info header */}
-      <WidgetCard
+      {/* <WidgetCard
         title={t('text-your-performance')}
         description={t('text-performance-description')}
         headerClassName="pb-3"
@@ -187,7 +187,7 @@ export default function IndividualFisherStats({ lang }: { lang?: string }) {
               {t('text-total-trips')}: {summary.total_trips || 0}
             </Text>
         </div>
-      </WidgetCard>
+      </WidgetCard> */}
 
       {/* Stats cards */}
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
