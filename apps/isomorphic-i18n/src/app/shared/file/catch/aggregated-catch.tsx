@@ -76,7 +76,7 @@ export default function AggregatedCatch({
     try {
       // Transform data to fit the format for Recharts
       const formattedData = monthlyData.reduce((acc: DataItem[], item: any) => {
-        const dateKey = new Date(item._id.landing_date)
+        const dateKey = new Date(item._id.date)
           .toISOString()
           .split("T")[0];
         const existingEntry = acc.find((entry) => entry.date === dateKey);

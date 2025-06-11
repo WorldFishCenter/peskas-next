@@ -16,7 +16,7 @@ export const individualDataRouter = createTRPCRouter({
         })
         .select({
           _id: 0,
-          landing_date: 1,
+          date: 1,
           BMU: 1,
           gear: 1,
           fisher_id: 1,
@@ -24,7 +24,7 @@ export const individualDataRouter = createTRPCRouter({
           fisher_rpue: 1,
           fisher_cost: 1,
         })
-        .sort({ landing_date: -1 })
+        .sort({ date: -1 })
         .exec();
       } catch (error) {
         console.error('Error in individual data all query:', error);
@@ -53,26 +53,26 @@ export const individualDataRouter = createTRPCRouter({
         };
         
         if (input.startDate || input.endDate) {
-          matchStage.landing_date = {};
+          matchStage.date = {};
           if (input.startDate) {
-            matchStage.landing_date.$gte = new Date(input.startDate);
+            matchStage.date.$gte = new Date(input.startDate);
           }
           if (input.endDate) {
-            matchStage.landing_date.$lte = new Date(input.endDate);
+            matchStage.date.$lte = new Date(input.endDate);
           }
         }
         
         return await IndividualDataModel.find(matchStage)
           .select({
             _id: 0,
-            landing_date: 1,
+            date: 1,
             BMU: 1,
             gear: 1,
             fisher_cpue: 1,
             fisher_rpue: 1,
             fisher_cost: 1,
           })
-          .sort({ landing_date: -1 })
+          .sort({ date: -1 })
           .exec();
       } catch (error) {
         console.error('Error in individual data byFisherId query:', error);
@@ -101,12 +101,12 @@ export const individualDataRouter = createTRPCRouter({
         };
         
         if (input.startDate || input.endDate) {
-          matchStage.landing_date = {};
+          matchStage.date = {};
           if (input.startDate) {
-            matchStage.landing_date.$gte = new Date(input.startDate);
+            matchStage.date.$gte = new Date(input.startDate);
           }
           if (input.endDate) {
-            matchStage.landing_date.$lte = new Date(input.endDate);
+            matchStage.date.$lte = new Date(input.endDate);
           }
         }
         
@@ -231,7 +231,7 @@ export const individualDataRouter = createTRPCRouter({
           {
             $group: {
               _id: {
-                month: { $dateToString: { format: "%Y-%m", date: "$landing_date" } },
+                month: { $dateToString: { format: "%Y-%m", date: "$date" } },
                 BMU: "$BMU",
               },
               avg_value: { $avg: `$${input.metric}` },
@@ -281,7 +281,7 @@ export const individualDataRouter = createTRPCRouter({
           },
           {
             $group: {
-              _id: { $dateToString: { format: "%Y-%m", date: "$landing_date" } },
+              _id: { $dateToString: { format: "%Y-%m", date: "$date" } },
               avg_value: { $avg: `$${input.metric}` },
               count: { $sum: 1 },
               gear_breakdown: {
@@ -333,12 +333,12 @@ export const individualDataRouter = createTRPCRouter({
         };
         
         if (input.startDate || input.endDate) {
-          matchStage.landing_date = {};
+          matchStage.date = {};
           if (input.startDate) {
-            matchStage.landing_date.$gte = new Date(input.startDate);
+            matchStage.date.$gte = new Date(input.startDate);
           }
           if (input.endDate) {
-            matchStage.landing_date.$lte = new Date(input.endDate);
+            matchStage.date.$lte = new Date(input.endDate);
           }
         }
         
@@ -357,8 +357,8 @@ export const individualDataRouter = createTRPCRouter({
               total_revenue: { $sum: "$fisher_rpue" },
               gears_used: { $addToSet: "$gear" },
               bmus_visited: { $addToSet: "$BMU" },
-              latest_trip: { $max: "$landing_date" },
-              earliest_trip: { $min: "$landing_date" },
+              latest_trip: { $max: "$date" },
+              earliest_trip: { $min: "$date" },
             },
           },
           {

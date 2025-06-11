@@ -4,7 +4,7 @@ import mongoose, { Schema } from "mongoose";
 /* eslint-disable @typescript-eslint/consistent-type-definitions */
 export type TIndividualData = {
   _id: Types.ObjectId;
-  landing_date: Date;
+  date: Date;
   BMU: string;
   gear: string;
   fisher_id: string;
@@ -18,7 +18,7 @@ export type TIndividualData = {
  */
 const individualDataSchema = new Schema<TIndividualData>(
   {
-    landing_date: { type: Date, required: true },
+    date: { type: Date, required: true },
     BMU: { type: String, required: true },
     gear: { type: String, required: true },
     fisher_id: { type: String, required: true },
