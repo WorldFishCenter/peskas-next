@@ -142,7 +142,7 @@ function DropdownMenu() {
       setCurrentLang(lang);
       changeAppLanguage(lang);
     }
-  }, []);
+  }, [currentLang]);
 
   if (!mounted) {
     return null;

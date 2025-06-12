@@ -99,11 +99,6 @@ export default function IndividualFisherGearPerformance({
     { enabled: !!fisherBMU }
   );
 
-  // Only render for IIA users
-  if (!isIiaUser || !userFisherId) {
-    return null;
-  }
-
   // Process data by gear type
   const gearPerformanceData = useMemo(() => {
     if (!fisherData || fisherData.length === 0) return [];
@@ -234,6 +229,11 @@ export default function IndividualFisherGearPerformance({
       };
     });
   }, [gearPerformanceData, bmuGearPerformance, selectedMetric]);
+
+  // Only render for IIA users
+  if (!isIiaUser || !userFisherId) {
+    return null;
+  }
 
   if (isLoadingFisherData || isLoadingBmuData) {
     return (

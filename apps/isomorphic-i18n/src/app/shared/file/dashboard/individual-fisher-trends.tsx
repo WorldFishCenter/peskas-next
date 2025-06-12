@@ -95,11 +95,6 @@ export default function IndividualFisherTrends({
   });
   const [selectedMetric, setSelectedMetric] = useState<MetricType>("fisher_cpue");
 
-  // Only render for IIA users
-  if (!isIiaUser || !userFisherId) {
-    return null;
-  }
-
   // Get the fisher's BMU from their data
   const fisherBMU = useMemo(() => {
     if (!fisherData || fisherData.length === 0) return null;
@@ -236,6 +231,11 @@ export default function IndividualFisherTrends({
       fishingDays,
     };
   }, [fisherData]);
+
+  // Only render for IIA users
+  if (!isIiaUser || !userFisherId) {
+    return null;
+  }
 
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {

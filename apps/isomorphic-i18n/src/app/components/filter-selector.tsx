@@ -9,10 +9,9 @@ import find from 'lodash/find';
 import get from 'lodash/get';
 import values from 'lodash/values';
 import isEmpty from 'lodash/isEmpty';
-import { useAtom } from 'jotai';
+import { useAtom, atom } from 'jotai';
 import { atomWithStorage } from 'jotai/utils';
 import Fuse from "fuse.js";
-import { atom } from "jotai";
 import { MetricKey } from "@/app/shared/file/dashboard/charts/types";
 
 import type { TBmu } from "@repo/nosql/schema/bmu";
