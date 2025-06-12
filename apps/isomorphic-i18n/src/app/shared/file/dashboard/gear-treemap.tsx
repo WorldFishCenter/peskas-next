@@ -10,6 +10,7 @@ import cn from "@utils/class-names";
 import { useTheme } from "next-themes";
 import MetricCard from "@components/cards/metric-card";
 import { useSession } from "next-auth/react";
+import { getClientLanguage } from "@/app/i18n/language-link";
 import {
   BarChart,
   Bar,
@@ -284,7 +285,29 @@ export default function GearHeatmap({
   const [comparisonData, setComparisonData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const { t } = useTranslation(lang!, "common");
+  
+  // Use client language and handle language changes properly
+  const clientLang = getClientLanguage();
+  const { t, i18n } = useTranslation(clientLang, "common");
+  const [currentLang, setCurrentLang] = useState(clientLang);
+  
+  // Listen for language changes
+  useEffect(() => {
+    const handleLanguageChange = (event: CustomEvent) => {
+      setCurrentLang(event.detail.language);
+      
+      // Make sure i18n instance is updated
+      if (i18n.language !== event.detail.language) {
+        i18n.changeLanguage(event.detail.language);
+      }
+    };
+    
+    window.addEventListener('i18n-language-changed', handleLanguageChange as EventListener);
+    return () => {
+      window.removeEventListener('i18n-language-changed', handleLanguageChange as EventListener);
+    };
+  }, [i18n]);
+  
   const [bmus] = useAtom(bmusAtom);
   const [selectedMetric] = useAtom(selectedMetricAtom);
   const [siteColors, setSiteColors] = useState<Record<string, string>>({});
@@ -341,8 +364,37 @@ export default function GearHeatmap({
   );
 
   const handleTabChange = useCallback((tab: string) => {
+    // Get the current language to preserve it
+    const currentActiveLang = i18n.language || currentLang || getClientLanguage();
+    
     setActiveTab(tab);
-  }, []);
+    
+    // Force language persistence after state update
+    requestAnimationFrame(() => {
+      // Double-check and force language if needed
+      const storedLang = localStorage.getItem('i18nextLng') || 
+                        localStorage.getItem('selectedLanguage') || 
+                        localStorage.getItem('peskas-language');
+      
+      if (storedLang && storedLang !== i18n.language) {
+        i18n.changeLanguage(storedLang);
+        
+        // Ensure all storage is consistent
+        localStorage.setItem('i18nextLng', storedLang);
+        localStorage.setItem('selectedLanguage', storedLang);
+        localStorage.setItem('peskas-language', storedLang);
+        
+        // Update document attributes
+        document.documentElement.lang = storedLang;
+        document.documentElement.setAttribute('data-language', storedLang);
+        
+        // Dispatch event to notify all components
+        window.dispatchEvent(new CustomEvent('i18n-language-changed', {
+          detail: { language: storedLang }
+        }));
+      }
+    });
+  }, [i18n, currentLang]);
 
   const handleLegendClick = useCallback((site: string) => {
     setVisibilityState((prev) => ({

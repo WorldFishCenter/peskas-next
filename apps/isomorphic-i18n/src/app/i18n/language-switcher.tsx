@@ -30,10 +30,15 @@ export function changeAppLanguage(newLang: string): void {
   // Save current scroll position
   const scrollPosition = window.scrollY || document.documentElement.scrollTop;
   
-  // Update localStorage
+  // Update all localStorage keys to ensure persistence
   localStorage.setItem('i18nextLng', newLang);
   localStorage.setItem('selectedLanguage', newLang);
   localStorage.setItem('peskas-language', newLang);
+  
+  // Also set in sessionStorage as a backup
+  sessionStorage.setItem('i18nextLng', newLang);
+  sessionStorage.setItem('selectedLanguage', newLang);
+  sessionStorage.setItem('peskas-language', newLang);
   
   // Update document attributes
   document.documentElement.setAttribute('data-language', newLang);
@@ -56,10 +61,20 @@ export function changeAppLanguage(newLang: string): void {
     detail: { language: newLang }
   }));
   
-  // Restore scroll position after a short delay to ensure DOM updates
-  setTimeout(() => {
+  // Force a small delay to ensure all React components have updated
+  requestAnimationFrame(() => {
+    // Double-check that the language is still set correctly
+    const currentLang = localStorage.getItem('i18nextLng');
+    if (currentLang !== newLang) {
+      // If something reset it, force it again
+      localStorage.setItem('i18nextLng', newLang);
+      localStorage.setItem('selectedLanguage', newLang);
+      localStorage.setItem('peskas-language', newLang);
+    }
+    
+    // Restore scroll position
     window.scrollTo(0, scrollPosition);
-  }, 50);
+  });
 }
 
 /**

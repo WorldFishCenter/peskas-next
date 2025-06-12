@@ -17,14 +17,28 @@ export function getClientLanguage(): string {
   // Check browser environment
   if (typeof window !== 'undefined') {
     // Try each storage key in order of priority
-    const fromStorage = localStorage.getItem('selectedLanguage') || 
-                        localStorage.getItem('i18nextLng') || 
-                        localStorage.getItem('peskas-language');
+    const fromLocalStorage = localStorage.getItem('selectedLanguage') || 
+                            localStorage.getItem('i18nextLng') || 
+                            localStorage.getItem('peskas-language');
     
-    if (fromStorage && ['en', 'sw'].includes(fromStorage)) {
+    if (fromLocalStorage && ['en', 'sw'].includes(fromLocalStorage)) {
       // Cache the value for future use
-      clientSideLanguage = fromStorage;
-      return fromStorage;
+      clientSideLanguage = fromLocalStorage;
+      return fromLocalStorage;
+    }
+    
+    // Also check sessionStorage as a fallback
+    const fromSessionStorage = sessionStorage.getItem('selectedLanguage') || 
+                              sessionStorage.getItem('i18nextLng') || 
+                              sessionStorage.getItem('peskas-language');
+    
+    if (fromSessionStorage && ['en', 'sw'].includes(fromSessionStorage)) {
+      // Cache the value and also update localStorage
+      clientSideLanguage = fromSessionStorage;
+      localStorage.setItem('i18nextLng', fromSessionStorage);
+      localStorage.setItem('selectedLanguage', fromSessionStorage);
+      localStorage.setItem('peskas-language', fromSessionStorage);
+      return fromSessionStorage;
     }
 
     // Try HTML attributes
@@ -32,6 +46,13 @@ export function getClientLanguage(): string {
     if (fromHTML && ['en', 'sw'].includes(fromHTML)) {
       clientSideLanguage = fromHTML;
       return fromHTML;
+    }
+    
+    // Try data attribute as another fallback
+    const fromDataAttr = document.documentElement.getAttribute('data-language');
+    if (fromDataAttr && ['en', 'sw'].includes(fromDataAttr)) {
+      clientSideLanguage = fromDataAttr;
+      return fromDataAttr;
     }
   }
 

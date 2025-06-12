@@ -354,20 +354,17 @@ export default function CatchMetricsChart({
 
   // Handle tab changes while preserving language state
   const handleTabChange = useCallback((tab: string) => {
-    // Save current scroll position
-    const scrollPosition = window.scrollY || document.documentElement.scrollTop;
+    // Don't process if it's the same tab
+    if (prevTabRef.current === tab) return;
     
-    // Save current language before tab change
-    const currentClientLang = getClientLanguage();
+    // Get the current language from the i18n instance which should be the most up-to-date
+    const currentActiveLang = i18n.language || currentLang || getClientLanguage();
     
-    if (prevTabRef.current === tab) return; // Avoid unnecessary updates
+    // Log for debugging
+    console.log('Tab change - Current language:', currentActiveLang);
+    
+    // Update tab reference
     prevTabRef.current = tab;
-    
-    // Set a data attribute on document to immediately communicate language
-    if (typeof document !== 'undefined') {
-      document.documentElement.setAttribute('data-language', currentClientLang);
-      document.documentElement.setAttribute('data-language-ready', 'true');
-    }
     
     // Update local tab state
     setLocalActiveTab(tab);
@@ -378,30 +375,36 @@ export default function CatchMetricsChart({
     // Call parent's onTabChange handler if provided
     if (onTabChange) {
       onTabChange(oldTabName);
-      
-      // Ensure language doesn't revert during tab change
-      // This is crucial for Vercel/production environment
-      setTimeout(() => {
-        // Force the language to stay as selected by user
-        if (i18n.language !== currentClientLang) {
-          i18n.changeLanguage(currentClientLang);
-        }
-        
-        // Re-trigger a language change event to ensure all components update
-        window.dispatchEvent(new CustomEvent('i18n-language-changed', {
-          detail: { language: currentClientLang }
-        }));
-        
-        // Restore scroll position
-        window.scrollTo(0, scrollPosition);
-      }, 10);
-    } else {
-      // Restore scroll position even if no parent callback
-      setTimeout(() => {
-        window.scrollTo(0, scrollPosition);
-      }, 10);
     }
-  }, [i18n, onTabChange]);
+    
+    // Force language persistence after React re-render cycle
+    // Use requestAnimationFrame to ensure this runs after all React updates
+    requestAnimationFrame(() => {
+      // Double-check and force language if needed
+      const storedLang = localStorage.getItem('i18nextLng') || 
+                        localStorage.getItem('selectedLanguage') || 
+                        localStorage.getItem('peskas-language');
+      
+      if (storedLang && storedLang !== i18n.language) {
+        console.log('Language mismatch detected, forcing to:', storedLang);
+        i18n.changeLanguage(storedLang);
+        
+        // Also update all storage to ensure consistency
+        localStorage.setItem('i18nextLng', storedLang);
+        localStorage.setItem('selectedLanguage', storedLang);
+        localStorage.setItem('peskas-language', storedLang);
+        
+        // Update document attributes
+        document.documentElement.lang = storedLang;
+        document.documentElement.setAttribute('data-language', storedLang);
+        
+        // Dispatch event to notify all components
+        window.dispatchEvent(new CustomEvent('i18n-language-changed', {
+          detail: { language: storedLang }
+        }));
+      }
+    });
+  }, [i18n, currentLang, onTabChange]);
 
   // Update visibility state when changing tabs - but only once per tab change
   useEffect(() => {
