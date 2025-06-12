@@ -845,5 +845,20 @@
   "text-compared-with-bmu-average": "Ikilinganishwa na wastani wa {{bmu}}",
   "text-total-days": "jumla ya siku",
   "text-no-data": "Hakuna data",
-  "text-of-total": "ya jumla"
+  "text-of-total": "ya jumla",
+  "text-lower-than-average": "chini ya wastani",
+  "text-higher-than-average": "juu ya wastani",
+  "text-same-as-average": "sawa na wastani",
+  "text-average-catch-per-trip": "Wastani wa samaki kwa safari",
+  "text-average-revenue-per-trip": "Wastani wa mapato kwa safari",
+  "text-average-cost-per-trip": "Wastani wa gharama kwa safari",
+  "text-average-profit-per-trip": "Wastani wa faida kwa safari (Mapato - Gharama)",
+  "text-last-7-days": "Siku 7 zilizopita",
+  "text-last-30-days": "Siku 30 zilizopita",
+  "text-last-3-months": "Miezi 3 iliyopita",
+  "text-last-6-months": "Miezi 6 iliyopita",
+  "text-all-time": "Wakati wote",
+  "text-gear-performance-summary": "Utendaji wa Zana Ikilinganishwa na Wastani wa BMU",
+  "text-total-fishing-trips": "Jumla ya safari za uvuvi",
+  "text-gear-types-used": "Aina za zana zilizotumika"
 }

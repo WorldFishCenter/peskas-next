@@ -986,5 +986,20 @@
   "text-compared-with-bmu-average": "Compared with {{bmu}} average",
   "text-total-days": "total days",
   "text-no-data": "No data",
-  "text-of-total": "of total"
+  "text-of-total": "of total",
+  "text-lower-than-average": "lower than average",
+  "text-higher-than-average": "higher than average",
+  "text-same-as-average": "same as average",
+  "text-average-catch-per-trip": "Average catch per fishing trip",
+  "text-average-revenue-per-trip": "Average revenue per trip",
+  "text-average-cost-per-trip": "Average cost per trip",
+  "text-average-profit-per-trip": "Average profit per trip (Revenue - Cost)",
+  "text-last-7-days": "Last 7 days",
+  "text-last-30-days": "Last 30 days",
+  "text-last-3-months": "Last 3 months",
+  "text-last-6-months": "Last 6 months",
+  "text-all-time": "All time",
+  "text-gear-performance-summary": "Gear Performance vs BMU Average",
+  "text-total-fishing-trips": "Total fishing trips",
+  "text-gear-types-used": "Gear types used"
 }

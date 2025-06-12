@@ -13,9 +13,6 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
   Legend,
 } from "recharts";
 import cn from "@utils/class-names";
@@ -50,7 +47,15 @@ const capitalizeGearType = (gear: string) => {
 
 type MetricType = "fisher_cpue" | "fisher_rpue" | "fisher_cost";
 
-export default function IndividualFisherGearPerformance({ lang }: { lang?: string }) {
+export default function IndividualFisherGearPerformance({ 
+  lang, 
+  startDate, 
+  endDate 
+}: { 
+  lang?: string;
+  startDate?: Date | null;
+  endDate?: Date;
+}) {
   // Use client language instead of lang prop
   const clientLang = getClientLanguage();
   const { t, i18n } = useTranslation(clientLang);
@@ -76,9 +81,11 @@ export default function IndividualFisherGearPerformance({ lang }: { lang?: strin
   }, [i18n]);
   
   const { userFisherId, isIiaUser } = useUserPermissions();
-  const { fisherData, isLoadingFisherData } = useIndividualData();
+  const { fisherData, isLoadingFisherData } = useIndividualData({
+    startDate,
+    endDate
+  });
   const [selectedMetric, setSelectedMetric] = useState<MetricType>("fisher_cpue");
-  const [viewType, setViewType] = useState<"bar" | "pie" | "comparison">("bar");
 
   // Get fisher's BMU
   const fisherBMU = useMemo(() => {
@@ -228,76 +235,6 @@ export default function IndividualFisherGearPerformance({ lang }: { lang?: strin
     });
   }, [gearPerformanceData, bmuGearPerformance, selectedMetric]);
 
-  // Prepare data for pie chart
-  const pieData = useMemo(() => {
-    const metricKey = selectedMetric === "fisher_cpue" ? "avgCpue" : 
-                     selectedMetric === "fisher_rpue" ? "avgRpue" : "avgCost";
-    
-    return gearPerformanceData
-      .filter(item => item[metricKey] > 0)
-      .map(item => ({
-        name: item.name,
-        value: item[metricKey],
-      }));
-  }, [gearPerformanceData, selectedMetric]);
-
-  const CustomTooltip = ({ active, payload }: any) => {
-    if (active && payload && payload.length) {
-      const data = payload[0].payload;
-      
-      return (
-        <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
-          <p className="text-sm font-medium text-gray-600 mb-2">{data.name}</p>
-          <div className="space-y-1.5">
-            <p className="text-sm">
-              <span className="font-medium">{t('text-trips')}:</span> {data.trips}
-            </p>
-            <p className="text-sm">
-              <span className="font-medium">{t('text-avg-cpue')}:</span> {data.avgCpue.toFixed(2)} kg/trip
-            </p>
-            <p className="text-sm">
-              <span className="font-medium">{t('text-avg-revenue')}:</span> ${data.avgRpue.toFixed(2)}
-            </p>
-            <p className="text-sm">
-              <span className="font-medium">{t('text-avg-cost')}:</span> ${data.avgCost.toFixed(2)}
-            </p>
-            <p className="text-sm font-semibold">
-              <span className="font-medium">{t('text-net-profit')}:</span> ${data.netProfit.toFixed(2)}
-            </p>
-          </div>
-        </div>
-      );
-    }
-    return null;
-  };
-
-  const PieTooltip = ({ active, payload }: any) => {
-    if (active && payload && payload.length) {
-      const data = payload[0];
-      const percentage = ((data.value / pieData.reduce((sum, item) => sum + item.value, 0)) * 100).toFixed(1);
-      
-      return (
-        <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
-          <p className="text-sm font-medium text-gray-600 mb-2">{data.name}</p>
-          <p className="text-sm">
-            <span className="font-medium">
-              {selectedMetric === "fisher_cpue" && `${t('text-avg-cpue')}: `}
-              {selectedMetric === "fisher_rpue" && `${t('text-avg-revenue')}: `}
-              {selectedMetric === "fisher_cost" && `${t('text-avg-cost')}: `}
-            </span>
-            <span className="font-semibold">
-              {selectedMetric === "fisher_cpue" && `${data.value.toFixed(2)} kg/trip`}
-              {selectedMetric === "fisher_rpue" && `$${data.value.toFixed(2)}`}
-              {selectedMetric === "fisher_cost" && `$${data.value.toFixed(2)}`}
-            </span>
-          </p>
-          <p className="text-sm text-gray-500">{percentage}% {t('text-of-total')}</p>
-        </div>
-      );
-    }
-    return null;
-  };
-
   if (isLoadingFisherData || isLoadingBmuData) {
     return (
       <WidgetCard
@@ -327,278 +264,203 @@ export default function IndividualFisherGearPerformance({ lang }: { lang?: strin
     );
   }
 
-
-
   return (
     <WidgetCard
       title={t('text-your-gear-performance')}
       description={t('text-gear-performance-description')}
       headerClassName="pb-2"
     >
-      {/* View type and metric selector */}
-      <div className="flex flex-col sm:flex-row justify-between gap-4 mb-4">
-        <div className="flex gap-2">
-          <button
-            onClick={() => setViewType("bar")}
-            className={cn(
-              "px-3 py-2 rounded-md text-xs font-medium transition-colors",
-              viewType === "bar"
-                ? "bg-gray-800 text-white"
-                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-            )}
-          >
-            {t('text-bar-chart')}
-          </button>
-          <button
-            onClick={() => setViewType("pie")}
-            className={cn(
-              "px-3 py-2 rounded-md text-xs font-medium transition-colors",
-              viewType === "pie"
-                ? "bg-gray-800 text-white"
-                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-            )}
-          >
-            {t('text-pie-chart')}
-          </button>
-          <button
-            onClick={() => setViewType("comparison")}
-            className={cn(
-              "px-3 py-2 rounded-md text-xs font-medium transition-colors",
-              viewType === "comparison"
-                ? "bg-gray-800 text-white"
-                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-            )}
-          >
-            {t('text-compare-with')} {fisherBMU}
-          </button>
-        </div>
-        
-        <div className="grid grid-cols-3 gap-2">
-          <button
-            onClick={() => setSelectedMetric("fisher_cpue")}
-            className={cn(
-              "px-3 py-2 rounded-md text-xs font-medium transition-colors",
-              selectedMetric === "fisher_cpue"
-                ? "bg-blue-100 text-blue-700 border-blue-200 border"
-                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-            )}
-          >
-            {t('text-cpue')}
-          </button>
-          <button
-            onClick={() => setSelectedMetric("fisher_rpue")}
-            className={cn(
-              "px-3 py-2 rounded-md text-xs font-medium transition-colors",
-              selectedMetric === "fisher_rpue"
-                ? "bg-green-100 text-green-700 border-green-200 border"
-                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-            )}
-          >
-            {t('text-rpue')}
-          </button>
-          <button
-            onClick={() => setSelectedMetric("fisher_cost")}
-            className={cn(
-              "px-3 py-2 rounded-md text-xs font-medium transition-colors",
-              selectedMetric === "fisher_cost"
-                ? "bg-amber-100 text-amber-700 border-amber-200 border"
-                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-            )}
-          >
-            {t('text-cost')}
-          </button>
-        </div>
+      {/* Metric selector */}
+      <div className="flex justify-end gap-2 mb-4">
+        <button
+          onClick={() => setSelectedMetric("fisher_cpue")}
+          className={cn(
+            "px-3 py-2 rounded-md text-xs font-medium transition-colors",
+            selectedMetric === "fisher_cpue"
+              ? "bg-blue-100 text-blue-700 border-blue-200 border"
+              : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+          )}
+        >
+          {t('text-cpue')}
+        </button>
+        <button
+          onClick={() => setSelectedMetric("fisher_rpue")}
+          className={cn(
+            "px-3 py-2 rounded-md text-xs font-medium transition-colors",
+            selectedMetric === "fisher_rpue"
+              ? "bg-green-100 text-green-700 border-green-200 border"
+              : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+          )}
+        >
+          {t('text-rpue')}
+        </button>
+        <button
+          onClick={() => setSelectedMetric("fisher_cost")}
+          className={cn(
+            "px-3 py-2 rounded-md text-xs font-medium transition-colors",
+            selectedMetric === "fisher_cost"
+              ? "bg-amber-100 text-amber-700 border-amber-200 border"
+              : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+          )}
+        >
+          {t('text-cost')}
+        </button>
       </div>
 
-      {/* Chart */}
+      {/* Comparison Chart */}
       <div className="h-96 w-full pt-9">
-        {viewType === "bar" ? (
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart
-              data={gearPerformanceData}
-              margin={{ top: 10, right: 30, left: 10, bottom: 60 }}
-            >
-              <XAxis
-                dataKey="name"
-                tickMargin={10}
-                axisLine={false}
-                tick={{ fontSize: 12 }}
-                angle={-45}
-                textAnchor="end"
-              />
-              <YAxis
-                axisLine={false}
-                tick={{ fontSize: 12 }}
-                tickFormatter={(value) => {
-                  if (selectedMetric !== "fisher_cpue") {
-                    return `$${formatNumber(value)}`;
-                  }
-                  return formatNumber(value);
-                }}
-              />
-              <CartesianGrid strokeDasharray="3 3" vertical={false} />
-              <Tooltip content={<CustomTooltip />} />
-              
-              <Bar
-                dataKey={
-                  selectedMetric === "fisher_cpue" ? "avgCpue" :
-                  selectedMetric === "fisher_rpue" ? "avgRpue" : "avgCost"
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart
+            data={comparisonData}
+            margin={{ top: 40, right: 30, left: 10, bottom: 80 }}
+          >
+            <Legend verticalAlign="top" height={36} />
+            <XAxis
+              dataKey="name"
+              tickMargin={10}
+              axisLine={false}
+              tick={{ fontSize: 12 }}
+              angle={-45}
+              textAnchor="end"
+            />
+            <YAxis
+              axisLine={false}
+              tick={{ fontSize: 12 }}
+              tickFormatter={(value) => {
+                if (selectedMetric !== "fisher_cpue") {
+                  return `KES ${formatNumber(value)}`;
                 }
-                fill={
-                  selectedMetric === "fisher_cpue" ? "#3b82f6" :
-                  selectedMetric === "fisher_rpue" ? "#10b981" : "#f59e0b"
-                }
-                isAnimationActive={false}
-                radius={[8, 8, 0, 0]}
-              />
-            </BarChart>
-          </ResponsiveContainer>
-        ) : viewType === "pie" ? (
-          <ResponsiveContainer width="100%" height="100%">
-            <PieChart>
-              <Pie
-                data={pieData}
-                cx="50%"
-                cy="50%"
-                labelLine={false}
-                label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                outerRadius={100}
-                fill="#8884d8"
-                dataKey="value"
-                isAnimationActive={false}
-              >
-                {pieData.map((entry, index) => (
-                  <Cell 
-                    key={`cell-${index}`} 
-                    fill={GEAR_COLORS[entry.name.toLowerCase()] || GEAR_COLORS.other} 
-                  />
-                ))}
-              </Pie>
-              <Tooltip content={<PieTooltip />} />
-              <Legend 
-                verticalAlign="bottom" 
-                height={36}
-                formatter={(value) => value}
-              />
-            </PieChart>
-          </ResponsiveContainer>
-        ) : viewType === "comparison" ? (
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart
-              data={comparisonData}
-              margin={{ top: 10, right: 30, left: 10, bottom: 60 }}
-            >
-              <XAxis
-                dataKey="name"
-                tickMargin={10}
-                axisLine={false}
-                tick={{ fontSize: 12 }}
-                angle={-45}
-                textAnchor="end"
-              />
-              <YAxis
-                axisLine={false}
-                tick={{ fontSize: 12 }}
-                tickFormatter={(value) => {
-                  if (selectedMetric !== "fisher_cpue") {
-                    return `$${formatNumber(value)}`;
-                  }
-                  return formatNumber(value);
-                }}
-              />
-              <CartesianGrid strokeDasharray="3 3" vertical={false} />
-              <Tooltip 
-                content={({ active, payload, label }) => {
-                  if (active && payload && payload.length) {
-                    const data = payload[0].payload;
-                    const percentDiff = data.bmuAverage > 0 
-                      ? ((data.yourValue - data.bmuAverage) / data.bmuAverage * 100).toFixed(1)
-                      : null;
-                    
-                    return (
-                      <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
-                        <p className="text-sm font-medium text-gray-600 mb-2">{label}</p>
-                        <div className="space-y-1.5">
-                          <p className="text-sm">
-                            <span className="font-medium">{t('text-your-average')}:</span> {
-                              selectedMetric === "fisher_cpue" ? `${data.yourValue.toFixed(2)} kg/trip` :
-                              `$${data.yourValue.toFixed(2)}`
+                return formatNumber(value);
+              }}
+            />
+            <CartesianGrid strokeDasharray="3 3" vertical={false} />
+            <Tooltip 
+              content={({ active, payload, label }) => {
+                if (active && payload && payload.length) {
+                  const data = payload[0].payload;
+                  const percentDiff = data.bmuAverage > 0 
+                    ? ((data.yourValue - data.bmuAverage) / data.bmuAverage * 100).toFixed(1)
+                    : null;
+                  
+                  return (
+                    <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
+                      <p className="text-sm font-medium text-gray-600 mb-2">{label}</p>
+                      <div className="space-y-1.5">
+                        <p className="text-sm">
+                          <span className="font-medium">{t('text-your-average')}:</span> {
+                            selectedMetric === "fisher_cpue" ? `${data.yourValue.toFixed(2)} kg/trip` :
+                            `KES ${data.yourValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                          }
+                        </p>
+                        <p className="text-sm">
+                          <span className="font-medium">{fisherBMU} {t('text-average')}:</span> {
+                            selectedMetric === "fisher_cpue" ? `${data.bmuAverage.toFixed(2)} kg/trip` :
+                            `KES ${data.bmuAverage.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                          }
+                        </p>
+                        {percentDiff !== null && (
+                          <p className={cn(
+                            "text-sm font-semibold",
+                            data.difference > 0 ? "text-green-600" : "text-red-600"
+                          )}>
+                            {data.difference > 0 ? '+' : ''}{percentDiff}% {
+                              selectedMetric === 'fisher_cost' 
+                                ? (data.difference < 0 ? t('text-better') : t('text-higher'))
+                                : (data.difference > 0 ? t('text-better') : t('text-lower'))
                             }
                           </p>
-                          <p className="text-sm">
-                            <span className="font-medium">{fisherBMU} {t('text-average')}:</span> {
-                              selectedMetric === "fisher_cpue" ? `${data.bmuAverage.toFixed(2)} kg/trip` :
-                              `$${data.bmuAverage.toFixed(2)}`
-                            }
-                          </p>
-                          {percentDiff !== null && (
-                            <p className={cn(
-                              "text-sm font-semibold",
-                              data.difference > 0 ? "text-green-600" : "text-red-600"
-                            )}>
-                              {data.difference > 0 ? '+' : ''}{percentDiff}% {
-                                selectedMetric === 'fisher_cost' 
-                                  ? (data.difference < 0 ? t('text-better') : t('text-higher'))
-                                  : (data.difference > 0 ? t('text-better') : t('text-lower'))
-                              }
-                            </p>
-                          )}
-                        </div>
+                        )}
                       </div>
-                    );
-                  }
-                  return null;
-                }}
-              />
-              <Legend />
-              
-              <Bar
-                dataKey="yourValue"
-                name={t('text-your-performance')}
-                fill={
-                  selectedMetric === "fisher_cpue" ? "#3b82f6" :
-                  selectedMetric === "fisher_rpue" ? "#10b981" : "#f59e0b"
+                    </div>
+                  );
                 }
-                isAnimationActive={false}
-                radius={[8, 8, 0, 0]}
-              />
-              <Bar
-                dataKey="bmuAverage"
-                name={`${fisherBMU} ${t('text-average')}`}
-                fill="#6b7280"
-                isAnimationActive={false}
-                radius={[8, 8, 0, 0]}
-              />
-            </BarChart>
-          </ResponsiveContainer>
-        ) : null}
+                return null;
+              }}
+            />
+            <Bar
+              dataKey="yourValue"
+              name={t('text-your-performance')}
+              fill={
+                selectedMetric === "fisher_cpue" ? "#3b82f6" :
+                selectedMetric === "fisher_rpue" ? "#10b981" : "#f59e0b"
+              }
+              isAnimationActive={false}
+              radius={[8, 8, 0, 0]}
+            />
+            <Bar
+              dataKey="bmuAverage"
+              name={`${fisherBMU} ${t('text-average')}`}
+              fill="#6b7280"
+              isAnimationActive={false}
+              radius={[8, 8, 0, 0]}
+            />
+          </BarChart>
+        </ResponsiveContainer>
       </div>
 
-      {/* Summary stats */}
-      <div className="mt-4 pt-4 border-t border-gray-200">
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          <div className="text-center">
-            <p className="text-xs text-gray-500">{t('text-total-gear-types')}</p>
-            <p className="text-lg font-semibold">{gearPerformanceData.length}</p>
-          </div>
-          <div className="text-center">
-            <p className="text-xs text-gray-500">{t('text-most-used-gear')}</p>
-            <p className="text-lg font-semibold">
-              {gearPerformanceData.sort((a, b) => b.trips - a.trips)[0]?.name || "-"}
-            </p>
-          </div>
-          <div className="text-center">
-            <p className="text-xs text-gray-500">{t('text-most-profitable-gear')}</p>
-            <p className="text-lg font-semibold">
-              {gearPerformanceData.sort((a, b) => b.netProfit - a.netProfit)[0]?.name || "-"}
-            </p>
-          </div>
-          <div className="text-center">
-            <p className="text-xs text-gray-500">{t('text-total-trips')}</p>
-            <p className="text-lg font-semibold">
-              {gearPerformanceData.reduce((sum, item) => sum + item.trips, 0)}
-            </p>
-          </div>
+      {/* Gear Performance Metrics */}
+      <div className="mt-6 space-y-4">
+        <h3 className="text-sm font-medium text-gray-700">{t('text-gear-performance-summary')}</h3>
+        
+        {comparisonData.map((gear) => {
+          const percentDiff = gear.bmuAverage > 0 
+            ? ((gear.yourValue - gear.bmuAverage) / gear.bmuAverage * 100)
+            : 0;
+          
+          const isPerformingBetter = selectedMetric === 'fisher_cost' 
+            ? percentDiff < 0 
+            : percentDiff > 0;
+          
+          return (
+            <div 
+              key={gear.name}
+              className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200"
+            >
+              <div className="flex items-center gap-3">
+                <div 
+                  className={cn(
+                    "w-2 h-12 rounded-full",
+                    isPerformingBetter ? "bg-green-500" : "bg-red-500"
+                  )}
+                />
+                <div>
+                  <p className="text-sm font-medium text-gray-900">{gear.name}</p>
+                  <p className="text-xs text-gray-500">
+                    {gearPerformanceData.find(g => g.name === gear.name)?.trips || 0} {t('text-trips')}
+                  </p>
+                </div>
+              </div>
+              
+              <div className="text-right">
+                <p className="text-sm font-medium text-gray-900">
+                  {selectedMetric === "fisher_cpue" 
+                    ? `${gear.yourValue.toFixed(2)} kg/trip`
+                    : `KES ${gear.yourValue.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`
+                  }
+                </p>
+                <p className={cn(
+                  "text-xs font-medium",
+                  isPerformingBetter ? "text-green-600" : "text-red-600"
+                )}>
+                  {percentDiff > 0 ? '+' : ''}{percentDiff.toFixed(1)}% 
+                  {' '}
+                  {selectedMetric === 'fisher_cost' 
+                    ? (percentDiff < 0 ? t('text-lower') : t('text-higher'))
+                    : (percentDiff > 0 ? t('text-higher') : t('text-lower'))
+                  }
+                </p>
+              </div>
+            </div>
+          );
+        })}
+        
+        {/* Overall summary */}
+        <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+          <p className="text-xs text-blue-700">
+            <span className="font-medium">{t('text-total-fishing-trips')}:</span> {gearPerformanceData.reduce((sum, item) => sum + item.trips, 0)}
+            {' • '}
+            <span className="font-medium">{t('text-gear-types-used')}:</span> {gearPerformanceData.length}
+          </p>
         </div>
       </div>
     </WidgetCard>

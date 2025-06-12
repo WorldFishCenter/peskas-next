@@ -2,13 +2,19 @@ import { api } from "@/trpc/react";
 import { useUserPermissions } from "./useUserPermissions";
 import { useSession } from "next-auth/react";
 
+interface UseIndividualDataOptions {
+  startDate?: Date | null;
+  endDate?: Date;
+}
+
 /**
  * Custom hook for fetching individual fisher data
  * 
  * This hook provides access to individual fisher data with proper filtering
  * based on user permissions and selected BMUs.
  */
-export const useIndividualData = () => {
+export const useIndividualData = (options?: UseIndividualDataOptions) => {
+  const { startDate, endDate } = options || {};
   const { getAccessibleBMUs, isIiaUser, userFisherId } = useUserPermissions();
   const { data: session } = useSession();
   
@@ -67,7 +73,11 @@ export const useIndividualData = () => {
     isLoading: isLoadingFisherData,
     error: errorFisherData,
   } = api.individualData.byFisherId.useQuery(
-    { fisherId: userFisherId || '' },
+    { 
+      fisherId: userFisherId || '',
+      startDate: startDate?.toISOString(),
+      endDate: endDate?.toISOString(),
+    },
     { enabled: isIiaUser && !!userFisherId }
   );
 
@@ -88,7 +98,11 @@ export const useIndividualData = () => {
     isLoading: isLoadingFisherSummary,
     error: errorFisherSummary,
   } = api.individualData.fisherPerformanceSummary.useQuery(
-    { fisherId: userFisherId || '' },
+    { 
+      fisherId: userFisherId || '',
+      startDate: startDate?.toISOString(),
+      endDate: endDate?.toISOString(),
+    },
     { enabled: isIiaUser && !!userFisherId }
   );
 

@@ -27,9 +27,9 @@ function CustomYAxisTick({ x = 0, y = 0, payload = { value: 0 }, selectedMetric 
     ? payload.value.toLocaleString()
     : payload.value.toFixed(1);
     
-  // Add dollar sign for revenue and cost metrics
+  // Add KES for revenue and cost metrics
   if (selectedMetric === "fisher_rpue" || selectedMetric === "fisher_cost") {
-    formattedValue = `$${formattedValue}`;
+    formattedValue = `${formattedValue}`;
   }
     
   return (
@@ -55,7 +55,15 @@ const COLORS = {
 
 type MetricType = "fisher_cpue" | "fisher_rpue" | "fisher_cost";
 
-export default function IndividualFisherTrends({ lang }: { lang?: string }) {
+export default function IndividualFisherTrends({ 
+  lang, 
+  startDate, 
+  endDate 
+}: { 
+  lang?: string;
+  startDate?: Date | null;
+  endDate?: Date;
+}) {
   // Use client language instead of lang prop
   const clientLang = getClientLanguage();
   const { t, i18n } = useTranslation(clientLang);
@@ -81,7 +89,10 @@ export default function IndividualFisherTrends({ lang }: { lang?: string }) {
   }, [i18n]);
   
   const { userFisherId, isIiaUser } = useUserPermissions();
-  const { fisherData, isLoadingFisherData } = useIndividualData();
+  const { fisherData, isLoadingFisherData } = useIndividualData({
+    startDate,
+    endDate
+  });
   const [selectedMetric, setSelectedMetric] = useState<MetricType>("fisher_cpue");
 
   // Only render for IIA users
@@ -258,8 +269,8 @@ export default function IndividualFisherTrends({ lang }: { lang?: string }) {
                     </span>{" "}
                     <span className="font-semibold">
                       {selectedMetric === "fisher_cpue" && `${value.toFixed(2)} kg/trip`}
-                      {selectedMetric === "fisher_rpue" && `$${value.toFixed(2)}`}
-                      {selectedMetric === "fisher_cost" && `$${value.toFixed(2)}`}
+                      {selectedMetric === "fisher_rpue" && `KES ${value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+                      {selectedMetric === "fisher_cost" && `KES ${value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
                     </span>
                   </p>
                 </div>
@@ -328,7 +339,7 @@ export default function IndividualFisherTrends({ lang }: { lang?: string }) {
               : "bg-gray-100 text-gray-600 hover:bg-gray-200"
           )}
         >
-          {t('text-rpue')} {Number(summaryStats.avgRpue) > 0 && `($${summaryStats.avgRpue} ${t('text-average').toLowerCase()})`}
+          {t('text-rpue')} {Number(summaryStats.avgRpue) > 0 && `(KES ${Number(summaryStats.avgRpue).toLocaleString('en-US', { minimumFractionDigits: 2 })} ${t('text-average').toLowerCase()})`}
         </button>
         <button
           onClick={() => setSelectedMetric("fisher_cost")}
@@ -339,7 +350,7 @@ export default function IndividualFisherTrends({ lang }: { lang?: string }) {
               : "bg-gray-100 text-gray-600 hover:bg-gray-200"
           )}
         >
-          {t('text-cost')} {Number(summaryStats.avgCost) > 0 && `($${summaryStats.avgCost} ${t('text-average').toLowerCase()})`}
+          {t('text-cost')} {Number(summaryStats.avgCost) > 0 && `(KES ${Number(summaryStats.avgCost).toLocaleString('en-US', { minimumFractionDigits: 2 })} ${t('text-average').toLowerCase()})`}
         </button>
       </div>
 

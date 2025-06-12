@@ -12,7 +12,15 @@ import { api } from "@/trpc/react";
 import { useMemo, useEffect, useState } from "react";
 import { getClientLanguage } from "@/app/i18n/language-link";
 
-export default function IndividualFisherStats({ lang }: { lang?: string }) {
+export default function IndividualFisherStats({ 
+  lang, 
+  startDate, 
+  endDate 
+}: { 
+  lang?: string;
+  startDate?: Date | null;
+  endDate?: Date;
+}) {
   // Use client language instead of lang prop
   const clientLang = getClientLanguage();
   const { t, i18n } = useTranslation(clientLang);
@@ -38,7 +46,10 @@ export default function IndividualFisherStats({ lang }: { lang?: string }) {
   }, [i18n]);
   
   const { userFisherId, isIiaUser } = useUserPermissions();
-  const { fisherPerformanceSummary, isLoadingFisherSummary, fisherData } = useIndividualData();
+  const { fisherPerformanceSummary, isLoadingFisherSummary, fisherData } = useIndividualData({
+    startDate,
+    endDate
+  });
 
   // Get fisher's BMU from their data
   const fisherBMU = useMemo(() => {
@@ -70,6 +81,62 @@ export default function IndividualFisherStats({ lang }: { lang?: string }) {
     };
   }, [bmuData, userFisherId]);
 
+  // Calculate net profit BMU average - MUST be before any conditional returns
+  const bmuNetProfit = useMemo(() => {
+    if (!bmuAverages) return null;
+    return bmuAverages.avgRpue - bmuAverages.avgCost;
+  }, [bmuAverages]);
+
+  const summary = fisherPerformanceSummary?.[0] || {};
+
+  // Helper function to format currency with KES and commas
+  const formatCurrency = (val: number) => {
+    return `KES ${val.toLocaleString('en-US', { 
+      minimumFractionDigits: 2, 
+      maximumFractionDigits: 2 
+    })}`;
+  };
+
+  // Helper function to format numbers with commas
+  const formatNumber = (val: number, decimals: number = 2) => {
+    return val.toLocaleString('en-US', { 
+      minimumFractionDigits: decimals, 
+      maximumFractionDigits: decimals 
+    });
+  };
+
+  const getPerformanceStatus = (fisherValue: number, bmuAvg: number | null, metric: string) => {
+    // For net profit, compare with BMU average if available
+    if (metric === 'profit' && bmuAvg !== null && bmuAvg !== 0) {
+      const percentDiff = ((fisherValue - bmuAvg) / Math.abs(bmuAvg)) * 100;
+      if (percentDiff > 5) return 'up';
+      if (percentDiff < -5) return 'down';
+      return 'neutral';
+    }
+    
+    // For net profit without BMU average, use absolute value logic
+    if (metric === 'profit') {
+      if (fisherValue > 100) return 'up';
+      if (fisherValue < -100) return 'down';
+      return 'neutral';
+    }
+    
+    if (!bmuAvg || bmuAvg === 0) return 'neutral';
+    const percentDiff = ((fisherValue - bmuAvg) / bmuAvg) * 100;
+    
+    // For cost, lower is better (reversed logic)
+    if (metric === 'cost') {
+      if (percentDiff < -5) return 'up';  // More than 5% lower is good
+      if (percentDiff > 5) return 'down';  // More than 5% higher is bad
+      return 'neutral';
+    }
+    
+    // For other metrics (CPUE, RPUE), higher is better
+    if (percentDiff > 5) return 'up';  // More than 5% higher is good
+    if (percentDiff < -5) return 'down';  // More than 5% lower is bad
+    return 'neutral';
+  };
+
   // Only render for IIA users
   if (!isIiaUser || !userFisherId) {
     return null;
@@ -91,70 +158,60 @@ export default function IndividualFisherStats({ lang }: { lang?: string }) {
     );
   }
 
-  const summary = fisherPerformanceSummary?.[0] || {};
-
-  const getPerformanceStatus = (fisherValue: number, bmuAvg: number, metric: string) => {
-    if (!bmuAvg) return 'neutral';
-    const percentDiff = ((fisherValue - bmuAvg) / bmuAvg) * 100;
-    
-    // For cost, lower is better
-    if (metric === 'cost') {
-      if (percentDiff < -10) return 'up';
-      if (percentDiff > 10) return 'down';
-      return 'neutral';
-    }
-    
-    // For other metrics, higher is better
-    if (percentDiff > 10) return 'up';
-    if (percentDiff < -10) return 'down';
-    return 'neutral';
-  };
-
   const stats = [
     {
       title: t('text-cpue'),
       value: summary.avg_cpue || 0,
       bmuAvg: bmuAverages?.avgCpue || 0,
-      format: (val: number) => `${val.toFixed(2)} kg/trip`,
+      format: (val: number) => `${formatNumber(val)} kg/trip`,
       trend: getPerformanceStatus(summary.avg_cpue || 0, bmuAverages?.avgCpue || 0, 'cpue'),
       color: 'blue' as const,
       metric: 'cpue',
+      description: t('text-average-catch-per-trip'),
     },
     {
       title: t('text-rpue'),
       value: summary.avg_rpue || 0,
       bmuAvg: bmuAverages?.avgRpue || 0,
-      format: (val: number) => `$${val.toFixed(2)}`,
+      format: formatCurrency,
       trend: getPerformanceStatus(summary.avg_rpue || 0, bmuAverages?.avgRpue || 0, 'rpue'),
       color: 'green' as const,
       metric: 'rpue',
+      description: t('text-average-revenue-per-trip'),
     },
     {
       title: t('text-cost'),
       value: summary.avg_cost || 0,
       bmuAvg: bmuAverages?.avgCost || 0,
-      format: (val: number) => `$${val.toFixed(2)}`,
+      format: formatCurrency,
       trend: getPerformanceStatus(summary.avg_cost || 0, bmuAverages?.avgCost || 0, 'cost'),
       color: 'purple' as const,
       metric: 'cost',
+      description: t('text-average-cost-per-trip'),
     },
     {
       title: t('text-net-profit'),
       value: summary.net_profit || 0,
-      bmuAvg: null, // We don't have BMU average for net profit
-      format: (val: number) => `$${val.toFixed(2)}`,
-      trend: summary.net_profit > 0 ? 'up' : summary.net_profit < 0 ? 'down' : 'neutral',
+      bmuAvg: bmuNetProfit,
+      format: formatCurrency,
+      trend: getPerformanceStatus(summary.net_profit || 0, bmuNetProfit, 'profit'),
       color: 'orange' as const,
       metric: 'profit',
+      description: t('text-average-profit-per-trip'),
     },
   ];
 
-  const getTrendIcon = (trend: string) => {
+  const getTrendIcon = (trend: string, metric?: string) => {
+    // For cost metric, colors are reversed (up is bad, down is good)
+    const isGoodTrend = metric === 'cost' 
+      ? trend === 'down' 
+      : trend === 'up';
+    
     switch (trend) {
       case 'up':
-        return <PiTrendUp className="h-5 w-5 text-green-500" />;
+        return <PiTrendUp className={cn("h-5 w-5", isGoodTrend ? "text-green-500" : "text-red-500")} />;
       case 'down':
-        return <PiTrendDown className="h-5 w-5 text-red-500" />;
+        return <PiTrendDown className={cn("h-5 w-5", !isGoodTrend ? "text-green-500" : "text-red-500")} />;
       default:
         return <PiEquals className="h-5 w-5 text-gray-500" />;
     }
@@ -192,32 +249,47 @@ export default function IndividualFisherStats({ lang }: { lang?: string }) {
       {/* Stats cards */}
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
         {stats.map((stat, index) => {
-          const percentDiff = stat.bmuAvg && stat.bmuAvg > 0
+          const percentDiff = stat.bmuAvg !== null && stat.bmuAvg !== 0
             ? ((stat.value - stat.bmuAvg) / stat.bmuAvg * 100)
             : null;
+          
+          // Determine if performance is better or worse
+          const isBetter = stat.metric === 'cost' 
+            ? (percentDiff !== null && percentDiff < 0)
+            : (stat.metric === 'profit' ? stat.value > 0 : (percentDiff !== null && percentDiff > 0));
+          
+          // Determine if the trend is positive for the card border
+          const isPositiveTrend = stat.metric === 'cost' 
+            ? stat.trend === 'down' 
+            : stat.trend === 'up';
           
           return (
             <div
               key={index}
               className={cn(
-                "rounded-lg border-2 p-6 relative overflow-hidden",
-                getCardColors(stat.color)
+                "rounded-lg border p-5 relative bg-white shadow-sm hover:shadow-md transition-shadow",
+                isPositiveTrend && "border-green-200",
+                stat.trend === 'neutral' && "border-gray-200",
+                !isPositiveTrend && stat.trend !== 'neutral' && "border-red-200"
               )}
             >
-              {/* Performance indicator */}
-              {stat.trend !== 'neutral' && (
-                <div className="absolute top-3 right-3">
-                  {getTrendIcon(stat.trend)}
+              {/* Header with title and trend */}
+              <div className="flex items-start justify-between mb-3">
+                <div className="flex-1">
+                  <Text className="text-sm font-medium text-gray-700">
+                    {stat.title}
+                  </Text>
+                  <Text className="text-xs text-gray-500 mt-0.5">
+                    {stat.description}
+                  </Text>
                 </div>
-              )}
+                <div className="ml-2">
+                  {getTrendIcon(stat.trend, stat.metric)}
+                </div>
+              </div>
               
-              {/* Title */}
-              <Text className="text-sm font-medium text-gray-600 mb-2">
-                {stat.title}
-              </Text>
-              
-              {/* Fisher's value */}
-              <div className="mb-3">
+              {/* Main value */}
+              <div className="mb-4">
                 <Text className="text-2xl font-bold text-gray-900">
                   {stat.format(stat.value)}
                 </Text>
@@ -226,33 +298,53 @@ export default function IndividualFisherStats({ lang }: { lang?: string }) {
                 </Text>
               </div>
               
-              {/* BMU comparison */}
-              {stat.bmuAvg !== null && bmuAverages && (
-                <div className="border-t pt-3 space-y-1">
-                  <div className="flex items-center justify-between">
-                    <Text className="text-xs text-gray-500">
-                      {fisherBMU} {t('text-average')}:
-                    </Text>
-                    <Text className="text-xs font-medium text-gray-700">
-                      {stat.format(stat.bmuAvg)}
-                    </Text>
-                  </div>
-                  
-                  {percentDiff !== null && (
-                    <div className="flex items-center justify-between">
-                      <Text className="text-xs text-gray-500">
-                        {t('text-difference')}:
-                      </Text>
-                      <Text className={cn(
-                        "text-xs font-medium",
-                        stat.metric === 'cost' 
-                          ? percentDiff < 0 ? "text-green-600" : percentDiff > 0 ? "text-red-600" : "text-gray-600"
-                          : percentDiff > 0 ? "text-green-600" : percentDiff < 0 ? "text-red-600" : "text-gray-600"
-                      )}>
-                        {percentDiff > 0 ? '+' : ''}{percentDiff.toFixed(1)}%
+              {/* BMU comparison with visual indicator */}
+              {stat.bmuAvg !== null && (
+                <div className="space-y-2">
+                  {/* Comparison bar */}
+                  <div className="relative">
+                    <div className="flex items-center justify-between text-xs mb-1">
+                      <Text className="text-gray-500">{fisherBMU} {t('text-average')}:</Text>
+                      <Text className="font-medium text-gray-700">
+                        {stat.format(stat.bmuAvg)}
                       </Text>
                     </div>
-                  )}
+                    
+                    {/* Visual comparison indicator */}
+                    {percentDiff !== null && (
+                      <div className="mt-2">
+                        <div className="flex items-center gap-2">
+                          <Text className={cn(
+                            "text-sm font-semibold",
+                            isBetter ? "text-green-600" : percentDiff === 0 ? "text-gray-600" : "text-red-600"
+                          )}>
+                            {percentDiff > 0 ? '+' : ''}{percentDiff.toFixed(1)}%
+                          </Text>
+                          <Text className={cn(
+                            "text-xs",
+                            isBetter ? "text-green-600" : percentDiff === 0 ? "text-gray-500" : "text-red-600"
+                          )}>
+                            {isBetter ? (stat.metric === 'cost' ? t('text-lower-than-average') : t('text-higher-than-average')) : 
+                             percentDiff === 0 ? t('text-same-as-average') : 
+                             (stat.metric === 'cost' ? t('text-higher-than-average') : t('text-lower-than-average'))}
+                          </Text>
+                        </div>
+                        
+                        {/* Progress bar showing relative performance */}
+                        <div className="mt-2 h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                          <div 
+                            className={cn(
+                              "h-full transition-all duration-500",
+                              isBetter ? "bg-green-500" : percentDiff === 0 ? "bg-gray-400" : "bg-red-500"
+                            )}
+                            style={{ 
+                              width: `${Math.min(Math.abs(percentDiff || 0) / 2 + 50, 100)}%` 
+                            }}
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
             </div>
