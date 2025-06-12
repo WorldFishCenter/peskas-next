@@ -34,14 +34,14 @@ const METRIC_OPTIONS: MetricOption[] = [
     category: "catch",
   },
   {
-    value: "mean_cpue", 
+    value: "mean_cpue",
     label: "Catch Rate",
     unit: "kg/fisher/day",
     category: "catch",
   },
   {
     value: "mean_cpua",
-    label: "Catch Density", 
+    label: "Catch Density",
     unit: "kg/km²/day",
     category: "catch",
   },
@@ -54,7 +54,7 @@ const METRIC_OPTIONS: MetricOption[] = [
   {
     value: "mean_rpua",
     label: "Area Revenue",
-    unit: "KES/km²/day", 
+    unit: "KES/km²/day",
     category: "revenue",
   },
 ];
@@ -99,7 +99,7 @@ const LoadingState = () => {
 // Custom tooltip consistent with other charts
 const CustomTooltip = ({ active, payload, selectedMetricOption }: any) => {
   const { t } = useTranslation("common");
-  
+
   if (active && payload && payload.length) {
     const data = payload[0].payload;
     return (
@@ -115,8 +115,8 @@ const CustomTooltip = ({ active, payload, selectedMetricOption }: any) => {
           <p className="text-sm">
             <span className="font-medium">{selectedMetricOption?.label}:</span>{" "}
             <span className="font-semibold">
-              {data.value !== undefined && data.value !== null 
-                ? formatNumber(data.value) 
+              {data.value !== undefined && data.value !== null
+                ? formatNumber(data.value)
                 : t("text-na")}
             </span>
             {selectedMetricOption?.unit && (
@@ -135,7 +135,7 @@ const CustomTooltip = ({ active, payload, selectedMetricOption }: any) => {
 // Custom Y-axis tick to highlight user's BMU
 const CustomYAxisTick = ({ x = 0, y = 0, payload = { value: '' }, userBMU }: any) => {
   const isUserBMU = payload.value === userBMU;
-  
+
   return (
     <g transform={`translate(${x},${y})`}>
       <text
@@ -180,12 +180,12 @@ export default function BMURanking({
   const { t } = useTranslation(lang!, "common");
   const [bmus] = useAtom(bmusAtom);
   const [selectedMetric] = useAtom(selectedMetricAtom);
-  
+
   // Add refs to track initialization states
   const dataProcessed = useRef<boolean>(false);
   const previousMetric = useRef<string>(selectedMetric);
   const previousBmus = useRef<string[]>(bmus);
-  
+
   // Use the centralized permissions hook
   const {
     userBMU,
@@ -194,10 +194,10 @@ export default function BMURanking({
     getAccessibleBMUs,
     hasRestrictedAccess,
   } = useUserPermissions();
-  
+
   // Determine which BMU to use for highlighting - prefer passed prop, then user's BMU
   const effectiveBMU = bmu || userBMU;
-  
+
   // Fetch aggregated monthly data for BMU ranking
   const { data: rawData, refetch } = api.aggregatedCatch.monthly.useQuery(
     { bmus },
@@ -225,13 +225,13 @@ export default function BMURanking({
 
   useEffect(() => {
     if (!rawData) return;
-    
+
     // Reset data processing flag if metric has changed
     if (previousMetric.current !== selectedMetric) {
       dataProcessed.current = false;
       previousMetric.current = selectedMetric;
     }
-    
+
     // Skip processing if already done and not changing key dependencies
     if (dataProcessed.current && rankingData.length > 0 && !loading) return;
 
@@ -241,11 +241,11 @@ export default function BMURanking({
 
       // Group data by BMU and calculate averages
       const bmuAverages: Record<string, { total: number; count: number }> = {};
-      
+
       rawData.forEach((item: any) => {
         const bmuName = item.landing_site;
         const value = item[selectedMetric];
-        
+
         if (value !== undefined && value !== null && typeof value === 'number') {
           if (!bmuAverages[bmuName]) {
             bmuAverages[bmuName] = { total: 0, count: 0 };
@@ -274,11 +274,11 @@ export default function BMURanking({
         }));
 
       // Filter based on user permissions
-      const accessibleBMUs = hasRestrictedAccess 
+      const accessibleBMUs = hasRestrictedAccess
         ? getAccessibleBMUs(rankingData.map(item => item.name))
         : rankingData.map(item => item.name);
-      
-      const filteredRankingData = rankingData.filter(item => 
+
+      const filteredRankingData = rankingData.filter(item =>
         accessibleBMUs.includes(item.name)
       );
 
@@ -314,7 +314,7 @@ export default function BMURanking({
   const getDescription = () => {
     const metricLabel = selectedMetricOption?.label || t("text-selected-metric");
     const unit = selectedMetricOption?.unit || "";
-    
+
     if (selectedMetricOption?.category === 'revenue') {
       return t("text-bmu-ranking-description-revenue", { metric: metricLabel, unit: unit });
     }
@@ -346,7 +346,7 @@ export default function BMURanking({
           {getDescription()}
         </div>
       </div>
-      
+
       <SimpleBar>
         <div className="w-full h-[600px] pt-4">
           <ResponsiveContainer width="100%" height="100%">
@@ -356,18 +356,18 @@ export default function BMURanking({
               layout="vertical"
             >
               <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-              <XAxis 
+              <XAxis
                 type="number"
                 tickFormatter={(value) => formatNumber(value)}
                 tick={{ fontSize: 12, fill: "#64748b" }}
                 axisLine={{ stroke: "#cbd5e1", strokeWidth: 1 }}
                 tickLine={{ stroke: "#cbd5e1" }}
-                label={{ 
+                label={{
                   value: `${selectedMetricOption?.label || "Value"} (${selectedMetricOption?.unit || ""})`,
                   position: 'insideBottom',
                   offset: -10,
-                  style: { 
-                    fontSize: 14, 
+                  style: {
+                    fontSize: 14,
                     fill: "#475569",
                     fontWeight: 500
                   }
@@ -381,8 +381,8 @@ export default function BMURanking({
                 tickLine={false}
                 width={100}
               />
-              <Tooltip 
-                content={(props) => <CustomTooltip {...props} selectedMetricOption={selectedMetricOption} />} 
+              <Tooltip
+                content={(props) => <CustomTooltip {...props} selectedMetricOption={selectedMetricOption} />}
                 wrapperStyle={{ outline: 'none' }}
               />
               <Bar
@@ -397,17 +397,6 @@ export default function BMURanking({
               </Bar>
             </BarChart>
           </ResponsiveContainer>
-        </div>
-        
-        {/* Informative note */}
-        <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-          <p className="text-xs text-blue-700 dark:text-blue-300">
-            <span className="font-medium">{t("text-note")}:</span>{" "}
-            {t("text-bmu-ranking-note", { 
-              metric: selectedMetricOption?.label || t("text-selected-metric"),
-              unit: selectedMetricOption?.unit || ""
-            })}
-          </p>
         </div>
       </SimpleBar>
     </WidgetCard>
