@@ -311,27 +311,30 @@ export default function GearHeatmap({
   // Determine which BMU to use for filtering - prefer passed prop, then user's BMU
   const effectiveBMU = bmu || userBMU;
   
+  // Ensure bmus is always an array
+  const safeBmus = bmus || [];
+  
   // Force refetch when bmus changes by adding bmus to the query key
   const { data: rawData, refetch } = api.gear.summaries.useQuery(
-    { bmus },
+    { bmus: safeBmus },
     {
       refetchOnMount: true,
       refetchOnWindowFocus: false,
       retry: 3,
-      enabled: bmus.length > 0,
+      enabled: safeBmus.length > 0,
     }
   );
 
   // Force refetch when bmus changes
   useEffect(() => {
     // Check if bmus array has changed
-    if (JSON.stringify(previousBmus.current) !== JSON.stringify(bmus)) {
+    if (JSON.stringify(previousBmus.current) !== JSON.stringify(safeBmus)) {
       console.log('BMUs changed, refetching data');
       dataProcessed.current = false;
-      previousBmus.current = [...bmus];
+      previousBmus.current = [...safeBmus];
       refetch();
     }
-  }, [bmus, refetch]);
+  }, [safeBmus, refetch]);
 
   const selectedMetricOption = METRIC_OPTIONS.find(
     (m) => m.value === selectedMetric

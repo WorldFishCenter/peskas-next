@@ -267,16 +267,19 @@ export default function CatchMetricsChart({
   } = useUserPermissions();
 
   // Determine which BMU to use for filtering - prefer passed prop, then user's BMU
-  const effectiveBMU = useMemo(() => bmu || userBMU, [bmu, userBMU]);
-
-  // Force refetch when bmus changes by adding bmus to the query key
+  const effectiveBMU = bmu || userBMU;
+  
+  // Ensure bmus is always an array
+  const safeBmus = bmus || [];
+  
+  // Fetch monthly data
   const { data: monthlyData, refetch } = api.aggregatedCatch.monthly.useQuery(
-    { bmus },
+    { bmus: safeBmus },
     {
-      refetchOnMount: true, 
+      refetchOnMount: true,
       refetchOnWindowFocus: false,
       retry: 3,
-      enabled: bmus.length > 0,
+      enabled: safeBmus.length > 0,
     }
   );
 
@@ -297,17 +300,13 @@ export default function CatchMetricsChart({
   // Force refetch when bmus changes
   useEffect(() => {
     // Check if bmus array has changed
-    if (JSON.stringify(previousBmus.current) !== JSON.stringify(bmus)) {
+    if (JSON.stringify(previousBmus.current) !== JSON.stringify(safeBmus)) {
       console.log('BMUs changed, refetching data');
-      setChartData([]);
-      setRecentData([]);
-      setAnnualData([]);
-      setCiaComparisonData([]);
       dataProcessed.current = false;
-      previousBmus.current = [...bmus];
+      previousBmus.current = [...safeBmus];
       refetch();
     }
-  }, [bmus, refetch]);
+  }, [safeBmus, refetch]);
 
   // Keep in sync with parent component, handling old tab names too
   useEffect(() => {
@@ -447,7 +446,7 @@ export default function CatchMetricsChart({
 
   // Process main data when monthlyData changes
   useEffect(() => {
-    if (!monthlyData || bmus.length === 0) return;
+    if (!monthlyData || safeBmus.length === 0) return;
     
     // Reset processing flag if metric changed
     if (previousMetricRef.current !== selectedMetric) {
@@ -457,7 +456,7 @@ export default function CatchMetricsChart({
     
     // Prevent re-processing data unnecessarily
     if (chartData.length > 0 && !loading && 
-        JSON.stringify(previousBmus.current) === JSON.stringify(bmus) && 
+        JSON.stringify(previousBmus.current) === JSON.stringify(safeBmus) && 
         previousMetricRef.current === selectedMetric) return;
 
     try {
@@ -621,14 +620,14 @@ export default function CatchMetricsChart({
 
       setFiveYearMarks(marks);
       setChartData(processedData);
-      previousBmus.current = [...bmus];
+      previousBmus.current = [...safeBmus];
       previousMetricRef.current = selectedMetric;
     } catch (error) {
-      console.error("Error processing data:", error);
+      console.error("Error transforming data:", error);
     } finally {
       setLoading(false);
     }
-  }, [monthlyData, selectedMetric, effectiveBMU, hasRestrictedAccess, getAccessibleBMUs, bmus, isCiaUser, localActiveTab]);
+  }, [monthlyData, selectedMetric, effectiveBMU, hasRestrictedAccess, getAccessibleBMUs, safeBmus, isCiaUser, localActiveTab]);
 
   // Calculate derived data when chartData changes
   useEffect(() => {

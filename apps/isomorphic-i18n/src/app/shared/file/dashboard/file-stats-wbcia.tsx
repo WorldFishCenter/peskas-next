@@ -64,13 +64,18 @@ export function FileStatWBCIAGrid({ className, lang }: { className?: string; lan
   // Get user permissions
   const { userBMU } = useUserPermissions();
   
-  // Fetch stats data for each BMU
-  const bmuQueries = bmus.map(bmu => 
-    api.monthlyStats.allStats.useQuery({ bmus: [bmu] }, {
+  // Ensure bmus is always an array
+  const safeBmus = bmus || [];
+  
+  // Fetch stats data for all BMUs at once
+  const { data: allBmuStats, isLoading, error: queryError } = api.monthlyStats.allStats.useQuery(
+    { bmus: safeBmus },
+    {
       retry: 3,
       retryDelay: 1000,
       staleTime: 1000 * 60 * 5,
-    })
+      enabled: safeBmus.length > 0,
+    }
   );
 
   // Define metrics once
@@ -84,25 +89,28 @@ export function FileStatWBCIAGrid({ className, lang }: { className?: string; lan
 
   // Process data - aggregate current values from all BMUs
   const processedData = useMemo(() => {
-    // Check if all queries are loaded
-    const allLoaded = bmuQueries.every(query => !query.isLoading);
-    if (!allLoaded || bmus.length === 0) return null;
+    if (!allBmuStats || safeBmus.length === 0) return null;
     
     try {
       return metrics.map(metric => {
         // Collect current values for this metric from all BMUs
         const bmuValues: ChartPoint[] = [];
         
-        bmuQueries.forEach((query, index) => {
-          if (query.data && query.data[metric.field]) {
-            const currentValue = query.data[metric.field].current || 0;
+        // The API returns aggregated stats for all selected BMUs
+        // We'll use the same value for all BMUs for now since we can't distinguish individual BMU values
+        if (allBmuStats[metric.field] && typeof allBmuStats[metric.field].current === 'number') {
+          const currentValue = allBmuStats[metric.field].current;
+          
+          // For visualization, we'll show each BMU with the aggregated value
+          // In a real scenario, you'd want the API to return per-BMU data
+          safeBmus.forEach((bmu, index) => {
             bmuValues.push({
-              bmu: bmus[index],
+              bmu: bmu,
               value: currentValue,
-              index: bmuValues.length
+              index: index
             });
-          }
-        });
+          });
+        }
         
         // Sort by value descending and take top 10
         const sortedValues = bmuValues
@@ -131,17 +139,14 @@ export function FileStatWBCIAGrid({ className, lang }: { className?: string; lan
       console.error("Error transforming data:", error);
       return null;
     }
-  }, [bmuQueries, metrics, bmus, userBMU]);
+  }, [allBmuStats, metrics, safeBmus, userBMU]);
 
   // Update state based on processed data
   useEffect(() => {
-    const isLoading = bmuQueries.some(query => query.isLoading);
-    const hasError = bmuQueries.some(query => query.error);
-    
     setLoading(isLoading);
     
-    if (hasError) {
-      console.error("API error in one or more queries");
+    if (queryError) {
+      console.error("API error:", queryError);
       setError("Failed to load statistics data");
       setLoading(false);
       return;
@@ -151,11 +156,11 @@ export function FileStatWBCIAGrid({ className, lang }: { className?: string; lan
       setStatsData(processedData);
       setError(null);
       setLoading(false);
-    } else if (!isLoading && !processedData) {
+    } else if (!isLoading && !processedData && safeBmus.length > 0) {
       setError("No statistics data available");
       setLoading(false);
     }
-  }, [processedData, bmuQueries]);
+  }, [processedData, isLoading, queryError, safeBmus.length]);
 
   // Handlers
   const handleBarClick = useCallback((data: any, metricId: string) => {

@@ -198,26 +198,29 @@ export default function BMURanking({
   // Determine which BMU to use for highlighting - prefer passed prop, then user's BMU
   const effectiveBMU = bmu || userBMU;
 
+  // Ensure bmus is always an array
+  const safeBmus = bmus || [];
+
   // Fetch aggregated monthly data for BMU ranking
   const { data: rawData, refetch } = api.aggregatedCatch.monthly.useQuery(
-    { bmus },
+    { bmus: safeBmus },
     {
       refetchOnMount: true,
       refetchOnWindowFocus: false,
       retry: 3,
-      enabled: bmus.length > 0,
+      enabled: safeBmus.length > 0,
     }
   );
 
   // Force refetch when bmus changes
   useEffect(() => {
-    if (JSON.stringify(previousBmus.current) !== JSON.stringify(bmus)) {
+    if (JSON.stringify(previousBmus.current) !== JSON.stringify(safeBmus)) {
       console.log('BMUs changed, refetching BMU ranking data');
       dataProcessed.current = false;
-      previousBmus.current = [...bmus];
+      previousBmus.current = [...safeBmus];
       refetch();
     }
-  }, [bmus, refetch]);
+  }, [safeBmus, refetch]);
 
   const selectedMetricOption = METRIC_OPTIONS.find(
     (m) => m.value === selectedMetric
@@ -291,7 +294,7 @@ export default function BMURanking({
     } finally {
       setLoading(false);
     }
-  }, [rawData, selectedMetric, effectiveBMU, hasRestrictedAccess, getAccessibleBMUs, bmus, rankingData.length, loading]);
+  }, [rawData, selectedMetric, effectiveBMU, hasRestrictedAccess, getAccessibleBMUs, safeBmus, rankingData.length, loading]);
 
   // If in CIA mode, don't render the ranking as it doesn't make sense to show a comparison
   // ranking with just one BMU
