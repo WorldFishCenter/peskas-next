@@ -860,5 +860,12 @@
   "text-all-time": "Wakati wote",
   "text-gear-performance-summary": "Utendaji wa Zana Ikilinganishwa na Wastani wa BMU",
   "text-total-fishing-trips": "Jumla ya safari za uvuvi",
-  "text-gear-types-used": "Aina za zana zilizotumika"
+  "text-gear-types-used": "Aina za zana zilizotumika",
+  "text-you": "Wewe",
+  "text-others-in-bmu": "Wengine katika BMU",
+  "text-others": "Wengine",
+  "text-you-spend-less": "Unatumia kidogo",
+  "text-you-perform-better": "Unafanya vizuri zaidi",
+  "text-you-spend-more": "Unatumia zaidi",
+  "text-you-perform-lower": "Unafanya vibaya zaidi"
 }

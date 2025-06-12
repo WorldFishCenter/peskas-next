@@ -1001,5 +1001,12 @@
   "text-all-time": "All time",
   "text-gear-performance-summary": "Gear Performance vs BMU Average",
   "text-total-fishing-trips": "Total fishing trips",
-  "text-gear-types-used": "Gear types used"
+  "text-gear-types-used": "Gear types used",
+  "text-you": "You",
+  "text-others-in-bmu": "Others in BMU",
+  "text-others": "Others",
+  "text-you-spend-less": "You spend less",
+  "text-you-perform-better": "You perform better",
+  "text-you-spend-more": "You spend more",
+  "text-you-perform-lower": "You perform lower"
 }

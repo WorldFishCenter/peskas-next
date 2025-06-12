@@ -270,8 +270,8 @@ export default function IndividualFisherGearPerformance({
       description={t('text-gear-performance-description')}
       headerClassName="pb-2"
     >
-      {/* Metric selector */}
-      <div className="flex justify-end gap-2 mb-4">
+      {/* Metric selector buttons */}
+      <div className="grid w-full grid-cols-3 gap-2 mb-4">
         <button
           onClick={() => setSelectedMetric("fisher_cpue")}
           className={cn(
@@ -399,63 +399,116 @@ export default function IndividualFisherGearPerformance({
       </div>
 
       {/* Gear Performance Metrics */}
-      <div className="mt-6 space-y-4">
-        <h3 className="text-sm font-medium text-gray-700">{t('text-gear-performance-summary')}</h3>
-        
-        {comparisonData.map((gear) => {
-          const percentDiff = gear.bmuAverage > 0 
-            ? ((gear.yourValue - gear.bmuAverage) / gear.bmuAverage * 100)
-            : 0;
-          
-          const isPerformingBetter = selectedMetric === 'fisher_cost' 
-            ? percentDiff < 0 
-            : percentDiff > 0;
-          
-          return (
-            <div 
-              key={gear.name}
-              className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200"
-            >
-              <div className="flex items-center gap-3">
-                <div 
-                  className={cn(
-                    "w-2 h-12 rounded-full",
-                    isPerformingBetter ? "bg-green-500" : "bg-red-500"
-                  )}
-                />
-                <div>
-                  <p className="text-sm font-medium text-gray-900">{gear.name}</p>
-                  <p className="text-xs text-gray-500">
-                    {gearPerformanceData.find(g => g.name === gear.name)?.trips || 0} {t('text-trips')}
+      <div className="mt-6">
+        <h3 className="text-sm font-medium text-gray-700 mb-4">{t('text-gear-performance-summary')}</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {comparisonData.map((gear) => {
+            const percentDiff = gear.bmuAverage > 0 
+              ? ((gear.yourValue - gear.bmuAverage) / gear.bmuAverage * 100)
+              : 0;
+            const isPerformingBetter = selectedMetric === 'fisher_cost' 
+              ? percentDiff < 0 
+              : percentDiff > 0;
+            const gearTrips = gearPerformanceData.find(g => g.name === gear.name)?.trips || 0;
+            
+            return (
+              <div key={gear.name} className="bg-white rounded-lg border border-gray-200 shadow-sm p-4">
+                {/* Header */}
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="w-10 h-10 flex items-center justify-center rounded-full bg-blue-100 text-blue-700 font-bold text-lg uppercase">
+                    {gear.name[0]}
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-base font-semibold text-gray-900">{gear.name}</h3>
+                    <p className="text-xs text-gray-500">{gearTrips} {t('text-trips')}</p>
+                  </div>
+                </div>
+
+                {/* Your Performance */}
+                <div className="mb-3">
+                  <div className="flex justify-between items-center mb-1">
+                    <span className="text-sm font-medium text-gray-700">{t('text-you')}</span>
+                    <span className="text-sm font-bold text-gray-900">
+                      {selectedMetric === "fisher_cpue" 
+                        ? `${gear.yourValue.toFixed(2)} kg/trip`
+                        : `KES ${gear.yourValue.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`
+                      }
+                    </span>
+                  </div>
+                </div>
+
+                {/* Others Average */}
+                <div className="mb-3">
+                  <div className="flex justify-between items-center mb-1">
+                    <span className="text-sm font-medium text-gray-700">{t('text-others-in-bmu')}</span>
+                    <span className="text-sm text-gray-600">
+                      {selectedMetric === "fisher_cpue" 
+                        ? `${gear.bmuAverage.toFixed(2)} kg/trip`
+                        : `KES ${gear.bmuAverage.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`
+                      }
+                    </span>
+                  </div>
+                </div>
+
+                {/* Visual Comparison Bar */}
+                <div className="mb-3 space-y-2">
+                  {(() => {
+                    const maxValue = Math.max(gear.yourValue, gear.bmuAverage, 1);
+                    const yourWidth = (gear.yourValue / maxValue) * 100;
+                    const othersWidth = (gear.bmuAverage / maxValue) * 100;
+                    const metricColor = selectedMetric === "fisher_cpue" ? "bg-blue-500" : 
+                                       selectedMetric === "fisher_rpue" ? "bg-green-500" : "bg-amber-500";
+                    
+                    return (
+                      <>
+                        {/* Your bar */}
+                        <div className="relative">
+                          <div className="h-6 bg-gray-200 rounded-md overflow-hidden">
+                            <div 
+                              className={cn("h-full rounded-md transition-all duration-500", metricColor)}
+                              style={{ width: `${yourWidth}%` }}
+                            />
+                          </div>
+                          <span className="absolute left-2 top-0 h-6 flex items-center text-xs font-medium text-white">
+                            {t('text-you')}
+                          </span>
+                        </div>
+                        
+                        {/* Others bar */}
+                        <div className="relative">
+                          <div className="h-6 bg-gray-200 rounded-md overflow-hidden">
+                            <div 
+                              className="h-full bg-gray-500 rounded-md transition-all duration-500"
+                              style={{ width: `${othersWidth}%` }}
+                            />
+                          </div>
+                          <span className="absolute left-2 top-0 h-6 flex items-center text-xs font-medium text-white">
+                            {t('text-others')}
+                          </span>
+                        </div>
+                      </>
+                    );
+                  })()}
+                </div>
+
+                {/* Comparison Result */}
+                <div className={`p-3 rounded-lg text-center ${isPerformingBetter ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'}`}>
+                  <div className={`text-lg font-bold ${isPerformingBetter ? 'text-green-700' : 'text-red-700'}`}>
+                    {isPerformingBetter ? '👍' : '👎'} {percentDiff > 0 ? '+' : ''}{percentDiff.toFixed(1)}%
+                  </div>
+                  <p className={`text-xs font-medium ${isPerformingBetter ? 'text-green-600' : 'text-red-600'}`}>
+                    {isPerformingBetter 
+                      ? (selectedMetric === 'fisher_cost' ? t('text-you-spend-less') : t('text-you-perform-better'))
+                      : (selectedMetric === 'fisher_cost' ? t('text-you-spend-more') : t('text-you-perform-lower'))
+                    }
                   </p>
                 </div>
               </div>
-              
-              <div className="text-right">
-                <p className="text-sm font-medium text-gray-900">
-                  {selectedMetric === "fisher_cpue" 
-                    ? `${gear.yourValue.toFixed(2)} kg/trip`
-                    : `KES ${gear.yourValue.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`
-                  }
-                </p>
-                <p className={cn(
-                  "text-xs font-medium",
-                  isPerformingBetter ? "text-green-600" : "text-red-600"
-                )}>
-                  {percentDiff > 0 ? '+' : ''}{percentDiff.toFixed(1)}% 
-                  {' '}
-                  {selectedMetric === 'fisher_cost' 
-                    ? (percentDiff < 0 ? t('text-lower') : t('text-higher'))
-                    : (percentDiff > 0 ? t('text-higher') : t('text-lower'))
-                  }
-                </p>
-              </div>
-            </div>
-          );
-        })}
-        
+            );
+          })}
+        </div>
         {/* Overall summary */}
-        <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+        <div className="mt-6 p-3 bg-blue-50 rounded-lg border border-blue-200">
           <p className="text-xs text-blue-700">
             <span className="font-medium">{t('text-total-fishing-trips')}:</span> {gearPerformanceData.reduce((sum, item) => sum + item.trips, 0)}
             {' • '}
