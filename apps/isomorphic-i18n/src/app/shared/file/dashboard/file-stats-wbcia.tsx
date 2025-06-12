@@ -22,7 +22,6 @@ interface ChartPoint {
   bmu: string;
   value: number | null;
   index: number;
-  metricId: string;
 }
 
 interface StatData {
@@ -100,8 +99,7 @@ export function FileStatWBCIAGrid({ className, lang }: { className?: string; lan
             bmuValues.push({
               bmu: bmus[index],
               value: currentValue,
-              index: bmuValues.length,
-              metricId: metric.id
+              index: bmuValues.length
             });
           }
         });
@@ -160,11 +158,10 @@ export function FileStatWBCIAGrid({ className, lang }: { className?: string; lan
   }, [processedData, bmuQueries]);
 
   // Handlers
-  const handleBarClick = useCallback((data: any) => {
+  const handleBarClick = useCallback((data: any, metricId: string) => {
     if (!data || !data.activePayload || data.activePayload.length === 0) return;
     
     const entry = data.activePayload[0];
-    const metricId = entry.payload.metricId;
     const bmu = entry.payload.bmu;
     const value = entry.payload.value;
     
@@ -174,10 +171,9 @@ export function FileStatWBCIAGrid({ className, lang }: { className?: string; lan
     }));
   }, []);
 
-  const handleMouseMove = useCallback((state: any) => {
+  const handleMouseMove = useCallback((state: any, metricId: string) => {
     if (state.activePayload && state.activePayload.length > 0) {
       const entry = state.activePayload[0];
-      const metricId = entry.payload.metricId;
       const bmu = entry.payload.bmu;
       const value = entry.payload.value;
       
@@ -195,6 +191,17 @@ export function FileStatWBCIAGrid({ className, lang }: { className?: string; lan
       return newState;
     });
   }, []);
+
+  // Custom bar shape that filters out non-DOM props
+  const CustomBar = (props: any) => {
+    // Extract non-DOM props that Recharts might pass
+    const { tooltipPayload, ...domProps } = props;
+    
+    // Determine fill color based on BMU
+    const fill = props.payload?.bmu === userBMU ? "#fc3468" : "rgba(178, 216, 216, 0.75)";
+    
+    return <rect {...domProps} fill={fill} />;
+  };
 
   if (loading) return <LoadingState />;
   if (error) return <div className="min-w-[292px] w-full p-4 text-center text-gray-500">{error}</div>;
@@ -253,8 +260,8 @@ export function FileStatWBCIAGrid({ className, lang }: { className?: string; lan
                 data={stat.chart}
                 margin={{ top: 15, right: 8, bottom: 25, left: 8 }}
                 barGap={2}
-                onMouseMove={handleMouseMove}
-                onClick={handleBarClick}
+                onMouseMove={(state) => handleMouseMove(state, stat.id)}
+                onClick={(data) => handleBarClick(data, stat.id)}
                 className="[&_.recharts-cartesian-grid]:hidden"
               >
                 <XAxis 
@@ -281,10 +288,7 @@ export function FileStatWBCIAGrid({ className, lang }: { className?: string; lan
                   maxBarSize={8}
                   minPointSize={3}
                   activeBar={{ stroke: '#333', strokeWidth: 1 }}
-                  shape={(props: any) => {
-                    const fill = props.payload.bmu === userBMU ? "#fc3468" : "rgba(178, 216, 216, 0.75)";
-                    return <rect {...props} fill={fill} />;
-                  }}
+                  shape={CustomBar}
                   label={{
                     position: 'top',
                     fontSize: 8,

@@ -132,6 +132,39 @@ const CustomTooltip = ({ active, payload, selectedMetricOption }: any) => {
   return null;
 };
 
+// Custom Y-axis tick to highlight user's BMU
+const CustomYAxisTick = ({ x = 0, y = 0, payload = { value: '' }, userBMU }: any) => {
+  const isUserBMU = payload.value === userBMU;
+  
+  return (
+    <g transform={`translate(${x},${y})`}>
+      <text
+        x={-5}
+        y={0}
+        dy={4}
+        textAnchor="end"
+        className={cn(
+          "text-xs",
+          isUserBMU ? "fill-blue-600 font-semibold" : "fill-gray-500"
+        )}
+      >
+        {payload.value}
+      </text>
+      {isUserBMU && (
+        <text
+          x={-5}
+          y={0}
+          dy={16}
+          textAnchor="end"
+          className="text-[10px] fill-blue-500"
+        >
+          (Your BMU)
+        </text>
+      )}
+    </g>
+  );
+};
+
 export default function BMURanking({
   className,
   lang,
@@ -270,16 +303,34 @@ export default function BMURanking({
   if (error) return <LoadingState />;
   if (!rankingData || rankingData.length === 0) return <LoadingState />;
 
+  // Dynamic title and description based on selected metric
+  const getTitle = () => {
+    if (selectedMetricOption?.category === 'revenue') {
+      return t("text-bmu-ranking-title-revenue");
+    }
+    return t("text-bmu-ranking-title-catch");
+  };
+
+  const getDescription = () => {
+    const metricLabel = selectedMetricOption?.label || t("text-selected-metric");
+    const unit = selectedMetricOption?.unit || "";
+    
+    if (selectedMetricOption?.category === 'revenue') {
+      return t("text-bmu-ranking-description-revenue", { metric: metricLabel, unit: unit });
+    }
+    return t("text-bmu-ranking-description-catch", { metric: metricLabel, unit: unit });
+  };
+
   return (
     <WidgetCard
       title={
         <div className="flex flex-col sm:flex-row items-start sm:items-center w-full gap-3">
           <div className="hidden sm:block text-base font-medium text-gray-800 flex-1">
             <div className="text-center">
-              {t("text-bmu-ranking-title")}
+              {getTitle()}
             </div>
             <div className="text-xs text-gray-500 text-center mt-1">
-              {t("text-bmu-ranking-description")}
+              {getDescription()}
             </div>
           </div>
         </div>
@@ -289,10 +340,10 @@ export default function BMURanking({
       {/* Mobile-only title - shows on small screens */}
       <div className="sm:hidden text-center mb-4">
         <div className="text-base font-medium text-gray-800">
-          {t("text-bmu-ranking-title")}
+          {getTitle()}
         </div>
         <div className="text-xs text-gray-500 mt-1">
-          {t("text-bmu-ranking-description")}
+          {getDescription()}
         </div>
       </div>
       
@@ -301,7 +352,7 @@ export default function BMURanking({
           <ResponsiveContainer width="100%" height="100%">
             <BarChart
               data={rankingData}
-              margin={{ top: 20, right: 30, left: 20, bottom: 70 }}
+              margin={{ top: 20, right: 30, left: 20, bottom: 90 }}
               layout="vertical"
             >
               <CartesianGrid strokeDasharray="3 3" horizontal={false} />
@@ -311,11 +362,21 @@ export default function BMURanking({
                 tick={{ fontSize: 12, fill: "#64748b" }}
                 axisLine={{ stroke: "#cbd5e1", strokeWidth: 1 }}
                 tickLine={{ stroke: "#cbd5e1" }}
+                label={{ 
+                  value: `${selectedMetricOption?.label || "Value"} (${selectedMetricOption?.unit || ""})`,
+                  position: 'insideBottom',
+                  offset: -10,
+                  style: { 
+                    fontSize: 14, 
+                    fill: "#475569",
+                    fontWeight: 500
+                  }
+                }}
               />
               <YAxis
                 dataKey="name"
                 type="category"
-                tick={{ fontSize: 12, fill: "#64748b" }}
+                tick={<CustomYAxisTick userBMU={userBMU} />}
                 axisLine={false}
                 tickLine={false}
                 width={100}
@@ -336,6 +397,17 @@ export default function BMURanking({
               </Bar>
             </BarChart>
           </ResponsiveContainer>
+        </div>
+        
+        {/* Informative note */}
+        <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+          <p className="text-xs text-blue-700 dark:text-blue-300">
+            <span className="font-medium">{t("text-note")}:</span>{" "}
+            {t("text-bmu-ranking-note", { 
+              metric: selectedMetricOption?.label || t("text-selected-metric"),
+              unit: selectedMetricOption?.unit || ""
+            })}
+          </p>
         </div>
       </SimpleBar>
     </WidgetCard>

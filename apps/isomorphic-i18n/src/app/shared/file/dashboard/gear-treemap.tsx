@@ -179,18 +179,30 @@ const TreemapTooltip = ({ active, payload, selectedMetricOption }: any) => {
     return (
       <div className="bg-white p-4 border border-gray-200 rounded-lg shadow-lg">
         <p className="text-sm font-medium text-gray-600 mb-2">{data.name}</p>
-        <div className="flex items-center gap-2">
-          <div
-            className="w-3 h-3 rounded-full"
-            style={{ backgroundColor: data.fill }}
-          />
-          <p className="text-sm">
-            <span className="font-semibold">
-              {isValidValue ? formatNumber(data.value) : t("text-na")}
-            </span>
-            {isValidValue && data.percentage && (
-              <span className="text-gray-500 ml-1">({data.percentage}%)</span>
-            )}
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            <div
+              className="w-3 h-3 rounded-full"
+              style={{ backgroundColor: data.fill }}
+            />
+            <p className="text-sm">
+              <span className="font-medium">{selectedMetricOption?.label || t("text-value")}:</span>{" "}
+              <span className="font-semibold">
+                {isValidValue ? formatNumber(data.value) : t("text-na")}
+              </span>
+              {isValidValue && selectedMetricOption?.unit && (
+                <span className="text-gray-500 ml-1">{selectedMetricOption.unit}</span>
+              )}
+            </p>
+          </div>
+          {isValidValue && data.percentage && (
+            <p className="text-sm text-gray-600">
+              <span className="font-medium">{t("text-share-of-total")}:</span>{" "}
+              <span className="font-semibold">{data.percentage}%</span>
+            </p>
+          )}
+          <p className="text-xs text-gray-500 italic">
+            {t("text-treemap-explanation")}
           </p>
         </div>
       </div>
@@ -226,11 +238,11 @@ const CustomizedTreemapContent = (props: any) => {
         <>
         <text
           x={x + width / 2}
-            y={y + height / 2 - (showPercentage ? 10 : 0)}
+            y={y + height / 2 - (showPercentage ? 8 : 0)}
           textAnchor="middle"
           dominantBaseline="middle"
-            fontSize={25}
-            fontWeight="normal"
+            fontSize={Math.min(width / 8, 16)}
+            fontWeight="600"
             fontFamily="'Inter', sans-serif"
             fill="#ffffff"
         >
@@ -239,11 +251,11 @@ const CustomizedTreemapContent = (props: any) => {
           {showPercentage && percentage && (
             <text
               x={x + width / 2}
-              y={y + height / 2 + 16}
+              y={y + height / 2 + 12}
               textAnchor="middle"
               dominantBaseline="middle"
-              fontSize={20}
-              fontWeight="normal"
+              fontSize={Math.min(width / 6, 24)}
+              fontWeight="700"
               fontFamily="'Inter', sans-serif"
               fill="#ffffff"
               fillOpacity={0.95}
