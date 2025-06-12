@@ -8,6 +8,7 @@ import CatchMetricsChart from "./catch-metrics";
 import type { DefaultSession } from "next-auth";
 import type { TBmu } from "@repo/nosql/schema/bmu";
 import FileStats from "@/app/shared/file/dashboard/file-stats";
+import FileStatsWBCIA from "@/app/shared/file/dashboard/file-stats-wbcia";
 import GearTreemap from "@/app/shared/file/dashboard/gear-treemap";
 import CatchRadarChart from "@/app/shared/file/dashboard/catch-radar";
 import BMURanking from "@/app/shared/file/dashboard/bmu-ranking";
@@ -34,7 +35,7 @@ export default function FileDashboard({ lang }: { lang?: string }) {
   const [selectedMetric, setSelectedMetric] = useAtom(selectedMetricAtom);
   const [activeTab, setActiveTab] = useState("trends");
   const { t } = useTranslation("common");
-  const { referenceBMU, isIiaUser, userFisherId } = useUserPermissions();
+  const { referenceBMU, isIiaUser, userFisherId, isWbciaUser } = useUserPermissions();
   
   const TIME_RANGE_OPTIONS = useMemo(() => [
     { value: '7', label: t('text-last-7-days') },
@@ -126,7 +127,12 @@ export default function FileDashboard({ lang }: { lang?: string }) {
   return (
     <div className="w-full">
       <div className="grid grid-cols-1 gap-5 xl:gap-6">
-        <FileStats lang={lang} bmu={effectiveBMU} />
+        {/* Use WBCIA version of FileStats for WBCIA users, regular version for others */}
+        {isWbciaUser ? (
+          <FileStatsWBCIA lang={lang} />
+        ) : (
+          <FileStats lang={lang} bmu={effectiveBMU} />
+        )}
         <div className="grid grid-cols-12 gap-5 xl:gap-6">
           <div className="col-span-12 md:col-span-9">
             <CatchMetricsChart
