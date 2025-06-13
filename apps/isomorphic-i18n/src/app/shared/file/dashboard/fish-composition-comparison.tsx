@@ -10,6 +10,8 @@ import { useTranslation } from "@/app/i18n/client";
 import SimpleBar from "@ui/simplebar";
 import useUserPermissions, { adminReferenceBmuAtom } from "./hooks/useUserPermissions";
 import { generateFishCategoryColor, updateBmuColorRegistry } from "./charts/utils";
+import cn from "@utils/class-names";
+
 
 // Define fish category display data
 interface CategoryDisplay {
@@ -326,6 +328,40 @@ export default function FishCompositionComparison({
       </div>
     );
   };
+
+  // Custom Y-axis tick to highlight user's BMU
+const CustomYAxisTick = ({ x = 0, y = 0, payload = { value: '' }, userBMU }: any) => {
+  const isUserBMU = payload.value === userBMU;
+
+  return (
+    <g transform={`translate(${x},${y})`}>
+      <text
+        x={-5}
+        y={0}
+        dy={4}
+        textAnchor="end"
+        className={cn(
+          "text-xs",
+          isUserBMU ? "fill-blue-600 font-semibold" : "fill-gray-500"
+        )}
+      >
+        {payload.value}
+      </text>
+      {isUserBMU && (
+        <text
+          x={-5}
+          y={0}
+          dy={16}
+          textAnchor="end"
+          className="text-[10px] fill-blue-500"
+        >
+          (Your BMU)
+        </text>
+      )}
+    </g>
+  );
+};
+
   
   return (
     <WidgetCard
@@ -401,10 +437,7 @@ export default function FishCompositionComparison({
                     dataKey="bmuName" 
                     type="category" 
                     width={chartData.length === 1 ? 80 : 100}
-                    tick={{ 
-                      fontSize: chartData.length === 1 ? 11 : 12,
-                      fontWeight: chartData.length === 1 ? '500' : 'normal',
-                    }}
+                    tick={<CustomYAxisTick userBMU={userBMU} />}
                     tickLine={false}
                     axisLine={false}
                   />
