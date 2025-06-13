@@ -351,11 +351,11 @@ export default function BMURanking({
       </div>
 
       <SimpleBar>
-        <div className="w-full h-[600px] pt-4">
+        <div className="w-full pt-4" style={{ height: Math.max(300, rankingData.length * 40 + 220) }}>
           <ResponsiveContainer width="100%" height="100%">
             <BarChart
               data={rankingData}
-              margin={{ top: 20, right: 30, left: 20, bottom: 90 }}
+              margin={{ top: 20, right: 30, left: 20, bottom: 60 }}
               layout="vertical"
             >
               <CartesianGrid strokeDasharray="3 3" horizontal={false} />

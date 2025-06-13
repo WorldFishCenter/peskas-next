@@ -67,8 +67,8 @@ export function FileStatWBCIAGrid({ className, lang }: { className?: string; lan
   // Ensure bmus is always an array
   const safeBmus = bmus || [];
   
-  // Fetch individual BMU performance data
-  const { data: bmuPerformanceData, isLoading, error: queryError } = api.aggregatedCatch.performance.useQuery(
+  // Fetch monthly data to get latest month values per BMU
+  const { data: monthlyData, isLoading, error: queryError } = api.aggregatedCatch.monthly.useQuery(
     { bmus: safeBmus },
     {
       retry: 3,
@@ -78,30 +78,39 @@ export function FileStatWBCIAGrid({ className, lang }: { className?: string; lan
     }
   );
 
-  // Define metrics once with API field mapping
+  // Define metrics once with monthly API field mapping
   const metrics = useMemo(() => [
-    { id: 'effort', field: 'avgEffort', title: t('text-metrics-effort'), unit: t('text-unit-fishers-km2-day') },
-    { id: 'catch-rate', field: 'avgCPUE', title: t('text-metrics-catch-rate'), unit: t('text-unit-kg-fisher-day') },
-    { id: 'catch-density', field: 'avgCPUA', title: t('text-metrics-catch-density'), unit: t('text-unit-kg-km2-day') },
-    { id: 'fisher-revenue', field: 'avgRPUE', title: t('text-metrics-fisher-revenue'), unit: t('text-unit-kes-fisher-day') },
-    { id: 'area-revenue', field: 'avgRPUA', title: t('text-metrics-area-revenue'), unit: t('text-unit-kes-km2-day') }
+    { id: 'effort', field: 'mean_effort', title: t('text-metrics-effort'), unit: t('text-unit-fishers-km2-day') },
+    { id: 'catch-rate', field: 'mean_cpue', title: t('text-metrics-catch-rate'), unit: t('text-unit-kg-fisher-day') },
+    { id: 'catch-density', field: 'mean_cpua', title: t('text-metrics-catch-density'), unit: t('text-unit-kg-km2-day') },
+    { id: 'fisher-revenue', field: 'mean_rpue', title: t('text-metrics-fisher-revenue'), unit: t('text-unit-kes-fisher-day') },
+    { id: 'area-revenue', field: 'mean_rpua', title: t('text-metrics-area-revenue'), unit: t('text-unit-kes-km2-day') }
   ] as const, [t]);
 
-  // Process data - use individual BMU performance data
+  // Process data - use latest month data per BMU
   const processedData = useMemo(() => {
-    if (!bmuPerformanceData || safeBmus.length === 0) return null;
+    if (!monthlyData || safeBmus.length === 0) return null;
     
     try {
+      // Group by BMU and find the latest record for each
+      const latestByBMU: { [key: string]: any } = {};
+      
+      monthlyData.forEach(record => {
+        const bmu = record.landing_site;
+        if (!latestByBMU[bmu] || new Date(record.date) > new Date(latestByBMU[bmu].date)) {
+          latestByBMU[bmu] = record;
+        }
+      });
+      
       return metrics.map(metric => {
-        // Collect values for this metric from individual BMUs
+        // Collect values for this metric from latest month per BMU
         const bmuValues: ChartPoint[] = [];
         
-        // The API now returns individual BMU performance data
-        bmuPerformanceData.forEach((bmuData, index) => {
-          const value = bmuData[metric.field];
+        Object.entries(latestByBMU).forEach(([bmu, record], index) => {
+          const value = record[metric.field];
           if (value !== null && value !== undefined) {
             bmuValues.push({
-              bmu: bmuData.bmu,
+              bmu: bmu,
               value: value,
               index: index
             });
@@ -135,7 +144,7 @@ export function FileStatWBCIAGrid({ className, lang }: { className?: string; lan
       console.error("Error transforming data:", error);
       return null;
     }
-  }, [bmuPerformanceData, metrics, safeBmus, userBMU]);
+  }, [monthlyData, metrics, safeBmus, userBMU]);
 
   // Update state based on processed data
   useEffect(() => {

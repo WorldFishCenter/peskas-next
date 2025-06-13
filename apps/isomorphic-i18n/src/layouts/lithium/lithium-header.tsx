@@ -297,13 +297,13 @@ function HeaderMenuRight({ lang }: { lang?: string }) {
 
   return (
     <div className="ms-auto flex shrink-0 items-center gap-1 text-gray-700 xs:gap-1 md:gap-2 xl:gap-3">
-      <ReferenceBMU />
+      {/* <ReferenceBMU /> */}
       <HeaderMetricSelector />
       <div className="hidden sm:block">
         <FilterSelector />
       </div>
       <CompactLanguageSwitcher />
-      <ThemeToggle />
+      {/* <ThemeToggle /> */}
       <ProfileMenu
         buttonClassName="w-auto sm:w-auto p-1 border border-gray-300"
         avatarClassName="!w-7 !h-7 sm:!h-8 sm:!w-8"
