@@ -555,7 +555,10 @@ export default function CatchMetricsChart({
 
       // Process the raw data first to ensure we don't miss any values
       filteredData.forEach((item: ApiDataPoint) => {
-        const value = item[selectedMetric];
+        // Skip fisher_days as it's calculated locally, not from API
+        if (selectedMetric === 'fisher_days') return;
+        
+        const value = item[selectedMetric as Exclude<MetricKey, 'fisher_days'>];
         if (value === undefined || value === null) return;
         
         // Normalize the date to first day of month
@@ -803,6 +806,7 @@ export default function CatchMetricsChart({
               isCiaUser={!!isCiaUser}
               isTablet={isTablet}
               fiveYearMarks={fiveYearMarks}
+              selectedMetric={selectedMetric}
               CustomLegend={(props) => (
                 <CustomLegend 
                   {...props} 
@@ -837,6 +841,7 @@ export default function CatchMetricsChart({
               )}
               visibilityState={visibilityState}
               isTablet={isTablet}
+              selectedMetric={selectedMetric}
               CustomLegend={(props) => (
                 <CustomLegend 
                   {...props} 
@@ -858,6 +863,7 @@ export default function CatchMetricsChart({
                 isTablet={isTablet}
                 isCiaHistoricalMode={true}
                 historicalBmuName={effectiveBMU}
+                selectedMetric={selectedMetric}
                 CustomLegend={(props) => (
                   <CustomLegend 
                     {...props} 
@@ -890,6 +896,7 @@ export default function CatchMetricsChart({
               visibilityState={visibilityState}
               isCiaUser={!!isCiaUser}
               isTablet={isTablet}
+              selectedMetric={selectedMetric}
               CustomLegend={(props) => (
                 <CustomLegend 
                   {...props} 

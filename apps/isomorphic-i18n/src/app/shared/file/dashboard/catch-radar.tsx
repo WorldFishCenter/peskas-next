@@ -23,6 +23,8 @@ import useUserPermissions from "./hooks/useUserPermissions";
 // Import shared color function
 import { generateColor, updateBmuColorRegistry } from "./charts/utils";
 import { MetricKey, MetricOption } from "./charts/types";
+// Import site configuration
+import { getMonthlyFisherDays } from "./charts/siteConfig";
 
 interface RadarData {
   month: string;
@@ -45,6 +47,7 @@ const METRIC_INFO: Record<MetricKey, MetricInfo> = {
   mean_cpua: { translationKey: "text-metrics-catch-density", unit: "kg/km²/day" },
   mean_rpue: { translationKey: "text-metrics-fisher-revenue", unit: "KSH/fisher/day" },
   mean_rpua: { translationKey: "text-metrics-area-revenue", unit: "KSH/km²/day" },
+  fisher_days: { translationKey: "text-fisher-days", unit: "days/month" },
 };
 
 const getMetricLabel = (metric: string, t: any): string => {
@@ -198,9 +201,12 @@ export default function CatchRadarChart({
   // Force refetch when bmus or metric changes - optimized with memoized dependency string
   const bmsDependencyString = useMemo(() => JSON.stringify(bmus), [bmus]);
   
+  // Handle fisher_days metric separately since it's calculated locally
+  const apiMetric = selectedMetric === 'fisher_days' ? 'mean_effort' : selectedMetric;
+  
   const { data: meanCatch, isLoading: isFetching, error: queryError, refetch } =
     api.aggregatedCatch.meanCatchRadar.useQuery(
-      { bmus, metric: selectedMetric },
+      { bmus, metric: apiMetric as Exclude<MetricKey, 'fisher_days'> },
       {
         refetchOnMount: true,
         refetchOnWindowFocus: false,
@@ -324,20 +330,27 @@ export default function CatchRadarChart({
       
       // Process and sort the data by month
       let processedData = MONTH_ORDER
-        .filter(month => dataMap[month]) // Only include months that have data
+        .filter(month => selectedMetric === 'fisher_days' || dataMap[month]) // For fisher_days, include all months
         .map(month => {
           const completeItem: RadarData = { 
             month, 
             monthDisplay: month 
           };
           
-          // For each site, use the value from dataMap if available, otherwise undefined
-          // Using undefined instead of 0 ensures proper gaps in visualizations
-          uniqueSites.forEach(site => {
-            completeItem[site] = dataMap[month][site] !== undefined 
-              ? dataMap[month][site] 
-              : undefined; // Use undefined instead of 0 to show gaps
-          });
+          // For fisher_days metric, calculate based on site type
+          if (selectedMetric === 'fisher_days') {
+            uniqueSites.forEach(site => {
+              completeItem[site] = getMonthlyFisherDays(site);
+            });
+          } else {
+            // For each site, use the value from dataMap if available, otherwise undefined
+            // Using undefined instead of 0 ensures proper gaps in visualizations
+            uniqueSites.forEach(site => {
+              completeItem[site] = dataMap[month][site] !== undefined 
+                ? dataMap[month][site] 
+                : undefined; // Use undefined instead of 0 to show gaps
+            });
+          }
           
           return completeItem;
         });

@@ -1,6 +1,6 @@
 import { Session } from "next-auth";
 
-export type MetricKey = "mean_effort" | "mean_cpue" | "mean_cpua" | "mean_rpue" | "mean_rpua";
+export type MetricKey = "mean_effort" | "mean_cpue" | "mean_cpua" | "mean_rpue" | "mean_rpua" | "fisher_days";
 
 export interface ChartDataPoint {
   date: number;
@@ -82,6 +82,12 @@ export const METRIC_OPTIONS: MetricOption[] = [
     label: "Area Revenue",
     unit: "KES/km²/day",
     category: "revenue",
+  },
+  {
+    value: "fisher_days",
+    label: "Fisher Days",
+    unit: "days/month",
+    category: "catch",
   },
 ];
 

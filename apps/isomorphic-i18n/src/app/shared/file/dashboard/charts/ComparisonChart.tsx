@@ -16,6 +16,7 @@ import { CustomYAxisTick } from "./components";
 import { getBarColor } from "./utils";
 import { useTranslation } from "@/app/i18n/client";
 import React, { useCallback, useEffect, useRef } from "react";
+import { BASELINE_DATA } from "./siteConfig";
 
 interface ComparisonChartProps {
   chartData: ChartDataPoint[];
@@ -26,6 +27,7 @@ interface ComparisonChartProps {
   isCiaHistoricalMode?: boolean;
   historicalBmuName?: string;
   CustomLegend: (props: any) => React.ReactElement;
+  selectedMetric?: string;
 }
 
 export default function ComparisonChart({
@@ -37,6 +39,7 @@ export default function ComparisonChart({
   isCiaHistoricalMode = false,
   historicalBmuName,
   CustomLegend,
+  selectedMetric,
 }: ComparisonChartProps) {
   const contextLang = document.documentElement.getAttribute('data-language');
   const isLangReady = document.documentElement.getAttribute('data-language-ready') === 'true';
@@ -336,9 +339,19 @@ export default function ComparisonChart({
           <YAxis
             tickFormatter={(value) => value.toFixed(1)}
             axisLine={false}
-            tick={<CustomYAxisTick />}
-            width={40}
+            tick={(props) => <CustomYAxisTick {...props} metric={selectedMetric} />}
+            width={80}
             domain={yDomain}
+            label={{ 
+              value: selectedMetric === "mean_cpue" ? t('text-unit-kg-fisher-day') : 
+                     selectedMetric === "mean_cpua" ? t('text-unit-kg-km2-day') : 
+                     selectedMetric === "mean_rpue" ? t('text-unit-kes-fisher-day') : 
+                     selectedMetric === "mean_rpua" ? t('text-unit-kes-km2-day') : 
+                     selectedMetric === "mean_effort" ? t('text-unit-fishers-km2-day') : "",
+              angle: -90,
+              position: 'insideLeft',
+              style: { textAnchor: 'middle', fontSize: 15, fill: '#666' }
+            }}
           />
           <Tooltip
             content={(props) => (
@@ -352,6 +365,73 @@ export default function ComparisonChart({
           
           {/* Zero reference line - critical for negative values visualization */}
           <ReferenceLine y={0} stroke="#000" strokeWidth={1} />
+          
+          {/* Add MSY baseline reference lines for CPUA and Revenue metrics */}
+          {selectedMetric === "mean_cpua" && (
+            <>
+              <ReferenceLine
+                y={BASELINE_DATA.CPUA.MSY.FRINGING}
+                stroke="#22c55e"
+                strokeDasharray="8 4"
+                strokeWidth={2}
+                label={{ value: "MSY Fringing", position: "right", fill: "#22c55e", fontSize: 11 }}
+              />
+              <ReferenceLine
+                y={BASELINE_DATA.CPUA.MSY.ISLAND}
+                stroke="#16a34a"
+                strokeDasharray="8 4"
+                strokeWidth={2}
+                label={{ value: "MSY Island", position: "right", fill: "#16a34a", fontSize: 11 }}
+              />
+              <ReferenceLine
+                y={BASELINE_DATA.CPUA.CURRENT.FRINGING}
+                stroke="#f59e0b"
+                strokeDasharray="4 4"
+                strokeWidth={1.5}
+                label={{ value: "Current Fringing", position: "left", fill: "#f59e0b", fontSize: 11 }}
+              />
+              <ReferenceLine
+                y={BASELINE_DATA.CPUA.CURRENT.ISLAND}
+                stroke="#ea580c"
+                strokeDasharray="4 4"
+                strokeWidth={1.5}
+                label={{ value: "Current Island", position: "left", fill: "#ea580c", fontSize: 11 }}
+              />
+            </>
+          )}
+          
+          {selectedMetric === "mean_rpua" && (
+            <>
+              <ReferenceLine
+                y={BASELINE_DATA.REVENUE_PER_AREA.MSY.FRINGING}
+                stroke="#22c55e"
+                strokeDasharray="8 4"
+                strokeWidth={2}
+                label={{ value: "MSY Fringing", position: "right", fill: "#22c55e", fontSize: 11 }}
+              />
+              <ReferenceLine
+                y={BASELINE_DATA.REVENUE_PER_AREA.MSY.ISLAND}
+                stroke="#16a34a"
+                strokeDasharray="8 4"
+                strokeWidth={2}
+                label={{ value: "MSY Island", position: "right", fill: "#16a34a", fontSize: 11 }}
+              />
+              <ReferenceLine
+                y={BASELINE_DATA.REVENUE_PER_AREA.CURRENT.FRINGING}
+                stroke="#f59e0b"
+                strokeDasharray="4 4"
+                strokeWidth={1.5}
+                label={{ value: "Current Fringing", position: "left", fill: "#f59e0b", fontSize: 11 }}
+              />
+              <ReferenceLine
+                y={BASELINE_DATA.REVENUE_PER_AREA.CURRENT.ISLAND}
+                stroke="#ea580c"
+                strokeDasharray="4 4"
+                strokeWidth={1.5}
+                label={{ value: "Current Island", position: "left", fill: "#ea580c", fontSize: 11 }}
+              />
+            </>
+          )}
           
           {/* Month delimiters - ensure all months are shown */}
           {(() => {

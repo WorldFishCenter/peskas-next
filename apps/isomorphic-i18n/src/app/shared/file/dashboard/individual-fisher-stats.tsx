@@ -11,6 +11,7 @@ import { PiTrendUp, PiTrendDown, PiEquals } from "react-icons/pi";
 import { api } from "@/trpc/react";
 import { useMemo, useEffect, useState } from "react";
 import { getClientLanguage } from "@/app/i18n/language-link";
+import { BASELINE_DATA } from "./charts/siteConfig";
 
 export default function IndividualFisherStats({ 
   lang, 
@@ -227,24 +228,61 @@ export default function IndividualFisherStats({
     return colors[color as keyof typeof colors] || colors.blue;
   };
 
+  // Calculate daily income from RPUE (assuming one trip per day)
+  const dailyIncome = summary.avg_rpue || 0;
+  
+  // Income comparison helpers
+  const incomeComparisons = [
+    { 
+      label: t('text-poverty-line'), 
+      value: BASELINE_DATA.INCOME.POVERTY_LINE,
+      color: dailyIncome >= BASELINE_DATA.INCOME.POVERTY_LINE ? 'green' : 'red'
+    },
+    { 
+      label: t('text-minimum-wage'), 
+      value: BASELINE_DATA.INCOME.NATIONAL_MINIMUM_WAGE,
+      color: dailyIncome >= BASELINE_DATA.INCOME.NATIONAL_MINIMUM_WAGE ? 'green' : 'orange'
+    },
+    { 
+      label: t('text-living-wage'), 
+      value: BASELINE_DATA.INCOME.LIVING_WAGE,
+      color: dailyIncome >= BASELINE_DATA.INCOME.LIVING_WAGE ? 'green' : 'orange'
+    }
+  ];
+
   return (
     <div className="space-y-5">
-      {/* User info header */}
-      {/* <WidgetCard
-        title={t('text-your-performance')}
-        description={t('text-performance-description')}
+      {/* Income baseline indicators */}
+      <WidgetCard
+        title={t('text-income-indicators')}
+        description={t('text-daily-income-comparison')}
         headerClassName="pb-3"
-        className="border-0"
       >
-        <div className="flex items-center justify-between">
-                      <Text className="text-sm text-gray-500">
-              {t('text-fisher-id')}: {userFisherId}
-            </Text>
-            <Text className="text-sm text-gray-500">
-              {t('text-total-trips')}: {summary.total_trips || 0}
-            </Text>
+        <div className="grid grid-cols-3 gap-4">
+          {incomeComparisons.map((comparison, index) => (
+            <div key={index} className="text-center">
+              <Text className="text-xs text-gray-500 mb-1">{comparison.label}</Text>
+              <Text className="text-sm font-medium">{formatCurrency(comparison.value)}</Text>
+              <div className="mt-2">
+                <div className={cn(
+                  "w-3 h-3 rounded-full mx-auto",
+                  comparison.color === 'green' ? "bg-green-500" : 
+                  comparison.color === 'orange' ? "bg-orange-500" : 
+                  "bg-red-500"
+                )} />
+                <Text className="text-xs mt-1">
+                  {comparison.color === 'green' ? t('text-above') : t('text-below')}
+                </Text>
+              </div>
+            </div>
+          ))}
         </div>
-      </WidgetCard> */}
+        <div className="mt-4 pt-4 border-t">
+          <Text className="text-sm text-gray-600 text-center">
+            {t('text-your-daily-income')}: <span className="font-semibold">{formatCurrency(dailyIncome)}</span>
+          </Text>
+        </div>
+      </WidgetCard>
 
       {/* Stats cards */}
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">

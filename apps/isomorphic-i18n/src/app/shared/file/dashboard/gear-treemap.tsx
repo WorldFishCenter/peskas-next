@@ -474,8 +474,9 @@ export default function GearHeatmap({
         const aValue = rawData.reduce(
           (sum, curr) => {
             // Only add values that are actually numbers and not null/undefined
-            if (curr.gear === a && curr[selectedMetric] !== undefined && curr[selectedMetric] !== null) {
-              return sum + (typeof curr[selectedMetric] === "number" ? curr[selectedMetric] : 0);
+            const value = (curr as any)[selectedMetric];
+            if (curr.gear === a && value !== undefined && value !== null) {
+              return sum + (typeof value === "number" ? value : 0);
             }
             return sum;
           },
@@ -484,8 +485,9 @@ export default function GearHeatmap({
         const bValue = rawData.reduce(
           (sum, curr) => {
             // Only add values that are actually numbers and not null/undefined
-            if (curr.gear === b && curr[selectedMetric] !== undefined && curr[selectedMetric] !== null) {
-              return sum + (typeof curr[selectedMetric] === "number" ? curr[selectedMetric] : 0);
+            const value = (curr as any)[selectedMetric];
+            if (curr.gear === b && value !== undefined && value !== null) {
+              return sum + (typeof value === "number" ? value : 0);
             }
             return sum;
           },
@@ -536,7 +538,8 @@ export default function GearHeatmap({
         const totalValue = filteredRankingData
           .filter(d => d.gear === gear)
           .reduce((sum, curr) => {
-            return sum + (typeof curr[selectedMetric] === "number" ? curr[selectedMetric] : 0);
+            const value = (curr as any)[selectedMetric];
+            return sum + (typeof value === "number" ? value : 0);
           }, 0);
 
         return {
@@ -560,8 +563,8 @@ export default function GearHeatmap({
         const comparisonData = gearTypes.map((gear, index) => {
           // Get value for user's BMU
           const bmuValue = rawData.find(
-            d => d.BMU === effectiveBMU && d.gear === gear && typeof d[selectedMetric] === "number"
-          )?.[selectedMetric] || 0;
+            d => d.BMU === effectiveBMU && d.gear === gear && typeof (d as any)[selectedMetric] === "number"
+          )?.[selectedMetric as keyof typeof rawData[0]] || 0;
 
           // Get average value for other BMUs
           const otherBMUs = uniqueBMUs.filter(b => b !== effectiveBMU);
@@ -570,8 +573,8 @@ export default function GearHeatmap({
 
           otherBMUs.forEach(otherBMU => {
             const value = rawData.find(
-              d => d.BMU === otherBMU && d.gear === gear && typeof d[selectedMetric] === "number"
-            )?.[selectedMetric];
+              d => d.BMU === otherBMU && d.gear === gear && typeof (d as any)[selectedMetric] === "number"
+            )?.[selectedMetric as keyof typeof rawData[0]];
 
             if (value) {
               otherBMUsTotal += value;
@@ -756,6 +759,17 @@ export default function GearHeatmap({
                   tick={{ fontSize: 12, fill: "#64748b" }}
                   axisLine={false}
                   tickLine={false}
+                  label={{ 
+                    value: selectedMetric === "mean_cpue" ? t('text-unit-kg-fisher-day') : 
+                           selectedMetric === "mean_cpua" ? t('text-unit-kg-km2-day') : 
+                           selectedMetric === "mean_rpue" ? t('text-unit-kes-fisher-day') : 
+                           selectedMetric === "mean_rpua" ? t('text-unit-kes-km2-day') : 
+                           selectedMetric === "mean_effort" ? t('text-unit-fishers-km2-day') : "",
+                    angle: -90,
+                    position: 'insideLeft',
+                    style: { textAnchor: 'middle', fontSize: 15, fill: '#666' }
+                  }}
+                  width={80}
                 />
                 <Tooltip 
                   content={(props) => <CustomTooltip {...props} selectedMetricOption={selectedMetricOption} />} 
@@ -807,6 +821,16 @@ export default function GearHeatmap({
                   tick={{ fontSize: 12, fill: "#64748b" }}
                   axisLine={{ stroke: "#cbd5e1", strokeWidth: 1 }}
                   tickLine={{ stroke: "#cbd5e1" }}
+                  label={{ 
+                    value: selectedMetric === "mean_cpue" ? t('text-unit-kg-fisher-day') : 
+                           selectedMetric === "mean_cpua" ? t('text-unit-kg-km2-day') : 
+                           selectedMetric === "mean_rpue" ? t('text-unit-kes-fisher-day') : 
+                           selectedMetric === "mean_rpua" ? t('text-unit-kes-km2-day') : 
+                           selectedMetric === "mean_effort" ? t('text-unit-fishers-km2-day') : "",
+                    position: 'insideBottom',
+                    offset: -10,
+                    style: { textAnchor: 'middle', fontSize: 15, fill: '#666' }
+                  }}
                 />
                 <YAxis
                   dataKey="name"

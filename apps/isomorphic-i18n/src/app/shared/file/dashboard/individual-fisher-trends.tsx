@@ -20,6 +20,7 @@ import { format } from "date-fns";
 import cn from "@utils/class-names";
 import { api } from "@/trpc/react";
 import { getClientLanguage } from "@/app/i18n/language-link";
+import { BASELINE_DATA, isIslandSite } from "./charts/siteConfig";
 
 // Custom Y-axis tick component for consistent styling
 function CustomYAxisTick({ x = 0, y = 0, payload = { value: 0 }, selectedMetric }: any) {
@@ -27,9 +28,11 @@ function CustomYAxisTick({ x = 0, y = 0, payload = { value: 0 }, selectedMetric 
     ? payload.value.toLocaleString()
     : payload.value.toFixed(1);
     
-  // Add KES for revenue and cost metrics
-  if (selectedMetric === "fisher_rpue" || selectedMetric === "fisher_cost") {
-    formattedValue = `${formattedValue}`;
+  // Add units based on metric
+  if (selectedMetric === "fisher_cpue") {
+    formattedValue = `${formattedValue} kg`;
+  } else if (selectedMetric === "fisher_rpue" || selectedMetric === "fisher_cost") {
+    formattedValue = `KES ${formattedValue}`;
   }
     
   return (
@@ -400,6 +403,33 @@ export default function IndividualFisherTrends({
               isAnimationActive={false}
               name={`${fisherBMU} ${t('text-average')}`}
             />
+            
+            {/* Income baseline reference lines (only for RPUE) */}
+            {selectedMetric === "fisher_rpue" && (
+              <>
+                <ReferenceLine
+                  y={BASELINE_DATA.INCOME.POVERTY_LINE}
+                  stroke="#ef4444"
+                  strokeDasharray="3 3"
+                  strokeWidth={1.5}
+                  label={{ value: t('text-poverty-line'), position: "right", fill: "#ef4444", fontSize: 11 }}
+                />
+                <ReferenceLine
+                  y={BASELINE_DATA.INCOME.NATIONAL_MINIMUM_WAGE}
+                  stroke="#f59e0b"
+                  strokeDasharray="3 3"
+                  strokeWidth={1.5}
+                  label={{ value: t('text-minimum-wage'), position: "right", fill: "#f59e0b", fontSize: 11 }}
+                />
+                <ReferenceLine
+                  y={BASELINE_DATA.INCOME.LIVING_WAGE}
+                  stroke="#22c55e"
+                  strokeDasharray="3 3"
+                  strokeWidth={1.5}
+                  label={{ value: t('text-living-wage'), position: "right", fill: "#22c55e", fontSize: 11 }}
+                />
+              </>
+            )}
             
             {/* Legend */}
             <Legend 

@@ -14,6 +14,7 @@ import { ChartDataPoint, MetricOption, VisibilityState } from "./types";
 import { CustomYAxisTick } from "./components";
 import { useTranslation } from "@/app/i18n/client";
 import { useEffect, useRef, useCallback } from "react";
+import { BASELINE_DATA, isIslandSite } from "./siteConfig";
 
 interface TrendsChartProps {
   chartData: ChartDataPoint[];
@@ -24,6 +25,7 @@ interface TrendsChartProps {
   isTablet: boolean;
   fiveYearMarks?: number[];
   CustomLegend?: React.ComponentType<any>;
+  selectedMetric?: string;
 }
 
 export default function TrendsChart({
@@ -35,6 +37,7 @@ export default function TrendsChart({
   isTablet,
   fiveYearMarks,
   CustomLegend,
+  selectedMetric,
 }: TrendsChartProps) {
   // Check if there's a parent language context we should use
   const contextLang = document.documentElement.getAttribute('data-language');
@@ -90,7 +93,7 @@ export default function TrendsChart({
         dataKey={site}
         stroke={siteColors[site]}
         strokeWidth={2}
-        dot={false}
+        dot={{ fill: siteColors[site], strokeWidth: 0, r: 3 }}
         activeDot={{ r: 6, strokeWidth: 0 }}
         hide={visibilityState[site]?.opacity === 0}
         strokeOpacity={visibilityState[site]?.opacity}
@@ -159,8 +162,18 @@ export default function TrendsChart({
           <YAxis
             tickFormatter={(value) => value.toFixed(1)}
             axisLine={false}
-            tick={<CustomYAxisTick />}
-            width={40}
+            tick={(props) => <CustomYAxisTick {...props} metric={selectedMetric} />}
+            width={80}
+            label={{ 
+              value: selectedMetric === "mean_cpue" ? t('text-unit-kg-fisher-day') : 
+                     selectedMetric === "mean_cpua" ? t('text-unit-kg-km2-day') : 
+                     selectedMetric === "mean_rpue" ? t('text-unit-kes-fisher-day') : 
+                     selectedMetric === "mean_rpua" ? t('text-unit-kes-km2-day') : 
+                     selectedMetric === "mean_effort" ? t('text-unit-fishers-km2-day') : "",
+              angle: -90,
+              position: 'insideLeft',
+              style: { textAnchor: 'middle', fontSize: 15, fill: '#666' }
+            }}
           />
           <CartesianGrid strokeDasharray="3 3" vertical={false} />
           <Tooltip content={<CustomTooltip />} />
@@ -195,7 +208,7 @@ export default function TrendsChart({
               dataKey="average"
               stroke="#000000"
               strokeWidth={4}
-              dot={false}
+              dot={{ fill: "#000000", strokeWidth: 0, r: 4 }}
               activeDot={{ r: 6, strokeWidth: 0 }}
               strokeOpacity={visibilityState["average"]?.opacity}
               strokeDasharray="5 5"
@@ -203,6 +216,73 @@ export default function TrendsChart({
               isAnimationActive={false}
               connectNulls={false}
             />
+          )}
+          
+          {/* Add MSY baseline reference lines for CPUA and Revenue metrics */}
+          {selectedMetric === "mean_cpua" && (
+            <>
+              <ReferenceLine
+                y={BASELINE_DATA.CPUA.MSY.FRINGING}
+                stroke="#22c55e"
+                strokeDasharray="8 4"
+                strokeWidth={2}
+                label={{ value: "MSY Fringing", position: "right", fill: "#22c55e", fontSize: 11 }}
+              />
+              <ReferenceLine
+                y={BASELINE_DATA.CPUA.MSY.ISLAND}
+                stroke="#16a34a"
+                strokeDasharray="8 4"
+                strokeWidth={2}
+                label={{ value: "MSY Island", position: "right", fill: "#16a34a", fontSize: 11 }}
+              />
+              <ReferenceLine
+                y={BASELINE_DATA.CPUA.CURRENT.FRINGING}
+                stroke="#f59e0b"
+                strokeDasharray="4 4"
+                strokeWidth={1.5}
+                label={{ value: "Current Fringing", position: "left", fill: "#f59e0b", fontSize: 11 }}
+              />
+              <ReferenceLine
+                y={BASELINE_DATA.CPUA.CURRENT.ISLAND}
+                stroke="#ea580c"
+                strokeDasharray="4 4"
+                strokeWidth={1.5}
+                label={{ value: "Current Island", position: "left", fill: "#ea580c", fontSize: 11 }}
+              />
+            </>
+          )}
+          
+          {selectedMetric === "mean_rpua" && (
+            <>
+              <ReferenceLine
+                y={BASELINE_DATA.REVENUE_PER_AREA.MSY.FRINGING}
+                stroke="#22c55e"
+                strokeDasharray="8 4"
+                strokeWidth={2}
+                label={{ value: "MSY Fringing", position: "right", fill: "#22c55e", fontSize: 11 }}
+              />
+              <ReferenceLine
+                y={BASELINE_DATA.REVENUE_PER_AREA.MSY.ISLAND}
+                stroke="#16a34a"
+                strokeDasharray="8 4"
+                strokeWidth={2}
+                label={{ value: "MSY Island", position: "right", fill: "#16a34a", fontSize: 11 }}
+              />
+              <ReferenceLine
+                y={BASELINE_DATA.REVENUE_PER_AREA.CURRENT.FRINGING}
+                stroke="#f59e0b"
+                strokeDasharray="4 4"
+                strokeWidth={1.5}
+                label={{ value: "Current Fringing", position: "left", fill: "#f59e0b", fontSize: 11 }}
+              />
+              <ReferenceLine
+                y={BASELINE_DATA.REVENUE_PER_AREA.CURRENT.ISLAND}
+                stroke="#ea580c"
+                strokeDasharray="4 4"
+                strokeWidth={1.5}
+                label={{ value: "Current Island", position: "left", fill: "#ea580c", fontSize: 11 }}
+              />
+            </>
           )}
           
           {CustomLegend && <Legend content={(props) => <CustomLegend {...props} />} />}
