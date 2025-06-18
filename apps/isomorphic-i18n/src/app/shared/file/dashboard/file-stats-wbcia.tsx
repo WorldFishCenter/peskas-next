@@ -31,6 +31,7 @@ interface StatData {
   unit: string;
   chart: ChartPoint[];
   userBMUValue?: number | null;
+  monthName?: string;
 }
 
 const LoadingState = () => {
@@ -87,27 +88,61 @@ export function FileStatWBCIAGrid({ className, lang }: { className?: string; lan
     { id: 'area-revenue', field: 'mean_rpua', title: t('text-metrics-area-revenue'), unit: t('text-unit-kes-km2-day') }
   ] as const, [t]);
 
-  // Process data - use latest month data per BMU
+  // Process data - use previous month data per BMU
   const processedData = useMemo(() => {
     if (!monthlyData || safeBmus.length === 0) return null;
     
     try {
-      // Group by BMU and find the latest record for each
-      const latestByBMU: { [key: string]: any } = {};
+      // Get current date and calculate previous month
+      const now = new Date();
+      const currentYear = now.getFullYear();
+      const currentMonth = now.getMonth(); // 0-indexed
+      
+      // Calculate previous month date
+      const previousMonth = currentMonth === 0 ? 11 : currentMonth - 1;
+      const previousYear = currentMonth === 0 ? currentYear - 1 : currentYear;
+      
+      // Group by BMU and find records from previous month
+      const previousMonthByBMU: { [key: string]: any } = {};
       
       monthlyData.forEach(record => {
-        const bmu = record.landing_site;
-        if (!latestByBMU[bmu] || new Date(record.date) > new Date(latestByBMU[bmu].date)) {
-          latestByBMU[bmu] = record;
+        const recordDate = new Date(record.date);
+        const recordYear = recordDate.getFullYear();
+        const recordMonth = recordDate.getMonth();
+        
+        // Check if this record is from the previous month
+        if (recordYear === previousYear && recordMonth === previousMonth) {
+          const bmu = record.landing_site;
+          previousMonthByBMU[bmu] = record;
         }
       });
       
+      // If no data from previous month, fall back to latest available
+      const dataByBMU = Object.keys(previousMonthByBMU).length > 0 
+        ? previousMonthByBMU 
+        : (() => {
+            const latestByBMU: { [key: string]: any } = {};
+            monthlyData.forEach(record => {
+              const bmu = record.landing_site;
+              if (!latestByBMU[bmu] || new Date(record.date) > new Date(latestByBMU[bmu].date)) {
+                latestByBMU[bmu] = record;
+              }
+            });
+            return latestByBMU;
+          })();
+      
+      // Get month name for display
+      const latestDate = Object.values(dataByBMU)[0]?.date;
+      const monthName = latestDate 
+        ? new Date(latestDate).toLocaleString('default', { month: 'long' })
+        : '';
+      
       return metrics.map(metric => {
-        // Collect values for this metric from latest month per BMU
+        // Collect values for this metric from data per BMU
         const bmuValues: ChartPoint[] = [];
         
-        Object.entries(latestByBMU).forEach(([bmu, record], index) => {
-          const value = record[metric.field];
+        Object.entries(dataByBMU).forEach(([bmu, record], index) => {
+          const value = (record as any)[metric.field];
           if (value !== null && value !== undefined) {
             bmuValues.push({
               bmu: bmu,
@@ -137,7 +172,8 @@ export function FileStatWBCIAGrid({ className, lang }: { className?: string; lan
           metric: Math.round(avgValue).toLocaleString(),
           unit: metric.unit,
           chart: sortedValues,
-          userBMUValue: userBMUData?.value
+          userBMUValue: userBMUData?.value,
+          monthName: monthName
         };
       });
     } catch (error) {
@@ -237,7 +273,9 @@ export function FileStatWBCIAGrid({ className, lang }: { className?: string; lan
                 <Text className="text-m font-medium text-gray-700">{stat.title}</Text>
                 <Text className="text-xs text-gray-400">({stat.unit})</Text>
               </div>
-              <Text className="text-xs text-gray-500">Current month comparison across BMUs</Text>
+              <Text className="text-xs text-gray-500">
+                Latest month {stat.monthName ? `(${stat.monthName})` : ''} comparison across BMUs
+              </Text>
             </div>
             
             <div className="flex items-baseline justify-between mt-2">
@@ -247,17 +285,17 @@ export function FileStatWBCIAGrid({ className, lang }: { className?: string; lan
                     ? (hoveredBMU[stat.id].value === null ? "N/A" : Math.round(hoveredBMU[stat.id].value!).toLocaleString())
                     : stat.metric}
                 </Text>
-                <span className="text-xs text-gray-500">
-                  {hoveredBMU[stat.id] ? hoveredBMU[stat.id].bmu : "Average"}
-                </span>
+                                <span className="text-xs font-bold text-gray-500">
+                {hoveredBMU[stat.id] ? hoveredBMU[stat.id].bmu : "Average among all BMUs"}
+              </span>
               </div>
               
-              {userBMU && stat.userBMUValue !== null && stat.userBMUValue !== undefined && (
+              {/* {userBMU && stat.userBMUValue !== null && stat.userBMUValue !== undefined && (
                 <div className="flex items-center gap-1 text-2xs">
                   <div className="w-2 h-2 rounded-full bg-[#fc3468]" />
                   <span className="text-gray-600">{userBMU}: {Math.round(stat.userBMUValue).toLocaleString()}</span>
                 </div>
-              )}
+              )} */}
             </div>
           </div>
           
@@ -268,7 +306,7 @@ export function FileStatWBCIAGrid({ className, lang }: { className?: string; lan
             <ResponsiveContainer width="100%" height="100%">
               <BarChart 
                 data={stat.chart}
-                margin={{ top: 15, right: 8, bottom: 25, left: 8 }}
+                margin={{ top: 15, right: 8, bottom: 25, left: 30 }}
                 barGap={2}
                 onMouseMove={(state) => handleMouseMove(state, stat.id)}
                 onClick={(data) => handleBarClick(data, stat.id)}
@@ -284,8 +322,19 @@ export function FileStatWBCIAGrid({ className, lang }: { className?: string; lan
                   interval={0}
                 />
                 <YAxis 
-                  hide={true} 
-                  domain={[0, (dataMax: number) => dataMax * 1.1]} 
+                  hide={false}
+                  domain={[0, (dataMax: number) => dataMax * 1.1]}
+                  tick={{ fontSize: 9, fill: '#9ca3af' }}
+                  tickLine={false}
+                  axisLine={false}
+                  width={25}
+                  tickCount={3}
+                  tickFormatter={(value) => {
+                    if (value >= 1000) {
+                      return `${(value / 1000).toFixed(0)}k`;
+                    }
+                    return value.toFixed(0);
+                  }}
                 />
                 <Tooltip 
                   content={<></>}

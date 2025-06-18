@@ -25,11 +25,13 @@ import {
   Cell,
   LabelList,
   Treemap,
+  ReferenceLine,
 } from "recharts";
 
 // Import shared MetricSelector component
 import { MetricKey, MetricOption, METRIC_OPTIONS } from "./charts/types";
 import { generateColor, updateBmuColorRegistry } from "./charts/utils";
+import { BASELINE_DATA } from "./charts/siteConfig";
 import useUserPermissions from "./hooks/useUserPermissions";
 
 // Colors for gear types (consistent set)
@@ -787,6 +789,34 @@ export default function GearHeatmap({
                   align="center"
                   wrapperStyle={{ position: 'relative', marginTop: '10px' }}
                 />
+                
+                {/* Reference lines for fisher revenue */}
+                {/* {selectedMetric === "mean_rpue" && (
+                  <>
+                    <ReferenceLine
+                      y={BASELINE_DATA.INCOME.POVERTY_LINE}
+                      stroke="#ef4444"
+                      strokeDasharray="3 3"
+                      strokeWidth={1.5}
+                      label={{ value: "Poverty Line", position: "left", fill: "#ef4444", fontSize: 11 }}
+                    />
+                    <ReferenceLine
+                      y={BASELINE_DATA.INCOME.NATIONAL_MINIMUM_WAGE}
+                      stroke="#f59e0b"
+                      strokeDasharray="3 3"
+                      strokeWidth={1.5}
+                      label={{ value: "Minimum Wage", position: "left", fill: "#f59e0b", fontSize: 11 }}
+                    />
+                    <ReferenceLine
+                      y={BASELINE_DATA.INCOME.LIVING_WAGE}
+                      stroke="#22c55e"
+                      strokeDasharray="3 3"
+                      strokeWidth={1.5}
+                      label={{ value: "Living Wage", position: "left", fill: "#22c55e", fontSize: 11 }}
+                    />
+                  </>
+                )} */}
+                
                 {uniqueBMUs.map((bmu) => (
                   <Bar
                     key={bmu}
@@ -856,6 +886,34 @@ export default function GearHeatmap({
                   align="center"
                   wrapperStyle={{ position: 'relative', marginTop: '10px' }}
                 />
+                
+                {/* Reference lines for fisher revenue */}
+                {selectedMetric === "mean_rpue" && (
+                  <>
+                    <ReferenceLine
+                      x={BASELINE_DATA.INCOME.POVERTY_LINE}
+                      stroke="#ef4444"
+                      strokeDasharray="3 3"
+                      strokeWidth={1.5}
+                      label={{ value: "Poverty Line", position: "left", fill: "#ef4444", fontSize: 11 }}
+                    />
+                    <ReferenceLine
+                      x={BASELINE_DATA.INCOME.NATIONAL_MINIMUM_WAGE}
+                      stroke="#f59e0b"
+                      strokeDasharray="3 3"
+                      strokeWidth={1.5}
+                      label={{ value: "Minimum Wage", position: "left", fill: "#f59e0b", fontSize: 11 }}
+                    />
+                    <ReferenceLine
+                      x={BASELINE_DATA.INCOME.LIVING_WAGE}
+                      stroke="#22c55e"
+                      strokeDasharray="3 3"
+                      strokeWidth={1.5}
+                      label={{ value: "Living Wage", position: "left", fill: "#22c55e", fontSize: 11 }}
+                    />
+                  </>
+                )}
+                
                 <Bar
                   dataKey={effectiveBMU}
                   name={effectiveBMU}

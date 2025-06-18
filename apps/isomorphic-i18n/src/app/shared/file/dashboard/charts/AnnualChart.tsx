@@ -203,69 +203,95 @@ export default function AnnualChart({
           {/* Add MSY baseline reference lines for CPUA and Revenue metrics */}
           {selectedMetric === "mean_cpua" && (
             <>
-              <ReferenceLine
-                y={BASELINE_DATA.CPUA.MSY.FRINGING}
-                stroke="#22c55e"
-                strokeDasharray="8 4"
-                strokeWidth={2}
-                label={{ value: "MSY Fringing", position: "right", fill: "#22c55e", fontSize: 11 }}
-              />
-              <ReferenceLine
-                y={BASELINE_DATA.CPUA.MSY.ISLAND}
-                stroke="#16a34a"
-                strokeDasharray="8 4"
-                strokeWidth={2}
-                label={{ value: "MSY Island", position: "right", fill: "#16a34a", fontSize: 11 }}
-              />
-              <ReferenceLine
-                y={BASELINE_DATA.CPUA.CURRENT.FRINGING}
-                stroke="#f59e0b"
-                strokeDasharray="4 4"
-                strokeWidth={1.5}
-                label={{ value: "Current Fringing", position: "left", fill: "#f59e0b", fontSize: 11 }}
-              />
-              <ReferenceLine
-                y={BASELINE_DATA.CPUA.CURRENT.ISLAND}
-                stroke="#ea580c"
-                strokeDasharray="4 4"
-                strokeWidth={1.5}
-                label={{ value: "Current Island", position: "left", fill: "#ea580c", fontSize: 11 }}
-              />
+                              <ReferenceLine
+                  y={BASELINE_DATA.CPUA.MSY.FRINGING}
+                  stroke="#22c55e"
+                  strokeDasharray="8 4"
+                  strokeWidth={2}
+                  label={{ value: "MSY Fringing", position: "left", fill: "#22c55e", fontSize: 11 }}
+                />
+                <ReferenceLine
+                  y={BASELINE_DATA.CPUA.MSY.ISLAND}
+                  stroke="#16a34a"
+                  strokeDasharray="8 4"
+                  strokeWidth={2}
+                  label={{ value: "MSY Island", position: "left", fill: "#16a34a", fontSize: 11 }}
+                />
+                <ReferenceLine
+                  y={BASELINE_DATA.CPUA.CURRENT.FRINGING}
+                  stroke="#f59e0b"
+                  strokeDasharray="4 4"
+                  strokeWidth={1.5}
+                  label={{ value: "Current Fringing", position: "left", fill: "#f59e0b", fontSize: 11 }}
+                />
+                <ReferenceLine
+                  y={BASELINE_DATA.CPUA.CURRENT.ISLAND}
+                  stroke="#ea580c"
+                  strokeDasharray="4 4"
+                  strokeWidth={1.5}
+                  label={{ value: "Current Island", position: "left", fill: "#ea580c", fontSize: 11 }}
+                />
             </>
           )}
           
-          {selectedMetric === "mean_rpua" && (
-            <>
-              <ReferenceLine
-                y={BASELINE_DATA.REVENUE_PER_AREA.MSY.FRINGING}
-                stroke="#22c55e"
-                strokeDasharray="8 4"
-                strokeWidth={2}
-                label={{ value: "MSY Fringing", position: "right", fill: "#22c55e", fontSize: 11 }}
-              />
-              <ReferenceLine
-                y={BASELINE_DATA.REVENUE_PER_AREA.MSY.ISLAND}
-                stroke="#16a34a"
-                strokeDasharray="8 4"
-                strokeWidth={2}
-                label={{ value: "MSY Island", position: "right", fill: "#16a34a", fontSize: 11 }}
-              />
-              <ReferenceLine
-                y={BASELINE_DATA.REVENUE_PER_AREA.CURRENT.FRINGING}
-                stroke="#f59e0b"
-                strokeDasharray="4 4"
-                strokeWidth={1.5}
-                label={{ value: "Current Fringing", position: "left", fill: "#f59e0b", fontSize: 11 }}
-              />
-              <ReferenceLine
-                y={BASELINE_DATA.REVENUE_PER_AREA.CURRENT.ISLAND}
-                stroke="#ea580c"
-                strokeDasharray="4 4"
-                strokeWidth={1.5}
-                label={{ value: "Current Island", position: "left", fill: "#ea580c", fontSize: 11 }}
-              />
-            </>
-          )}
+                      {selectedMetric === "mean_rpue" && (
+              <>
+                <ReferenceLine
+                  y={BASELINE_DATA.INCOME.POVERTY_LINE}
+                  stroke="#ef4444"
+                  strokeDasharray="3 3"
+                  strokeWidth={1.5}
+                  label={{ value: "Poverty Line", position: "left", fill: "#ef4444", fontSize: 11 }}
+                />
+                <ReferenceLine
+                  y={BASELINE_DATA.INCOME.NATIONAL_MINIMUM_WAGE}
+                  stroke="#f59e0b"
+                  strokeDasharray="3 3"
+                  strokeWidth={1.5}
+                  label={{ value: "Minimum Wage", position: "left", fill: "#f59e0b", fontSize: 11 }}
+                />
+                <ReferenceLine
+                  y={BASELINE_DATA.INCOME.LIVING_WAGE}
+                  stroke="#22c55e"
+                  strokeDasharray="3 3"
+                  strokeWidth={1.5}
+                  label={{ value: "Living Wage", position: "left", fill: "#22c55e", fontSize: 11 }}
+                />
+              </>
+            )}
+            
+            {selectedMetric === "mean_rpua" && (
+              <>
+                <ReferenceLine
+                  y={BASELINE_DATA.REVENUE_PER_AREA.MSY.FRINGING}
+                  stroke="#22c55e"
+                  strokeDasharray="8 4"
+                  strokeWidth={2}
+                  label={{ value: "MSY Fringing", position: "left", fill: "#22c55e", fontSize: 11 }}
+                />
+                <ReferenceLine
+                  y={BASELINE_DATA.REVENUE_PER_AREA.MSY.ISLAND}
+                  stroke="#16a34a"
+                  strokeDasharray="8 4"
+                  strokeWidth={2}
+                  label={{ value: "MSY Island", position: "left", fill: "#16a34a", fontSize: 11 }}
+                />
+                <ReferenceLine
+                  y={BASELINE_DATA.REVENUE_PER_AREA.CURRENT.FRINGING}
+                  stroke="#f59e0b"
+                  strokeDasharray="4 4"
+                  strokeWidth={1.5}
+                  label={{ value: "Current Fringing", position: "left", fill: "#f59e0b", fontSize: 11 }}
+                />
+                <ReferenceLine
+                  y={BASELINE_DATA.REVENUE_PER_AREA.CURRENT.ISLAND}
+                  stroke="#ea580c"
+                  strokeDasharray="4 4"
+                  strokeWidth={1.5}
+                  label={{ value: "Current Island", position: "left", fill: "#ea580c", fontSize: 11 }}
+                />
+              </>
+            )}
           
           {CustomLegend && <Legend content={(props) => <CustomLegend {...props} />} />}
         </BarChart>

@@ -443,7 +443,7 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
             <ResponsiveContainer width="100%" height="100%">
               <BarChart 
                 data={stat.chart}
-                margin={{ top: 5, right: 8, bottom: 5, left: 8 }}
+                margin={{ top: 5, right: 8, bottom: 5, left: 30 }}
                 barGap={1}
                 onMouseMove={handleMouseMove}
                 onClick={handleBarClick}
@@ -451,8 +451,19 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
               >
                 <XAxis dataKey="day" hide={true} />
                 <YAxis 
-                  hide={true} 
-                  domain={[(dataMin: number) => 0, (dataMax: number) => dataMax * 1.1]} 
+                  hide={false}
+                  domain={[(dataMin: number) => 0, (dataMax: number) => dataMax * 1.1]}
+                  tick={{ fontSize: 9, fill: '#9ca3af' }}
+                  tickLine={false}
+                  axisLine={false}
+                  width={25}
+                  tickCount={3}
+                  tickFormatter={(value) => {
+                    if (value >= 1000) {
+                      return `${(value / 1000).toFixed(0)}k`;
+                    }
+                    return value.toFixed(0);
+                  }}
                 />
                 <Tooltip 
                   content={<></>}

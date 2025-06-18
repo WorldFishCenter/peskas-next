@@ -13,7 +13,7 @@ import { format } from "date-fns";
 import { ChartDataPoint, MetricOption, VisibilityState } from "./types";
 import { CustomYAxisTick } from "./components";
 import { useTranslation } from "@/app/i18n/client";
-import { useEffect, useRef, useCallback } from "react";
+import { useEffect, useRef, useCallback, useMemo } from "react";
 import { BASELINE_DATA, isIslandSite } from "./siteConfig";
 
 interface TrendsChartProps {
@@ -46,6 +46,17 @@ export default function TrendsChart({
   
   // Keep a reference to translation state
   const translationsRef = useRef<Record<string, string>>({});
+  
+  // Filter chart data to show only the latest 12 months
+  const filteredChartData = useMemo(() => {
+    if (!chartData || chartData.length === 0) return [];
+    
+    // Sort by date to ensure we get the latest data
+    const sortedData = [...chartData].sort((a, b) => a.date - b.date);
+    
+    // Get the latest 12 months
+    return sortedData.slice(-12);
+  }, [chartData]);
   
   // Pre-load critical translations to avoid flicker
   useEffect(() => {
@@ -147,7 +158,7 @@ export default function TrendsChart({
     <div className="h-96 w-full pt-9">
       <ResponsiveContainer width="100%" height="100%">
         <LineChart
-          data={chartData}
+          data={filteredChartData}
           margin={{ top: 10, right: 30, left: 10, bottom: 0 }}
         >
           <XAxis
@@ -179,7 +190,7 @@ export default function TrendsChart({
           <Tooltip content={<CustomTooltip />} />
           
           {/* Add vertical reference lines at the beginning of each year */}
-          {chartData
+          {filteredChartData
             .reduce((yearMarkers, item) => {
               const year = new Date(item.date).getFullYear();
               // Check if we already have a marker for this year
@@ -226,14 +237,14 @@ export default function TrendsChart({
                 stroke="#22c55e"
                 strokeDasharray="8 4"
                 strokeWidth={2}
-                label={{ value: "MSY Fringing", position: "right", fill: "#22c55e", fontSize: 11 }}
+                label={{ value: "MSY Fringing", position: "left", fill: "#22c55e", fontSize: 11 }}
               />
               <ReferenceLine
                 y={BASELINE_DATA.CPUA.MSY.ISLAND}
                 stroke="#16a34a"
                 strokeDasharray="8 4"
                 strokeWidth={2}
-                label={{ value: "MSY Island", position: "right", fill: "#16a34a", fontSize: 11 }}
+                label={{ value: "MSY Island", position: "left", fill: "#16a34a", fontSize: 11 }}
               />
               <ReferenceLine
                 y={BASELINE_DATA.CPUA.CURRENT.FRINGING}
@@ -252,6 +263,32 @@ export default function TrendsChart({
             </>
           )}
           
+          {selectedMetric === "mean_rpue" && (
+            <>
+              <ReferenceLine
+                y={BASELINE_DATA.INCOME.POVERTY_LINE}
+                stroke="#ef4444"
+                strokeDasharray="3 3"
+                strokeWidth={1.5}
+                label={{ value: "Poverty Line", position: "left", fill: "#ef4444", fontSize: 11 }}
+              />
+              <ReferenceLine
+                y={BASELINE_DATA.INCOME.NATIONAL_MINIMUM_WAGE}
+                stroke="#f59e0b"
+                strokeDasharray="3 3"
+                strokeWidth={1.5}
+                label={{ value: "Minimum Wage", position: "left", fill: "#f59e0b", fontSize: 11 }}
+              />
+              <ReferenceLine
+                y={BASELINE_DATA.INCOME.LIVING_WAGE}
+                stroke="#22c55e"
+                strokeDasharray="3 3"
+                strokeWidth={1.5}
+                label={{ value: "Living Wage", position: "left", fill: "#22c55e", fontSize: 11 }}
+              />
+            </>
+          )}
+          
           {selectedMetric === "mean_rpua" && (
             <>
               <ReferenceLine
@@ -259,14 +296,14 @@ export default function TrendsChart({
                 stroke="#22c55e"
                 strokeDasharray="8 4"
                 strokeWidth={2}
-                label={{ value: "MSY Fringing", position: "right", fill: "#22c55e", fontSize: 11 }}
+                label={{ value: "MSY Fringing", position: "left", fill: "#22c55e", fontSize: 11 }}
               />
               <ReferenceLine
                 y={BASELINE_DATA.REVENUE_PER_AREA.MSY.ISLAND}
                 stroke="#16a34a"
                 strokeDasharray="8 4"
                 strokeWidth={2}
-                label={{ value: "MSY Island", position: "right", fill: "#16a34a", fontSize: 11 }}
+                label={{ value: "MSY Island", position: "left", fill: "#16a34a", fontSize: 11 }}
               />
               <ReferenceLine
                 y={BASELINE_DATA.REVENUE_PER_AREA.CURRENT.FRINGING}
