@@ -47,15 +47,13 @@ export default function TrendsChart({
   // Keep a reference to translation state
   const translationsRef = useRef<Record<string, string>>({});
   
-  // Filter chart data to show only the latest 12 months
+  // Use chart data as-is, respecting the global time range filter
   const filteredChartData = useMemo(() => {
     if (!chartData || chartData.length === 0) return [];
     
-    // Sort by date to ensure we get the latest data
-    const sortedData = [...chartData].sort((a, b) => a.date - b.date);
-    
-    // Get the latest 12 months
-    return sortedData.slice(-12);
+    // Just sort by date without additional filtering
+    // The time range filtering is handled by the global time range selector
+    return [...chartData].sort((a, b) => a.date - b.date);
   }, [chartData]);
   
   // Pre-load critical translations to avoid flicker

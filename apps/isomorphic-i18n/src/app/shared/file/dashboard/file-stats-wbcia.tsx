@@ -240,13 +240,39 @@ export function FileStatWBCIAGrid({ className, lang }: { className?: string; lan
 
   // Custom bar shape that filters out non-DOM props
   const CustomBar = (props: any) => {
-    // Extract non-DOM props that Recharts might pass
-    const { tooltipPayload, ...domProps } = props;
+    // Extract only the DOM-safe props that rect elements can accept
+    const {
+      x,
+      y,
+      width,
+      height,
+      payload,
+      // Remove all non-DOM props that Recharts might pass
+      dataKey,
+      index,
+      value,
+      tooltipPayload,
+      onClick,
+      onMouseEnter,
+      onMouseLeave,
+      ...otherProps // This should now be safe for DOM
+    } = props;
     
     // Determine fill color based on BMU
-    const fill = props.payload?.bmu === userBMU ? "#fc3468" : "rgba(178, 216, 216, 0.75)";
+    const fill = payload?.bmu === userBMU ? "#fc3468" : "rgba(178, 216, 216, 0.75)";
     
-    return <rect {...domProps} fill={fill} />;
+    return (
+      <rect 
+        x={x}
+        y={y}
+        width={width}
+        height={height}
+        fill={fill}
+        onClick={onClick}
+        onMouseEnter={onMouseEnter}
+        onMouseLeave={onMouseLeave}
+      />
+    );
   };
 
   if (loading) return <LoadingState />;

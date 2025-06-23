@@ -493,7 +493,7 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
             </ResponsiveContainer>
           </div>
           
-          <div className="px-3 py-2 border-t border-gray-100 bg-gray-50/30 flex justify-between text-xs">
+          {/* <div className="px-3 py-2 border-t border-gray-100 bg-gray-50/30 flex justify-between text-xs">
             <div className="flex flex-col">
               <span className="text-2xs text-gray-500">{displayName}</span>
               <span className="font-medium">
@@ -512,7 +512,7 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
                 </span>
               </div>
             )}
-          </div>
+          </div> */}
         </MetricCard>
       ))}
     </>

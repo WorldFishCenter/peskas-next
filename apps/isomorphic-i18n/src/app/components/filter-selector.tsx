@@ -20,6 +20,9 @@ import useUserPermissions from "../shared/file/dashboard/hooks/useUserPermission
 import { useTranslation } from "@/app/i18n/client";
 import cn from "@utils/class-names";
 
+// Time range type
+export type TimeRangeOption = '3months' | '6months' | '1year' | 'all';
+
 type DropdownTypes = {
   sectionName: string;
   units: {
@@ -69,6 +72,9 @@ export const viewModeAtom = atomWithStorage<'bmu' | 'region'>('viewMode', 'bmu',
 
 // Global metric selector atom
 export const selectedMetricAtom = atom<MetricKey>("mean_effort");
+
+// Global time range selector atom
+export const selectedTimeRangeAtom = atomWithStorage<TimeRangeOption>('timeRange', 'all', undefined, { getOnInit: true });
 
 export const FilterSelector = () => {
   const { t } = useTranslation("common");

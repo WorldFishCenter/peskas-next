@@ -6,7 +6,7 @@ import WidgetCard from "@components/cards/widget-card";
 import SimpleBar from "@ui/simplebar";
 import { useTranslation } from "@/app/i18n/client";
 import { api } from "@/trpc/react";
-import { bmusAtom, selectedMetricAtom } from "@/app/components/filter-selector";
+import { bmusAtom, selectedMetricAtom, selectedTimeRangeAtom } from "@/app/components/filter-selector";
 import cn from "@utils/class-names";
 import MetricCard from "@components/cards/metric-card";
 import {
@@ -24,6 +24,9 @@ import {
 import { MetricOption } from "./charts/types";
 import useUserPermissions from "./hooks/useUserPermissions";
 import { generateColor, updateBmuColorRegistry } from "./charts/utils";
+
+// Import time range filtering utilities
+import { filterDataByTimeRange } from "./utils/timeRangeFilter";
 
 // Define METRIC_OPTIONS consistent with other components
 const METRIC_OPTIONS: MetricOption[] = [
@@ -180,11 +183,13 @@ export default function BMURanking({
   const { t } = useTranslation(lang!, "common");
   const [bmus] = useAtom(bmusAtom);
   const [selectedMetric] = useAtom(selectedMetricAtom);
+  const [selectedTimeRange] = useAtom(selectedTimeRangeAtom);
 
   // Add refs to track initialization states
   const dataProcessed = useRef<boolean>(false);
   const previousMetric = useRef<string>(selectedMetric);
   const previousBmus = useRef<string[]>(bmus);
+  const previousTimeRangeRef = useRef<string>(selectedTimeRange);
 
   // Use the centralized permissions hook
   const {
@@ -212,6 +217,17 @@ export default function BMURanking({
     }
   );
 
+  // Track selectedTimeRange changes and force data reprocessing
+  useEffect(() => {
+    if (previousTimeRangeRef.current !== selectedTimeRange) {
+      console.log('Time range changed from', previousTimeRangeRef.current, 'to', selectedTimeRange);
+      previousTimeRangeRef.current = selectedTimeRange;
+      setRankingData([]);
+      dataProcessed.current = false;
+      setLoading(true);
+    }
+  }, [selectedTimeRange]);
+
   // Force refetch when bmus changes
   useEffect(() => {
     if (JSON.stringify(previousBmus.current) !== JSON.stringify(safeBmus)) {
@@ -229,23 +245,26 @@ export default function BMURanking({
   useEffect(() => {
     if (!rawData) return;
 
-    // Reset data processing flag if metric has changed
+    // Reset data processing flag if metric or time range has changed
     if (previousMetric.current !== selectedMetric) {
       dataProcessed.current = false;
       previousMetric.current = selectedMetric;
     }
 
     // Skip processing if already done and not changing key dependencies
-    if (dataProcessed.current && rankingData.length > 0 && !loading) return;
+    if (dataProcessed.current) return;
 
     try {
       setLoading(true);
       setError(null);
 
+      // Apply time range filtering to the data before processing
+      const filteredRawData = filterDataByTimeRange(rawData, selectedTimeRange, 'date');
+
       // Group data by BMU and calculate averages
       const bmuAverages: Record<string, { total: number; count: number }> = {};
 
-      rawData.forEach((item: any) => {
+      filteredRawData.forEach((item: any) => {
         const bmuName = item.landing_site;
         const value = item[selectedMetric];
 
@@ -263,7 +282,7 @@ export default function BMURanking({
       updateBmuColorRegistry(bmuNames);
 
       // Calculate averages and create ranking data
-      const rankingData: BMURankingData[] = Object.entries(bmuAverages)
+      const newRankingData: BMURankingData[] = Object.entries(bmuAverages)
         .map(([bmuName, data]) => ({
           name: bmuName,
           value: Number((data.total / data.count).toFixed(2)),
@@ -278,10 +297,10 @@ export default function BMURanking({
 
       // Filter based on user permissions
       const accessibleBMUs = hasRestrictedAccess
-        ? getAccessibleBMUs(rankingData.map(item => item.name))
-        : rankingData.map(item => item.name);
+        ? getAccessibleBMUs(newRankingData.map(item => item.name))
+        : newRankingData.map(item => item.name);
 
-      const filteredRankingData = rankingData.filter(item =>
+      const filteredRankingData = newRankingData.filter(item =>
         accessibleBMUs.includes(item.name)
       );
 
@@ -294,7 +313,7 @@ export default function BMURanking({
     } finally {
       setLoading(false);
     }
-  }, [rawData, selectedMetric, effectiveBMU, hasRestrictedAccess, getAccessibleBMUs, safeBmus, rankingData.length, loading]);
+  }, [rawData, selectedMetric, selectedTimeRange, effectiveBMU, hasRestrictedAccess, getAccessibleBMUs]);
 
   // If in CIA mode, don't render the ranking as it doesn't make sense to show a comparison
   // ranking with just one BMU

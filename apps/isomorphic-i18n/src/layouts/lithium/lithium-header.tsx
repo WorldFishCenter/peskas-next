@@ -19,12 +19,13 @@ import {
   PiMoon,
   PiMapPinDuotone,
   PiCaretDownBold,
+  PiCalendarBlankDuotone,
 } from "react-icons/pi";
 import { useTheme } from "next-themes";
 import HeaderMenuLeft from "@/layouts/lithium/lithium-menu";
 import Sidebar from "@/layouts/hydrogen/sidebar";
 import StickyHeader from "@/layouts/sticky-header";
-import { FilterSelector, selectedMetricAtom } from "@/app/components/filter-selector";
+import { FilterSelector, selectedMetricAtom, selectedTimeRangeAtom, type TimeRangeOption } from "@/app/components/filter-selector";
 import { useSession } from "next-auth/react";
 import type { TBmu } from "@repo/nosql/schema/bmu";
 import LanguageLink, { getClientLanguage } from "@/app/i18n/language-link";
@@ -167,6 +168,81 @@ function CompactLanguageSwitcher() {
   );
 }
 
+// Time Range Selector
+function TimeRangeSelector({ lang }: { lang?: string }) {
+  const [selectedTimeRange, setSelectedTimeRange] = useAtom(selectedTimeRangeAtom);
+  const [isOpen, setIsOpen] = useState(false);
+  const { t } = useTranslation(lang || 'en');
+
+  const timeRangeOptions: { value: TimeRangeOption; label: string; description: string }[] = [
+    { value: '3months', label: t('text-last-3-months'), description: t('text-last-3-months-desc') || 'Show data from the last 3 months' },
+    { value: '6months', label: t('text-last-6-months'), description: t('text-last-6-months-desc') || 'Show data from the last 6 months' },
+    { value: '1year', label: t('text-last-year'), description: t('text-last-year-desc') || 'Show data from the last 12 months' },
+    { value: 'all', label: t('text-all-time'), description: t('text-all-time-desc') || 'Show all available data' },
+  ];
+
+  const currentOption = timeRangeOptions.find(opt => opt.value === selectedTimeRange) || timeRangeOptions[3];
+
+  const handleTimeRangeChange = (newRange: TimeRangeOption) => {
+    console.log('Time range changing from', selectedTimeRange, 'to', newRange);
+    setSelectedTimeRange(newRange);
+    setIsOpen(false);
+  };
+
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className={cn(
+          "flex items-center gap-2 px-2.5 py-1.5 text-sm font-medium rounded-md transition-colors",
+          "border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700"
+        )}
+      >
+        <PiCalendarBlankDuotone className="h-4 w-4 text-gray-500" />
+        <span className="hidden sm:inline text-gray-700 dark:text-gray-300">{currentOption.label}</span>
+        <PiCaretDownBold className={cn("h-3 w-3 transition-transform text-gray-500", isOpen && "rotate-180")} />
+      </button>
+
+      {isOpen && (
+        <>
+          <div className="fixed inset-0 z-[1000]" onClick={() => setIsOpen(false)} />
+          <div className="absolute right-0 top-full mt-1 bg-white dark:bg-gray-900 rounded-md shadow-lg border border-gray-200 dark:border-gray-600 z-[1001] w-64">
+            {timeRangeOptions.map((option) => (
+              <button
+                key={option.value}
+                onClick={() => handleTimeRangeChange(option.value)}
+                className={cn(
+                  "w-full flex flex-col items-start gap-0.5 px-3 py-2 text-sm transition-colors first:rounded-t-md last:rounded-b-md",
+                  selectedTimeRange === option.value
+                    ? "bg-blue-50 dark:bg-blue-800"
+                    : "hover:bg-gray-50 dark:hover:bg-gray-800"
+                )}
+              >
+                <span className={cn(
+                  "font-medium",
+                  selectedTimeRange === option.value
+                    ? "text-blue-900 dark:text-blue-200"
+                    : "text-gray-700 dark:text-gray-200"
+                )}>
+                  {option.label}
+                </span>
+                <span className={cn(
+                  "text-xs",
+                  selectedTimeRange === option.value
+                    ? "text-blue-700 dark:text-blue-300"
+                    : "text-gray-500 dark:text-gray-400"
+                )}>
+                  {option.description}
+                </span>
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 function HeaderMenuRight({ lang }: { lang?: string }) {
   const pathname = usePathname();
   const [selectedMetric, setSelectedMetric] = useAtom(selectedMetricAtom);
@@ -299,6 +375,7 @@ function HeaderMenuRight({ lang }: { lang?: string }) {
     <div className="ms-auto flex shrink-0 items-center gap-1 text-gray-700 xs:gap-1 md:gap-2 xl:gap-3">
       {/* <ReferenceBMU /> */}
       <HeaderMetricSelector />
+      <TimeRangeSelector lang={lang} />
       <div className="hidden sm:block">
         <FilterSelector />
       </div>

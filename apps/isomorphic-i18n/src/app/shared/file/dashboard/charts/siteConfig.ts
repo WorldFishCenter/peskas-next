@@ -1,27 +1,11 @@
-// Site classifications and fisher days configuration
+// Site classifications
 export const ISLAND_SITES = ['Kibuyuni', 'Shimoni', 'Vanga', 'Mkwiro', 'Wasini'];
-
-export const FISHER_DAYS = {
-  FRINGING: 220, // days per year
-  ISLAND: 210    // days per year
-};
 
 // Check if a site is an island seascape
 export const isIslandSite = (siteName: string): boolean => {
   return ISLAND_SITES.some(island => 
     siteName.toLowerCase().includes(island.toLowerCase())
   );
-};
-
-// Get annual fisher days for a site
-export const getAnnualFisherDays = (siteName: string): number => {
-  return isIslandSite(siteName) ? FISHER_DAYS.ISLAND : FISHER_DAYS.FRINGING;
-};
-
-// Get monthly fisher days (assuming even distribution across months)
-export const getMonthlyFisherDays = (siteName: string): number => {
-  const annualDays = getAnnualFisherDays(siteName);
-  return Math.round(annualDays / 12);
 };
 
 // Historical baseline data for comparisons

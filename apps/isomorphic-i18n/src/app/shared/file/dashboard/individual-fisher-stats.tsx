@@ -12,6 +12,9 @@ import { api } from "@/trpc/react";
 import { useMemo, useEffect, useState } from "react";
 import { getClientLanguage } from "@/app/i18n/language-link";
 import { BASELINE_DATA } from "./charts/siteConfig";
+import { useAtom } from 'jotai';
+import { selectedTimeRangeAtom } from "@/app/components/filter-selector";
+import { getTimeRangeStartDate } from "./utils/timeRangeFilter";
 
 export default function IndividualFisherStats({ 
   lang, 
@@ -22,9 +25,21 @@ export default function IndividualFisherStats({
   startDate?: Date | null;
   endDate?: Date;
 }) {
+  const { t } = useTranslation("common");
+  const [selectedTimeRange] = useAtom(selectedTimeRangeAtom);
+  
+  // Calculate date range based on selected time range
+  const dateRange = useMemo(() => {
+    const endDate = new Date();
+    const startDate = getTimeRangeStartDate(selectedTimeRange, endDate);
+    return { startDate, endDate };
+  }, [selectedTimeRange]);
+  
+  const { fisherPerformanceSummary, isLoadingFisherSummary, fisherData } = useIndividualData(dateRange);
+
   // Use client language instead of lang prop
   const clientLang = getClientLanguage();
-  const { t, i18n } = useTranslation(clientLang);
+  const { i18n } = useTranslation(clientLang);
   
   // Track current language with state
   const [currentLang, setCurrentLang] = useState(clientLang);
@@ -47,10 +62,6 @@ export default function IndividualFisherStats({
   }, [i18n]);
   
   const { userFisherId, isIiaUser } = useUserPermissions();
-  const { fisherPerformanceSummary, isLoadingFisherSummary, fisherData } = useIndividualData({
-    startDate,
-    endDate
-  });
 
   // Get fisher's BMU from their data
   const fisherBMU = useMemo(() => {

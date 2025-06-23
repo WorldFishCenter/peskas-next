@@ -149,20 +149,20 @@ export default function ComparisonChart({
       
       // Regular bars for non-baseline comparison
       return (
-        <Bar
-          key={`${site}Bar`}
-          dataKey={site}
-          name={site}
-          fill={siteColors[site]}
-          stroke={siteColors[site]}
-          strokeWidth={1}
-          maxBarSize={40}
-          radius={[2, 2, 0, 0]}
-          stackId={site}
-          hide={false}
-          fillOpacity={visibilityState[site]?.opacity}
-          isAnimationActive={false}
-        />
+      <Bar
+        key={`${site}Bar`}
+        dataKey={site}
+        name={site}
+        fill={siteColors[site]}
+        stroke={siteColors[site]}
+        strokeWidth={1}
+        maxBarSize={40}
+        radius={[2, 2, 0, 0]}
+        stackId={site}
+        hide={false}
+        fillOpacity={visibilityState[site]?.opacity}
+        isAnimationActive={false}
+      />
       );
     });
   };
@@ -187,23 +187,23 @@ export default function ComparisonChart({
           belowLabel = t('text-below-minimum-wage') || 'Below Minimum Wage';
         }
         
-        // Override the payload to show both positive and negative values
-        const customPayload = [
-          {
+      // Override the payload to show both positive and negative values
+      const customPayload = [
+        {
             value: aboveLabel,
-            type: 'rect',
-            color: '#16a34a',
+          type: 'rect',
+          color: '#16a34a',
             id: 'above-baseline'
-          },
-          {
+        },
+        {
             value: belowLabel,
-            type: 'rect',
-            color: '#ef4444',
+          type: 'rect',
+          color: '#ef4444',
             id: 'below-baseline'
-          }
-        ];
-        
-        return <CustomLegend {...props} payload={customPayload} />;
+        }
+      ];
+      
+      return <CustomLegend {...props} payload={customPayload} />;
       }
       
       // For WBCIA/admin users with multiple BMUs, use default legend to show BMU names

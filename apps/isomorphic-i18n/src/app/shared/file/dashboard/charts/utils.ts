@@ -114,7 +114,7 @@ export const getRecentData = (chartData: ChartDataPoint[], isCiaUser: boolean) =
   if (!chartData.length) return [];
   
   const sortedData = [...chartData].sort((a, b) => b.date - a.date);
-  const lastSixMonths = sortedData.slice(0, 6).reverse();
+  const lastSixMonths = sortedData.slice(0, 24).reverse();
   
   // For CIA users who don't have access to average, just return the data as is
   if (isCiaUser) return lastSixMonths;
@@ -135,7 +135,7 @@ export const getRecentData = (chartData: ChartDataPoint[], isCiaUser: boolean) =
     });
   });
   
-  // Calculate 6-month average for each BMU
+  // Calculate 24-month average for each BMU
   const bmuSixMonthAverages: Record<string, number> = {};
   
   // Calculate averages only for active BMUs
@@ -150,11 +150,11 @@ export const getRecentData = (chartData: ChartDataPoint[], isCiaUser: boolean) =
     }
   });
   
-  // Overall average across all BMUs for the 6-month period
+  // Overall average across all BMUs for the 24-month period
   const overallAverage = Object.values(bmuSixMonthAverages).reduce((sum: number, avg) => sum + avg, 0) / 
                          Object.values(bmuSixMonthAverages).length || 0;
   
-  // For each month, calculate the difference from the 6-month average
+  // For each month, calculate the difference from the 24-month average
   const result = lastSixMonths.map(item => {
     const result: { [key: string]: any } = { 
       date: item.date,
@@ -162,7 +162,7 @@ export const getRecentData = (chartData: ChartDataPoint[], isCiaUser: boolean) =
       average: overallAverage 
     };
     
-    // For each BMU, calculate the difference from its 6-month average
+    // For each BMU, calculate the difference from its 24-month average
     activeBMUs.forEach(bmuKey => {
       const key = bmuKey as string;
       const value = item[key];

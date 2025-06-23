@@ -36,20 +36,27 @@ import { getClientLanguage } from "@/app/i18n/language-link";
 import useUserPermissions from "./hooks/useUserPermissions";
 // Import the fish category selector component
 import FishCategorySelector from "./charts/FishCategorySelector";
+import { generateFishCategoryColor } from "./charts/utils";
+import { CustomYAxisTick } from "./charts/components";
+import { BASELINE_DATA, isIslandSite } from "./charts/siteConfig";
+import { selectedTimeRangeAtom } from "@/app/components/filter-selector";
+import { filterDataByTimeRange } from "./utils/timeRangeFilter";
 
 // Custom function to prepare data for CIA users' comparison view
 const prepareDataForCiaComparison = (chartData: ChartDataPoint[], bmuName: string) => {
   if (!chartData.length) return [];
   
-  // Need at least 6 data points to calculate 6-month average
-  if (chartData.length < 6) return chartData;
-  
-  // Calculate a single historical average using the most recent 6 months of data
-  // Sort the data by date (descending) to get most recent data first
+  // First, filter to only the most recent 24 months
   const sortedData = [...chartData].sort((a, b) => b.date - a.date);
-  const recentSixMonths = sortedData.slice(0, 6);
+  const recentData = sortedData.slice(0, 24).reverse();
   
-  // Calculate the average from these 6 months
+  // Need at least 6 data points to calculate average
+  if (recentData.length < 6) return recentData;
+  
+  // Calculate a single historical average using the most recent 24 months of data
+  const recentSixMonths = recentData;
+  
+  // Calculate the average from these 24 months
   let sum = 0;
   let count = 0;
   
@@ -67,8 +74,8 @@ const prepareDataForCiaComparison = (chartData: ChartDataPoint[], bmuName: strin
   // Create result array with the fixed historical average
   let result: ChartDataPoint[] = [];
   
-  // Process each data point with the fixed historical average
-  for (const point of chartData) {
+  // Process each data point with the fixed historical average (only recent 24 months)
+  for (const point of recentData) {
     // Clone the current point
     const currentPoint = { ...point };
     
@@ -254,6 +261,7 @@ export default function FishCompositionChart({
   const [visibilityState, setVisibilityState] = useState<VisibilityState>({});
   const [siteColors, setSiteColors] = useState<Record<string, string>>({});
   const [ciaComparisonData, setCiaComparisonData] = useState<ChartDataPoint[]>([]);
+  const [selectedTimeRange] = useAtom(selectedTimeRangeAtom);
   
   // Add refs to track initialization states
   const visibilityInitialized = useRef<boolean>(false);
@@ -261,6 +269,7 @@ export default function FishCompositionChart({
   const prevTabRef = useRef<string | null>(null);
   const previousBmus = useRef<string[]>([]);
   const previousCategoryRef = useRef<string>(selectedCategory);
+  const previousTimeRangeRef = useRef<string>('all');
 
   // Map old tab names to new ones for backwards compatibility
   const getNewTabName = useCallback((oldTab: string) => {
@@ -360,6 +369,20 @@ export default function FishCompositionChart({
       setLoading(true);
     }
   }, [selectedCategory]);
+
+  // Track selectedTimeRange changes and force data reprocessing
+  useEffect(() => {
+    if (previousTimeRangeRef.current !== selectedTimeRange) {
+      console.log('Time range changed from', previousTimeRangeRef.current, 'to', selectedTimeRange);
+      previousTimeRangeRef.current = selectedTimeRange;
+      setChartData([]);
+      setRecentData([]);
+      setAnnualData([]);
+      setCiaComparisonData([]);
+      dataProcessed.current = false;
+      setLoading(true);
+    }
+  }, [selectedTimeRange]);
 
   // Force refetch when bmus changes
   useEffect(() => {
@@ -515,22 +538,27 @@ export default function FishCompositionChart({
   useEffect(() => {
     if (!monthlyData || effectiveBmus.length === 0) return;
     
-    // Reset processing flag if category changed
-    if (previousCategoryRef.current !== selectedCategory) {
+    // Reset processing flag if category or time range changed
+    if (previousCategoryRef.current !== selectedCategory || previousTimeRangeRef.current !== selectedTimeRange) {
       dataProcessed.current = false;
       previousCategoryRef.current = selectedCategory;
+      previousTimeRangeRef.current = selectedTimeRange;
     }
     
     // Prevent re-processing data unnecessarily
     if (chartData.length > 0 && !loading && 
         JSON.stringify(previousBmus.current) === JSON.stringify(effectiveBmus) && 
-        previousCategoryRef.current === selectedCategory) return;
+        previousCategoryRef.current === selectedCategory &&
+        previousTimeRangeRef.current === selectedTimeRange) return;
 
     try {
       console.log("Processing fish distribution data:", monthlyData);
       
-      // Find min and max dates in the data
-      const allDates = monthlyData.map(month => {
+      // Apply time range filter
+      const filteredMonthlyData = filterDataByTimeRange(monthlyData, selectedTimeRange);
+      
+      // Find min and max dates in the filtered data
+      const allDates = filteredMonthlyData.map(month => {
         const date = new Date(month.date);
         date.setDate(1); // First day of month
         date.setHours(0, 0, 0, 0); // Normalize time
@@ -554,7 +582,7 @@ export default function FishCompositionChart({
       const dataMap: Record<string, Record<string, number>> = {};
       
       // First pass: collect all available data
-      monthlyData.forEach(month => {
+      filteredMonthlyData.forEach(month => {
         const date = new Date(month.date);
         date.setDate(1);
         date.setHours(0, 0, 0, 0);
@@ -712,7 +740,7 @@ export default function FishCompositionChart({
     } finally {
       setLoading(false);
     }
-  }, [monthlyData, selectedCategory, effectiveBMU, hasRestrictedAccess, getAccessibleBMUs, effectiveBmus, isCiaUser, localActiveTab]);
+  }, [monthlyData, selectedCategory, effectiveBMU, hasRestrictedAccess, getAccessibleBMUs, effectiveBmus, isCiaUser, localActiveTab, selectedTimeRange]);
 
   // Calculate derived data when chartData changes
   useEffect(() => {
@@ -750,7 +778,7 @@ export default function FishCompositionChart({
           return t("text-monthly-trends-over-time") + " (kg)";
         case 'comparison':
         case 'recent':
-          return t("text-performance-vs-6-month-average") + " (kg)" || "Performance vs 6-Month Average (kg)";
+          return t("text-performance-vs-24-month-average") + " (kg)" || "Performance vs 24-Month Average (kg)";
         case 'annual':
           return t("text-yearly-summary") + " (kg)";
         default:
@@ -782,7 +810,7 @@ export default function FishCompositionChart({
           return t("text-trends-explanation") || "Shows how fish catch weight changes month by month";
         case 'comparison':
         case 'recent':
-          return t("text-cia-comparison-explanation") || "Shows fish catch weight compared to your 6-month average";
+          return t("text-cia-comparison-explanation") || "Shows fish catch weight compared to your 24-month average";
         case 'annual':
           return t("text-yearly-explanation") || "Shows average fish catch weight for each year";
         default:

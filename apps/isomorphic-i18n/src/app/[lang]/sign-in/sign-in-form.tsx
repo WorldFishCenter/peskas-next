@@ -11,6 +11,7 @@ import { PiArrowRightBold } from "react-icons/pi";
 import { Button, Checkbox, Input, Loader, Password, Text } from "rizzui";
 
 import Alert from "@/app/_components/alert";
+import HydrationSafeInput from "@/app/_components/hydration-safe-input";
 import { bmusAtom, dropdownAtom } from "@/app/components/filter-selector";
 import { routes } from "@/config/routes";
 import { loginSchema, LoginType } from "@/validators/login.schema";
@@ -71,25 +72,29 @@ export default function SignInForm({ lang }: { lang?: string }) {
             {loginErr && (
               <Alert color="danger" message={loginErr} className="mb-[16px]" />
             )}
-            <Input
-              type="email"
-              size="lg"
-              label="Email"
-              placeholder="Enter your email"
-              className="[&>label>span]:font-medium"
-              inputClassName="text-sm"
-              {...register("email")}
-              error={errors.email?.message}
-            />
-            <Password
-              label="Password"
-              placeholder="Enter your password"
-              size="lg"
-              className="[&>label>span]:font-medium"
-              inputClassName="text-sm"
-              {...register("password")}
-              error={errors.password?.message}
-            />
+            <HydrationSafeInput>
+              <Input
+                type="email"
+                size="lg"
+                label="Email"
+                placeholder="Enter your email"
+                className="[&>label>span]:font-medium"
+                inputClassName="text-sm"
+                {...register("email")}
+                error={errors.email?.message}
+              />
+            </HydrationSafeInput>
+            <HydrationSafeInput>
+              <Password
+                label="Password"
+                placeholder="Enter your password"
+                size="lg"
+                className="[&>label>span]:font-medium"
+                inputClassName="text-sm"
+                {...register("password")}
+                error={errors.password?.message}
+              />
+            </HydrationSafeInput>
             <div className="flex items-center justify-between pb-2">
               <Checkbox
                 {...register("rememberMe")}
@@ -117,7 +122,7 @@ export default function SignInForm({ lang }: { lang?: string }) {
         )}
       </Form>
       <Text className="mt-6 text-center leading-loose text-gray-500 lg:mt-8 lg:text-start">
-        Don’t have an account?{" "}
+        Don't have an account?{" "}
         <Link
           href={routes.auth.signUp1}
           className="font-semibold text-gray-700 transition-colors hover:text-blue"

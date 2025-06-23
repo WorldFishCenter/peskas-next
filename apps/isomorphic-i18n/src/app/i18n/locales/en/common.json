@@ -909,7 +909,8 @@
   "text-performance-vs-average": "Performance vs Average",
   "text-performance-vs-historical-average": "Performance vs 6-Month Average",
   "text-performance-vs-6-month-average": "Performance vs 6-Month Average",
-  "text-cia-comparison-explanation": "Shows values compared to your 6-month average",
+  "text-performance-vs-24-month-average": "Performance vs 24-Month Average",
+  "text-cia-comparison-explanation": "Shows values compared to your 24-month average",
   "text-yearly-summary": "Yearly Summary",
   "text-trends-explanation": "Shows how metrics change month by month",
   "text-comparison-explanation": "Shows values compared to the average of 6 months",
@@ -1020,5 +1021,17 @@
   "text-bmu-ranking-description-revenue": "Comparing {{metric}} across all Beach Management Units. Higher values indicate greater economic returns from fishing activities",
   "text-selected-metric": "selected metric",
   "text-note": "Note",
-  "text-bmu-ranking-note": "Rankings are based on average {{metric}} ({{unit}}) over the selected time period. BMUs are sorted from highest to lowest performance"
+  "text-bmu-ranking-note": "Rankings are based on average {{metric}} ({{unit}}) over the selected time period. BMUs are sorted from highest to lowest performance",
+  "text-fisher-stats-trend-up": "increase from last month",
+  "text-fisher-stats-trend-down": "decrease from last month",
+  "text-fisher-stats-no-change": "no change from last month",
+  "text-performance-vs-24-month-average": "Performance vs 24-Month Average",
+  "text-last-3-months": "Last 3 months",
+  "text-last-3-months-desc": "Show data from the last 3 months",
+  "text-last-6-months": "Last 6 months",
+  "text-last-6-months-desc": "Show data from the last 6 months",
+  "text-last-year": "Last year",
+  "text-last-year-desc": "Show data from the last 12 months",
+  "text-all-time": "All time",
+  "text-all-time-desc": "Show all available data"
 }

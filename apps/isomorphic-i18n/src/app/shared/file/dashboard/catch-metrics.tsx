@@ -31,6 +31,8 @@ import { getClientLanguage } from "@/app/i18n/language-link";
 // Import shared permissions hook
 import useUserPermissions from "./hooks/useUserPermissions";
 import { CustomYAxisTick } from "./charts/components";
+import { selectedTimeRangeAtom } from "@/app/components/filter-selector";
+import { filterDataByTimeRange } from "./utils/timeRangeFilter";
 
 // Create a more robust language context that includes both the language code and translations
 const LanguageContext = createContext<{
@@ -89,6 +91,10 @@ const prepareDataForCiaComparison = (chartData: ChartDataPoint[], bmuName: strin
   // Import baseline data and helper function
   const { BASELINE_DATA, isIslandSite } = require('./charts/siteConfig');
   
+  // First, filter to only the most recent 24 months
+  const sortedData = [...chartData].sort((a, b) => b.date - a.date);
+  const recentData = sortedData.slice(0, 24).reverse();
+  
   // Determine the baseline to use based on the metric
   let baseline: number;
   let baselineLabel: string;
@@ -103,20 +109,16 @@ const prepareDataForCiaComparison = (chartData: ChartDataPoint[], bmuName: strin
     baseline = BASELINE_DATA.INCOME.NATIONAL_MINIMUM_WAGE;
     baselineLabel = 'Minimum wage baseline';
   } else {
-    // For other metrics, calculate 6-month average as before
-    // Need at least 6 data points to calculate 6-month average
-    if (chartData.length < 6) return chartData;
+    // For other metrics, calculate 24-month average
+    // Need at least 6 data points to calculate average
+    if (recentData.length < 6) return recentData;
     
-    // Sort the data by date (descending) to get most recent data first
-    const sortedData = [...chartData].sort((a, b) => b.date - a.date);
-    const recentSixMonths = sortedData.slice(0, 6);
-    
-    // Calculate the average from these 6 months
+    // Calculate the average from the recent 24 months
     let sum = 0;
     let count = 0;
     
-    for (let i = 0; i < recentSixMonths.length; i++) {
-      const value = recentSixMonths[i][bmuName];
+    for (let i = 0; i < recentData.length; i++) {
+      const value = recentData[i][bmuName];
       if (value !== undefined && !isNaN(Number(value))) {
         sum += Number(value);
         count++;
@@ -124,7 +126,7 @@ const prepareDataForCiaComparison = (chartData: ChartDataPoint[], bmuName: strin
     }
     
     baseline = count > 0 ? sum / count : 0;
-    baselineLabel = '6-month average';
+    baselineLabel = '24-month average';
   }
   
   console.log(`Using ${baselineLabel}: ${baseline.toFixed(2)} for metric ${selectedMetric}`);
@@ -166,8 +168,8 @@ const prepareDataForCiaComparison = (chartData: ChartDataPoint[], bmuName: strin
   // Create result array with the fixed baseline
   let result: ChartDataPoint[] = [];
   
-  // Process each data point with the fixed baseline
-  for (const point of chartData) {
+  // Process each data point with the fixed baseline (only recent 24 months)
+  for (const point of recentData) {
     // Clone the current point
     const currentPoint = { ...point };
     
@@ -211,9 +213,9 @@ const prepareMultiBMUBaselineComparison = (chartData: ChartDataPoint[], selected
   // Import baseline data and helper function
   const { BASELINE_DATA, isIslandSite } = require('./charts/siteConfig');
   
-  // Get the last 6 months of data
+  // Get the last 24 months of data
   const sortedData = [...chartData].sort((a, b) => b.date - a.date);
-  const lastSixMonths = sortedData.slice(0, 6).reverse();
+  const lastSixMonths = sortedData.slice(0, 24).reverse();
   
   // Process each data point
   return lastSixMonths.map(point => {
@@ -267,6 +269,7 @@ export default function CatchMetricsChart({
   const prevTabRef = useRef<string | null>(null);
   const previousBmus = useRef<string[]>([]);
   const previousMetricRef = useRef<string>(selectedMetric);
+  const previousTimeRangeRef = useRef<string>('all');
 
   // Map old tab names to new ones for backwards compatibility
   const getNewTabName = useCallback((oldTab: string) => {
@@ -280,6 +283,7 @@ export default function CatchMetricsChart({
   const [annualData, setAnnualData] = useState<ChartDataPoint[]>([]);
   const [recentData, setRecentData] = useState<ChartDataPoint[]>([]);
   const [ciaComparisonData, setCiaComparisonData] = useState<ChartDataPoint[]>([]);
+  const [selectedTimeRange] = useAtom(selectedTimeRangeAtom);
 
   const isTablet = useMedia("(max-width: 800px)", false);
   
@@ -358,6 +362,20 @@ export default function CatchMetricsChart({
       setLoading(true);
     }
   }, [selectedMetric]);
+
+  // Track selectedTimeRange changes and force data reprocessing
+  useEffect(() => {
+    if (previousTimeRangeRef.current !== selectedTimeRange) {
+      console.log('Time range changed from', previousTimeRangeRef.current, 'to', selectedTimeRange);
+      previousTimeRangeRef.current = selectedTimeRange;
+      setChartData([]);
+      setRecentData([]);
+      setAnnualData([]);
+      setCiaComparisonData([]);
+      dataProcessed.current = false;
+      setLoading(true);
+    }
+  }, [selectedTimeRange]);
 
   // Force refetch when bmus changes
   useEffect(() => {
@@ -513,16 +531,18 @@ export default function CatchMetricsChart({
   useEffect(() => {
     if (!monthlyData || safeBmus.length === 0) return;
     
-    // Reset processing flag if metric changed
-    if (previousMetricRef.current !== selectedMetric) {
+    // Reset processing flag if metric or time range changed
+    if (previousMetricRef.current !== selectedMetric || previousTimeRangeRef.current !== selectedTimeRange) {
       dataProcessed.current = false;
       previousMetricRef.current = selectedMetric;
+      previousTimeRangeRef.current = selectedTimeRange;
     }
     
     // Prevent re-processing data unnecessarily
     if (chartData.length > 0 && !loading && 
         JSON.stringify(previousBmus.current) === JSON.stringify(safeBmus) && 
-        previousMetricRef.current === selectedMetric) return;
+        previousMetricRef.current === selectedMetric &&
+        previousTimeRangeRef.current === selectedTimeRange) return;
 
     try {
       // Get unique sites from the data
@@ -589,11 +609,8 @@ export default function CatchMetricsChart({
       setVisibilityState(initialVisibility);
       }
 
-      // Filter data from 2023 onwards
-      const filteredData = monthlyData.filter((item: ApiDataPoint) => {
-        const year = new Date(item.date).getFullYear();
-        return year >= 2023;
-      });
+      // Apply time range filter instead of hardcoded 2023 filter
+      const filteredData = filterDataByTimeRange(monthlyData as ApiDataPoint[], selectedTimeRange);
 
       // Get all dates in the range
       const dates = filteredData.map((item: ApiDataPoint) => new Date(item.date));
@@ -617,10 +634,7 @@ export default function CatchMetricsChart({
 
       // Process the raw data first to ensure we don't miss any values
       filteredData.forEach((item: ApiDataPoint) => {
-        // Skip fisher_days as it's calculated locally, not from API
-        if (selectedMetric === 'fisher_days') return;
-        
-        const value = item[selectedMetric as Exclude<MetricKey, 'fisher_days'>];
+        const value = item[selectedMetric];
         if (value === undefined || value === null) return;
         
         // Normalize the date to first day of month
@@ -695,7 +709,7 @@ export default function CatchMetricsChart({
     } finally {
       setLoading(false);
     }
-  }, [monthlyData, selectedMetric, effectiveBMU, hasRestrictedAccess, getAccessibleBMUs, safeBmus, isCiaUser, localActiveTab]);
+  }, [monthlyData, selectedMetric, effectiveBMU, hasRestrictedAccess, getAccessibleBMUs, safeBmus, isCiaUser, localActiveTab, selectedTimeRange]);
 
   // Calculate derived data when chartData changes
   useEffect(() => {
@@ -745,7 +759,7 @@ export default function CatchMetricsChart({
           } else if (selectedMetric === 'mean_rpue') {
             return t("text-performance-vs-minimum-wage") || "Performance vs Minimum Wage";
           } else {
-            return t("text-performance-vs-6-month-average") || "Performance vs 6-Month Average";
+            return t("text-performance-vs-24-month-average") || "Performance vs 24-Month Average";
           }
         case 'annual':
           return t("text-yearly-summary");
@@ -784,7 +798,7 @@ export default function CatchMetricsChart({
           } else if (selectedMetric === 'mean_rpue') {
             return t("text-cia-minimum-wage-comparison-explanation") || "Shows values compared to the national minimum wage";
           } else {
-            return t("text-cia-comparison-explanation") || "Shows values compared to your 6-month average";
+            return t("text-cia-comparison-explanation") || "Shows values compared to your 24-month average";
           }
         case 'annual':
           return t("text-yearly-explanation");

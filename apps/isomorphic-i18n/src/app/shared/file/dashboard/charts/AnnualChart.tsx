@@ -165,9 +165,9 @@ export default function AnnualChart({
             tickLine={{ stroke: "#cbd5e1" }}
             tickMargin={5}
           />
-                      <YAxis
-              tickFormatter={(value) => value.toFixed(1)}
-              axisLine={false}
+          <YAxis
+            tickFormatter={(value) => value.toFixed(1)}
+            axisLine={false}
               tick={(props) => <CustomYAxisTick {...props} metric={selectedMetric} />}
               width={80}
               label={{ 
@@ -180,7 +180,7 @@ export default function AnnualChart({
                 position: 'insideLeft',
                 style: { textAnchor: 'middle', fontSize: 15, fill: '#666' }
               }}
-            />
+          />
           <Tooltip content={<CustomTooltip />} wrapperStyle={{ outline: 'none' }} />
           
           {renderBars()}
@@ -291,7 +291,7 @@ export default function AnnualChart({
                   label={{ value: "Current Island", position: "left", fill: "#ea580c", fontSize: 11 }}
                 />
               </>
-            )}
+          )}
           
           {CustomLegend && <Legend content={(props) => <CustomLegend {...props} />} />}
         </BarChart>
