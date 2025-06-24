@@ -379,8 +379,10 @@ export default function FishCompositionChart({
       setCiaComparisonData([]);
       dataProcessed.current = false;
       setLoading(true);
+      // Force refetch when time range changes
+      refetch();
     }
-  }, [selectedTimeRange]);
+  }, [selectedTimeRange, refetch]);
 
   // Force refetch when bmus changes
   useEffect(() => {

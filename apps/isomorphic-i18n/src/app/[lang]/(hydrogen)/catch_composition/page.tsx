@@ -7,6 +7,7 @@ import type { TBmu } from "@repo/nosql/schema/bmu";
 import FileStats from "@/app/shared/file/dashboard/file-stats";
 import FishCompositionChart from "@/app/shared/file/dashboard/fish-composition-chart";
 import FishCompositionComparison from "@/app/shared/file/dashboard/fish-composition-comparison";
+import FishCompositionAreaChart from "@/app/shared/file/dashboard/fish-composition-area-chart";
 import { useUserPermissions } from "@/app/shared/file/dashboard/hooks/useUserPermissions";
 
 type SerializedBmu = {
@@ -59,6 +60,13 @@ export default function CatchCompositionPage({ params }: PageProps) {
           
           <div className="col-span-12">
             <FishCompositionComparison
+              lang={lang}
+              bmu={effectiveBMU}
+            />
+          </div>
+          
+          <div className="col-span-12">
+            <FishCompositionAreaChart
               lang={lang}
               bmu={effectiveBMU}
             />
