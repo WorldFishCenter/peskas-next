@@ -194,7 +194,6 @@ function TimeRangeSelector({ lang }: { lang?: string }) {
   const currentOption = timeRangeOptions.find(opt => opt.value === selectedTimeRange) || timeRangeOptions[2];
 
   const handleTimeRangeChange = (newRange: TimeRangeOption) => {
-    console.log('Time range changing from', selectedTimeRange, 'to', newRange);
     setSelectedTimeRange(newRange);
     setIsOpen(false);
   };

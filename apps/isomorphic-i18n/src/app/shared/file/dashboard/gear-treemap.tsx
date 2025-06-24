@@ -447,37 +447,8 @@ export default function GearHeatmap({
   );
 
   const handleTabChange = useCallback((tab: string) => {
-    // Get the current language to preserve it
-    const currentActiveLang = i18n.language || currentLang || getClientLanguage();
-    
     setActiveTab(tab);
-    
-    // Force language persistence after state update
-    requestAnimationFrame(() => {
-      // Double-check and force language if needed
-      const storedLang = localStorage.getItem('i18nextLng') || 
-                        localStorage.getItem('selectedLanguage') || 
-                        localStorage.getItem('peskas-language');
-      
-      if (storedLang && storedLang !== i18n.language) {
-        i18n.changeLanguage(storedLang);
-        
-        // Ensure all storage is consistent
-        localStorage.setItem('i18nextLng', storedLang);
-        localStorage.setItem('selectedLanguage', storedLang);
-        localStorage.setItem('peskas-language', storedLang);
-        
-        // Update document attributes
-        document.documentElement.lang = storedLang;
-        document.documentElement.setAttribute('data-language', storedLang);
-        
-        // Dispatch event to notify all components
-        window.dispatchEvent(new CustomEvent('i18n-language-changed', {
-          detail: { language: storedLang }
-        }));
-      }
-    });
-  }, [i18n, currentLang]);
+  }, []);
 
   const handleLegendClick = useCallback((site: string) => {
     setVisibilityState((prev) => ({

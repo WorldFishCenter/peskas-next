@@ -408,7 +408,7 @@ export default function FishCompositionChart({
     }
   }, [activeTab, getNewTabName, localActiveTab]);
 
-  // Language is now maintained through client-side detection and events
+
 
   const handleLegendClick = useCallback((site: string) => {
     // Don't toggle visibility for the average line or special CIA comparison lines

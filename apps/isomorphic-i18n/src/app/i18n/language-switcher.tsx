@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { useRouter, usePathname } from 'next/navigation';
 import { SWFlag } from "@components/icons/language/SWFlag";
 import { USFlag } from "@components/icons/language/USFlag";
 import cn from '@utils/class-names';
@@ -24,12 +23,9 @@ const languageOptions = [
   },
 ];
 
-// Global function to change language throughout the app
-export function changeAppLanguage(newLang: string, router?: any, pathname?: string): void {
+// Global function to change language throughout the app (CLIENT-SIDE ONLY)
+export function changeAppLanguage(newLang: string): void {
   if (!['en', 'sw'].includes(newLang)) return;
-  
-  // Save current scroll position
-  const scrollPosition = window.scrollY || document.documentElement.scrollTop;
   
   // Update all localStorage keys to ensure persistence
   localStorage.setItem('i18nextLng', newLang);
@@ -61,39 +57,6 @@ export function changeAppLanguage(newLang: string, router?: any, pathname?: stri
   window.dispatchEvent(new CustomEvent('i18n-language-changed', {
     detail: { language: newLang }
   }));
-  
-  // Update the URL to reflect the new language
-  if (router && pathname) {
-    // Extract the current language from the URL
-    const segments = pathname.split('/');
-    const currentLang = segments[1];
-    
-    // Only update if the language in URL is different
-    if (currentLang !== newLang && ['en', 'sw'].includes(currentLang)) {
-      // Replace the language segment in the URL
-      segments[1] = newLang;
-      const newPath = segments.join('/');
-      
-      // Use router.push to navigate to the new URL
-      // This will trigger a re-render with the new lang prop
-      router.push(newPath);
-    }
-  }
-  
-  // Force a small delay to ensure all React components have updated
-  requestAnimationFrame(() => {
-    // Double-check that the language is still set correctly
-    const currentLang = localStorage.getItem('i18nextLng');
-    if (currentLang !== newLang) {
-      // If something reset it, force it again
-      localStorage.setItem('i18nextLng', newLang);
-      localStorage.setItem('selectedLanguage', newLang);
-      localStorage.setItem('peskas-language', newLang);
-    }
-    
-    // Restore scroll position
-    window.scrollTo(0, scrollPosition);
-  });
 }
 
 /**
@@ -108,11 +71,8 @@ export default function LanguageSwitcher({
   className?: string;
   iconClassName?: string;
 }) {
-  const router = useRouter();
-  const pathname = usePathname();
   const { i18n } = useTranslation(lang);
   const [activeLang, setActiveLang] = useState(getClientLanguage());
-  const [isChanging, setIsChanging] = useState(false);
   
   // Listen for language changes from other components
   useEffect(() => {
@@ -136,25 +96,16 @@ export default function LanguageSwitcher({
 
   // Handle language button click
   const handleLanguageChange = (newLang: string) => {
-    if (newLang === activeLang || isChanging) return;
+    if (newLang === activeLang) return;
     
-    setIsChanging(true);
+    // Use client-side only language change
+    changeAppLanguage(newLang);
     
-    try {
-      // Use the global function to change language with router
-      changeAppLanguage(newLang, router, pathname || '');
-      
-      // Update component state
-      setActiveLang(newLang);
-      
-      // Force i18n instance to update
-      i18n.changeLanguage(newLang);
-    } catch (error) {
-      console.error('Error changing language:', error);
-    } finally {
-      // Always reset changing state
-      setTimeout(() => setIsChanging(false), 100);
-    }
+    // Update component state
+    setActiveLang(newLang);
+    
+    // Update i18n instance
+    i18n.changeLanguage(newLang);
   };
 
   return (
@@ -171,7 +122,6 @@ export default function LanguageSwitcher({
                 ? "bg-white dark:bg-primary dark:bg-opacity-90 shadow-md"
                 : "bg-gray-50 hover:bg-gray-100 dark:bg-gray-800 dark:hover:bg-gray-700"
             )}
-            disabled={isChanging}
           >
             <div className="flex items-center">
               <div className={cn(

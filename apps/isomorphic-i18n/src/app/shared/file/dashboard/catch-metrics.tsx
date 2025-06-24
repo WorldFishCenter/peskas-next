@@ -394,8 +394,6 @@ export default function CatchMetricsChart({
     }
   }, [activeTab, getNewTabName, localActiveTab]);
 
-  // Language is now maintained through client-side detection and events
-
   const handleLegendClick = useCallback((site: string) => {
     // Don't toggle visibility for the average line or special CIA comparison lines
     if (site === "average" || site === "historical_average") return;
@@ -428,11 +426,7 @@ export default function CatchMetricsChart({
     // Don't process if it's the same tab
     if (prevTabRef.current === tab) return;
     
-    // Get the current language from the i18n instance which should be the most up-to-date
-    const currentActiveLang = i18n.language || currentLang || getClientLanguage();
-    
-    // Log for debugging
-    console.log('Tab change - Current language:', currentActiveLang);
+    // Language is handled through client-side events
     
     // Update tab reference
     prevTabRef.current = tab;
@@ -447,35 +441,7 @@ export default function CatchMetricsChart({
     if (onTabChange) {
       onTabChange(oldTabName);
     }
-    
-    // Force language persistence after React re-render cycle
-    // Use requestAnimationFrame to ensure this runs after all React updates
-    requestAnimationFrame(() => {
-      // Double-check and force language if needed
-      const storedLang = localStorage.getItem('i18nextLng') || 
-                        localStorage.getItem('selectedLanguage') || 
-                        localStorage.getItem('peskas-language');
-      
-      if (storedLang && storedLang !== i18n.language) {
-        console.log('Language mismatch detected, forcing to:', storedLang);
-        i18n.changeLanguage(storedLang);
-        
-        // Also update all storage to ensure consistency
-        localStorage.setItem('i18nextLng', storedLang);
-        localStorage.setItem('selectedLanguage', storedLang);
-        localStorage.setItem('peskas-language', storedLang);
-        
-        // Update document attributes
-        document.documentElement.lang = storedLang;
-        document.documentElement.setAttribute('data-language', storedLang);
-        
-        // Dispatch event to notify all components
-        window.dispatchEvent(new CustomEvent('i18n-language-changed', {
-          detail: { language: storedLang }
-        }));
-      }
-    });
-  }, [i18n, currentLang, onTabChange]);
+  }, [onTabChange]);
 
   // Update visibility state when changing tabs - but only once per tab change
   useEffect(() => {
