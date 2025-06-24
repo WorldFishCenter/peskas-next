@@ -7,6 +7,7 @@ import WidgetCard from "@components/cards/widget-card";
 import { api } from "@/trpc/react";
 import { bmusAtom, selectedTimeRangeAtom } from "@/app/components/filter-selector";
 import { useTranslation } from "@/app/i18n/client";
+import { getClientLanguage } from "@/app/i18n/language-link";
 import SimpleBar from "@ui/simplebar";
 import useUserPermissions, { adminReferenceBmuAtom } from "./hooks/useUserPermissions";
 import { generateFishCategoryColor, updateBmuColorRegistry } from "./charts/utils";
@@ -53,7 +54,13 @@ export default function FishCompositionComparison({
   lang, 
   bmu
 }: FishCompositionComparisonProps) {
-  const { t } = useTranslation(lang!, "common");
+  // Use client language instead of lang prop
+  const clientLang = getClientLanguage();
+  const { t, i18n } = useTranslation(clientLang, "common");
+  
+  // Track current language with state
+  const [currentLang, setCurrentLang] = useState(clientLang);
+  
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [chartData, setChartData] = useState<any[]>([]);
@@ -112,6 +119,23 @@ export default function FishCompositionComparison({
       fishDistributionQuery.refetch();
     }
   }, [selectedTimeRange, fishDistributionQuery]);
+
+  // Listen for language changes
+  useEffect(() => {
+    const handleLanguageChange = (event: CustomEvent) => {
+      setCurrentLang(event.detail.language);
+      
+      // Make sure i18n instance is updated
+      if (i18n.language !== event.detail.language) {
+        i18n.changeLanguage(event.detail.language);
+      }
+    };
+    
+    window.addEventListener('i18n-language-changed', handleLanguageChange as EventListener);
+    return () => {
+      window.removeEventListener('i18n-language-changed', handleLanguageChange as EventListener);
+    };
+  }, [i18n]);
 
   // Handle legend item click
   const handleLegendClick = (categoryId: string) => {

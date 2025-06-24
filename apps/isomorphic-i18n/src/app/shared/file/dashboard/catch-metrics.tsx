@@ -9,9 +9,6 @@ import { useTranslation } from "@/app/i18n/client";
 import { api } from "@/trpc/react";
 import { useMedia } from "@hooks/use-media";
 import SimpleBar from "@ui/simplebar";
-import { useSession } from "next-auth/react";
-import { useTheme } from "next-themes";
-import cn from "@utils/class-names";
 
 import { 
   MetricKey, 

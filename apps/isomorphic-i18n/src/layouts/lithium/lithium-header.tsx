@@ -3,18 +3,11 @@
 import Link from "next/link";
 import { Badge, ActionIcon, Text } from "rizzui";
 import cn from "@utils/class-names";
-import MessagesDropdown from "@/layouts/messages-dropdown";
-import NotificationDropdown from "@/layouts/notification-dropdown";
 import ProfileMenu from "@/layouts/profile-menu";
-import SettingsButton from "@/layouts/settings-button";
 import HamburgerButton from "@/layouts/hamburger-button";
 import Logo from "@components/logo";
 import KenyaFlag from "@components/icons/kenya-flag";
 import {
-  PiBellSimpleRingingDuotone,
-  PiChatsCircleDuotone,
-  PiGearDuotone,
-  PiMagnifyingGlassDuotone,
   PiSun,
   PiMoon,
   PiMapPinDuotone,
@@ -29,7 +22,6 @@ import { FilterSelector, selectedMetricAtom, selectedTimeRangeAtom, type TimeRan
 import { useSession } from "next-auth/react";
 import type { TBmu } from "@repo/nosql/schema/bmu";
 import LanguageLink, { getClientLanguage } from "@/app/i18n/language-link";
-import useUserPermissions from "@/app/shared/file/dashboard/hooks/useUserPermissions";
 import { useAtom } from 'jotai';
 import { METRIC_OPTIONS } from '@/app/shared/file/dashboard/charts/types';
 import { usePathname } from 'next/navigation';
@@ -181,7 +173,7 @@ function TimeRangeSelector({ lang }: { lang?: string }) {
     { value: 'all', label: t('text-all-time'), description: t('text-all-time-desc') || 'Show all available data' },
   ];
 
-  const currentOption = timeRangeOptions.find(opt => opt.value === selectedTimeRange) || timeRangeOptions[3];
+  const currentOption = timeRangeOptions.find(opt => opt.value === selectedTimeRange) || timeRangeOptions[2];
 
   const handleTimeRangeChange = (newRange: TimeRangeOption) => {
     console.log('Time range changing from', selectedTimeRange, 'to', newRange);

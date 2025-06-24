@@ -8,12 +8,12 @@ import cn from "@utils/class-names";
 import { useScrollableSlider } from "@hooks/use-scrollable-slider";
 import { PiCaretLeftBold, PiCaretRightBold } from "react-icons/pi";
 import MetricCard from "@components/cards/metric-card";
-import TrendingUpIcon from "@components/icons/trending-up";
-import TrendingDownIcon from "@components/icons/trending-down";
+import { PiTrendUp as TrendingUpIcon, PiTrendDown as TrendingDownIcon } from "react-icons/pi";
 import { useTranslation } from "@/app/i18n/client";
 import { api } from "@/trpc/react";
 import { bmusAtom } from "@/app/components/filter-selector";
 import useUserPermissions from "./hooks/useUserPermissions";
+import { getClientLanguage } from "@/app/i18n/language-link";
 
 type FileStatsType = {
   className?: string;
@@ -108,7 +108,13 @@ const LoadingState = () => {
 };
 
 export function FileStatGrid({ className, lang, bmu }: { className?: string; lang?: string; bmu?: string }) {
-  const { t } = useTranslation(lang!, "common");
+  // Use client language instead of lang prop
+  const clientLang = getClientLanguage();
+  const { t, i18n } = useTranslation(clientLang, "common");
+  
+  // Track current language with state
+  const [currentLang, setCurrentLang] = useState(clientLang);
+  
   const [statsData, setStatsData] = useState<StatData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -116,6 +122,23 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
   const [selectedMonth, setSelectedMonth] = useState<string | null>(null);
   const [comparisonValues, setComparisonValues] = useState<{[key: string]: ComparisonValue}>({});
   const [bmus] = useAtom(bmusAtom);
+  
+  // Listen for language changes
+  useEffect(() => {
+    const handleLanguageChange = (event: CustomEvent) => {
+      setCurrentLang(event.detail.language);
+      
+      // Make sure i18n instance is updated
+      if (i18n.language !== event.detail.language) {
+        i18n.changeLanguage(event.detail.language);
+      }
+    };
+    
+    window.addEventListener('i18n-language-changed', handleLanguageChange as EventListener);
+    return () => {
+      window.removeEventListener('i18n-language-changed', handleLanguageChange as EventListener);
+    };
+  }, [i18n]);
   
   // Get user permissions
   const {

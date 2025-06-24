@@ -9,6 +9,7 @@ import { useScrollableSlider } from "@hooks/use-scrollable-slider";
 import { PiCaretLeftBold, PiCaretRightBold } from "react-icons/pi";
 import MetricCard from "@components/cards/metric-card";
 import { useTranslation } from "@/app/i18n/client";
+import { getClientLanguage } from "@/app/i18n/language-link";
 import { api } from "@/trpc/react";
 import useUserPermissions from "./hooks/useUserPermissions";
 import { bmusAtom } from "@/app/components/filter-selector";
@@ -55,12 +56,35 @@ const LoadingState = () => {
 };
 
 export function FileStatWBCIAGrid({ className, lang }: { className?: string; lang?: string }) {
-  const { t } = useTranslation(lang!, "common");
+  // Use client language instead of lang prop
+  const clientLang = getClientLanguage();
+  const { t, i18n } = useTranslation(clientLang, "common");
+  
+  // Track current language with state
+  const [currentLang, setCurrentLang] = useState(clientLang);
+  
   const [statsData, setStatsData] = useState<StatData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [hoveredBMU, setHoveredBMU] = useState<{[key: string]: { bmu: string; value: number | null }}>({});
   const [bmus] = useAtom(bmusAtom);
+  
+  // Listen for language changes
+  useEffect(() => {
+    const handleLanguageChange = (event: CustomEvent) => {
+      setCurrentLang(event.detail.language);
+      
+      // Make sure i18n instance is updated
+      if (i18n.language !== event.detail.language) {
+        i18n.changeLanguage(event.detail.language);
+      }
+    };
+    
+    window.addEventListener('i18n-language-changed', handleLanguageChange as EventListener);
+    return () => {
+      window.removeEventListener('i18n-language-changed', handleLanguageChange as EventListener);
+    };
+  }, [i18n]);
   
   // Get user permissions
   const { userBMU } = useUserPermissions();

@@ -5,6 +5,7 @@ import { useAtom } from "jotai";
 import WidgetCard from "@components/cards/widget-card";
 import SimpleBar from "@ui/simplebar";
 import { useTranslation } from "@/app/i18n/client";
+import { getClientLanguage } from "@/app/i18n/language-link";
 import { api } from "@/trpc/react";
 import { bmusAtom, selectedMetricAtom, selectedTimeRangeAtom } from "@/app/components/filter-selector";
 import cn from "@utils/class-names";
@@ -177,10 +178,16 @@ export default function BMURanking({
   lang?: string;
   bmu?: string;
 }) {
+  // Use client language instead of lang prop
+  const clientLang = getClientLanguage();
+  const { t, i18n } = useTranslation(clientLang, "common");
+  
+  // Track current language with state
+  const [currentLang, setCurrentLang] = useState(clientLang);
+  
   const [rankingData, setRankingData] = useState<BMURankingData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const { t } = useTranslation(lang!, "common");
   const [bmus] = useAtom(bmusAtom);
   const [selectedMetric] = useAtom(selectedMetricAtom);
   const [selectedTimeRange] = useAtom(selectedTimeRangeAtom);
@@ -237,6 +244,23 @@ export default function BMURanking({
       refetch();
     }
   }, [safeBmus, refetch]);
+
+  // Listen for language changes
+  useEffect(() => {
+    const handleLanguageChange = (event: CustomEvent) => {
+      setCurrentLang(event.detail.language);
+      
+      // Make sure i18n instance is updated
+      if (i18n.language !== event.detail.language) {
+        i18n.changeLanguage(event.detail.language);
+      }
+    };
+    
+    window.addEventListener('i18n-language-changed', handleLanguageChange as EventListener);
+    return () => {
+      window.removeEventListener('i18n-language-changed', handleLanguageChange as EventListener);
+    };
+  }, [i18n]);
 
   const selectedMetricOption = METRIC_OPTIONS.find(
     (m) => m.value === selectedMetric
