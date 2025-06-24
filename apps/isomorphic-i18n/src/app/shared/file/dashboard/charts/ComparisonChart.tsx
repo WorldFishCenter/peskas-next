@@ -53,7 +53,7 @@ export default function ComparisonChart({
   const translationsRef = useRef<Record<string, string>>({});
   
   // Helper function to get time range label for translations
-  const getTimeRangeLabel = (timeRange: TimeRangeOption): string => {
+  const getTimeRangeLabel = useCallback((timeRange: TimeRangeOption): string => {
     switch (timeRange) {
       case '3months':
         return t('text-last-3-months') || 'Last 3 months';
@@ -66,7 +66,7 @@ export default function ComparisonChart({
       default:
         return t('text-all-time') || 'All time';
     }
-  };
+  }, [t]);
 
   // Pre-load critical translations to avoid flicker
   useEffect(() => {
@@ -91,7 +91,7 @@ export default function ComparisonChart({
         "text-cia-selected-time-comparison-explanation": ciaSelectedExplanation,
       };
     }
-  }, [contextLang, t, selectedTimeRange]);
+  }, [contextLang, t, selectedTimeRange, getTimeRangeLabel]);
   
   // Sync with the parent language if needed
   useEffect(() => {

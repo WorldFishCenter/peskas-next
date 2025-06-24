@@ -4,7 +4,7 @@ import WidgetCard from "@components/cards/widget-card";
 import { useAtom } from "jotai";
 import { useEffect, useState, useCallback, useRef, useMemo, createContext, useContext } from "react";
 
-import { bmusAtom } from "@/app/components/filter-selector";
+import { bmusAtom, selectedTimeRangeAtom } from "@/app/components/filter-selector";
 import { useTranslation } from "@/app/i18n/client";
 import { api } from "@/trpc/react";
 import { useMedia } from "@hooks/use-media";
@@ -31,7 +31,6 @@ import { getClientLanguage } from "@/app/i18n/language-link";
 // Import shared permissions hook
 import useUserPermissions from "./hooks/useUserPermissions";
 import { CustomYAxisTick } from "./charts/components";
-import { selectedTimeRangeAtom } from "@/app/components/filter-selector";
 import { filterDataByTimeRange } from "./utils/timeRangeFilter";
 
 // Create a more robust language context that includes both the language code and translations

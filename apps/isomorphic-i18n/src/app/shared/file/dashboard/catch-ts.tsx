@@ -17,7 +17,7 @@ import {
   ComposedChart,
 } from "recharts";
 
-import { bmusAtom } from "@/app/components/filter-selector";
+import { bmusAtom, selectedTimeRangeAtom } from "@/app/components/filter-selector";
 import { useTranslation } from "@/app/i18n/client";
 import { api } from "@/trpc/react";
 import { useMedia } from "@hooks/use-media";
@@ -29,7 +29,6 @@ import { generateColor, updateBmuColorRegistry } from "./charts/utils";
 import { MetricKey, METRIC_OPTIONS } from "./charts/types";
 import useUserPermissions from "./hooks/useUserPermissions";
 import { getClientLanguage } from "@/app/i18n/language-link";
-import { selectedTimeRangeAtom } from "@/app/components/filter-selector";
 import { filterDataByTimeRange } from "./utils/timeRangeFilter";
 
 // Add local formatNumber function to replace the import

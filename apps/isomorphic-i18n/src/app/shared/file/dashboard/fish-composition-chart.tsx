@@ -12,7 +12,7 @@ import {
 import WidgetCard from "@components/cards/widget-card";
 import { useAtom } from "jotai";
 
-import { bmusAtom } from "@/app/components/filter-selector";
+import { bmusAtom, selectedTimeRangeAtom } from "@/app/components/filter-selector";
 import { useTranslation } from "@/app/i18n/client";
 import { api } from "@/trpc/react";
 import { useMedia } from "@hooks/use-media";
@@ -25,7 +25,7 @@ import {
   MetricOption,
   MetricKey
 } from "./charts/types";
-import { generateColor, getAnnualData, getRecentData, updateBmuColorRegistry } from "./charts/utils";
+import { generateColor, getAnnualData, getRecentData, updateBmuColorRegistry, generateFishCategoryColor } from "./charts/utils";
 import CustomLegend from "./charts/CustomLegend";
 // Import the chart components
 import TrendsChart from "./charts/TrendsChart";
@@ -36,10 +36,8 @@ import { getClientLanguage } from "@/app/i18n/language-link";
 import useUserPermissions from "./hooks/useUserPermissions";
 // Import the fish category selector component
 import FishCategorySelector from "./charts/FishCategorySelector";
-import { generateFishCategoryColor } from "./charts/utils";
 import { CustomYAxisTick } from "./charts/components";
 import { BASELINE_DATA, isIslandSite } from "./charts/siteConfig";
-import { selectedTimeRangeAtom } from "@/app/components/filter-selector";
 import { filterDataByTimeRange } from "./utils/timeRangeFilter";
 
 // Custom function to prepare data for CIA users' comparison view
