@@ -394,12 +394,7 @@ export default function CatchMetricsChart({
     }
   }, [activeTab, getNewTabName, localActiveTab]);
 
-  // Ensure language is maintained during tab changes
-  useEffect(() => {
-    if (lang && i18n.language !== lang) {
-      i18n.changeLanguage(lang);
-    }
-  }, [lang, i18n, chartData.length, loading, visibilityState]);
+  // Language is now maintained through client-side detection and events
 
   const handleLegendClick = useCallback((site: string) => {
     // Don't toggle visibility for the average line or special CIA comparison lines
