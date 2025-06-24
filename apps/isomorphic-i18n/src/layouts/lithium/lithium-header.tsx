@@ -24,7 +24,7 @@ import type { TBmu } from "@repo/nosql/schema/bmu";
 import LanguageLink, { getClientLanguage } from "@/app/i18n/language-link";
 import { useAtom } from 'jotai';
 import { METRIC_OPTIONS } from '@/app/shared/file/dashboard/charts/types';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { changeAppLanguage } from '@/app/i18n/language-switcher';
 import { USFlag } from "@components/icons/language/USFlag";
@@ -82,6 +82,8 @@ function ReferenceBMU() {
 
 // Compact Language Switcher
 function CompactLanguageSwitcher() {
+  const router = useRouter();
+  const pathname = usePathname();
   const [currentLang, setCurrentLang] = useState(() => getClientLanguage());
   const [isOpen, setIsOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -102,7 +104,7 @@ function CompactLanguageSwitcher() {
   const handleLanguageChange = (newLang: string) => {
     if (newLang === currentLang) return;
     
-    changeAppLanguage(newLang);
+    changeAppLanguage(newLang, router, pathname || '');
     setCurrentLang(newLang);
     setIsOpen(false);
   };
@@ -164,7 +166,25 @@ function CompactLanguageSwitcher() {
 function TimeRangeSelector({ lang }: { lang?: string }) {
   const [selectedTimeRange, setSelectedTimeRange] = useAtom(selectedTimeRangeAtom);
   const [isOpen, setIsOpen] = useState(false);
-  const { t } = useTranslation(lang || 'en');
+  
+  const clientLang = getClientLanguage();
+  const { t, i18n } = useTranslation(clientLang, "common");
+  const [currentLang, setCurrentLang] = useState(clientLang);
+  
+  useEffect(() => {
+    const handleLanguageChange = (event: CustomEvent) => {
+      setCurrentLang(event.detail.language);
+      
+      if (i18n.language !== event.detail.language) {
+        i18n.changeLanguage(event.detail.language);
+      }
+    };
+    
+    window.addEventListener('i18n-language-changed', handleLanguageChange as EventListener);
+    return () => {
+      window.removeEventListener('i18n-language-changed', handleLanguageChange as EventListener);
+    };
+  }, [i18n]);
 
   const timeRangeOptions: { value: TimeRangeOption; label: string; description: string }[] = [
     { value: '3months', label: t('text-last-3-months'), description: t('text-last-3-months-desc') || 'Show data from the last 3 months' },
@@ -239,7 +259,25 @@ function HeaderMenuRight({ lang }: { lang?: string }) {
   const pathname = usePathname();
   const [selectedMetric, setSelectedMetric] = useAtom(selectedMetricAtom);
   const [isMetricOpen, setIsMetricOpen] = useState(false);
-  const { t } = useTranslation(lang || 'en');
+  
+  const clientLang = getClientLanguage();
+  const { t, i18n } = useTranslation(clientLang, "common");
+  const [currentLang, setCurrentLang] = useState(clientLang);
+  
+  useEffect(() => {
+    const handleLanguageChange = (event: CustomEvent) => {
+      setCurrentLang(event.detail.language);
+      
+      if (i18n.language !== event.detail.language) {
+        i18n.changeLanguage(event.detail.language);
+      }
+    };
+    
+    window.addEventListener('i18n-language-changed', handleLanguageChange as EventListener);
+    return () => {
+      window.removeEventListener('i18n-language-changed', handleLanguageChange as EventListener);
+    };
+  }, [i18n]);
   
   const selectedMetricOption = METRIC_OPTIONS.find(
     (m) => m.value === selectedMetric
