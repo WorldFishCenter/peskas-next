@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 
 import type { MiddlewareFactory } from "./types"
 import { JWT_COOKIE_NAME } from "./const"
+import { languages, fallbackLng } from "@/app/i18n/settings";
 
 const withJwt: MiddlewareFactory = (next: NextMiddleware) => {
   return async (request: NextRequest, _next: NextFetchEvent) => {
@@ -11,26 +12,35 @@ const withJwt: MiddlewareFactory = (next: NextMiddleware) => {
       .getAll()
       .filter((o) => o.name.indexOf(JWT_COOKIE_NAME) > -1)
 
-    const pageMatches = /.*\/(?<page>(sign-in|forgot-password|reset-password))/gim.exec(
+    // Extract language from pathname
+    const pathname = request.nextUrl.pathname;
+    const segments = pathname.split('/').filter(Boolean);
+    const currentLang = segments.length > 0 && languages.includes(segments[0]) ? segments[0] : fallbackLng;
+
+    const pageMatches = /.*\/(sign-in|forgot-password|reset-password)/gim.exec(
       request.nextUrl.pathname,
     )
-    if (pageMatches?.groups?.page &&
+    const page = pageMatches ? pageMatches[1] : null;
+    
+    if (page &&
       !cookieToken
     ) {
       return res
     }
 
-    if (pageMatches?.groups?.page &&
+    if (page &&
       cookieToken
     ) {
+      // Redirect to root with preserved language
       return NextResponse.redirect(
-        new URL(`/`, request.url),
+        new URL(`/${currentLang}`, request.url),
       )
     }
 
     if (!cookieToken) {
+      // Redirect to sign-in with preserved language
       return NextResponse.redirect(
-        new URL(`/sign-in`, request.url),
+        new URL(`/${currentLang}/sign-in`, request.url),
       )
     } 
 
