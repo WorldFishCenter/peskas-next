@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
+import { useRouter, usePathname } from 'next/navigation';
 import { SWFlag } from "@components/icons/language/SWFlag";
 import { USFlag } from "@components/icons/language/USFlag";
 import cn from '@utils/class-names';
@@ -24,7 +25,7 @@ const languageOptions = [
 ];
 
 // Global function to change language throughout the app
-export function changeAppLanguage(newLang: string): void {
+export function changeAppLanguage(newLang: string, router?: any, pathname?: string): void {
   if (!['en', 'sw'].includes(newLang)) return;
   
   // Save current scroll position
@@ -61,6 +62,24 @@ export function changeAppLanguage(newLang: string): void {
     detail: { language: newLang }
   }));
   
+  // Update the URL to reflect the new language
+  if (router && pathname) {
+    // Extract the current language from the URL
+    const segments = pathname.split('/');
+    const currentLang = segments[1];
+    
+    // Only update if the language in URL is different
+    if (currentLang !== newLang && ['en', 'sw'].includes(currentLang)) {
+      // Replace the language segment in the URL
+      segments[1] = newLang;
+      const newPath = segments.join('/');
+      
+      // Use router.push to navigate to the new URL
+      // This will trigger a re-render with the new lang prop
+      router.push(newPath);
+    }
+  }
+  
   // Force a small delay to ensure all React components have updated
   requestAnimationFrame(() => {
     // Double-check that the language is still set correctly
@@ -89,6 +108,8 @@ export default function LanguageSwitcher({
   className?: string;
   iconClassName?: string;
 }) {
+  const router = useRouter();
+  const pathname = usePathname();
   const { i18n } = useTranslation(lang);
   const [activeLang, setActiveLang] = useState(getClientLanguage());
   const [isChanging, setIsChanging] = useState(false);
@@ -120,8 +141,8 @@ export default function LanguageSwitcher({
     setIsChanging(true);
     
     try {
-      // Use the global function to change language
-      changeAppLanguage(newLang);
+      // Use the global function to change language with router
+      changeAppLanguage(newLang, router, pathname || '');
       
       // Update component state
       setActiveLang(newLang);
