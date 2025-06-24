@@ -24,7 +24,6 @@ import type { TBmu } from "@repo/nosql/schema/bmu";
 import LanguageLink, { getClientLanguage } from "@/app/i18n/language-link";
 import { useAtom } from 'jotai';
 import { METRIC_OPTIONS } from '@/app/shared/file/dashboard/charts/types';
-import { usePathname, useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { changeAppLanguage } from '@/app/i18n/language-switcher';
 import { USFlag } from "@components/icons/language/USFlag";
@@ -82,8 +81,6 @@ function ReferenceBMU() {
 
 // Compact Language Switcher
 function CompactLanguageSwitcher() {
-  const router = useRouter();
-  const pathname = usePathname();
   const [currentLang, setCurrentLang] = useState(() => getClientLanguage());
   const [isOpen, setIsOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -104,7 +101,8 @@ function CompactLanguageSwitcher() {
   const handleLanguageChange = (newLang: string) => {
     if (newLang === currentLang) return;
     
-    changeAppLanguage(newLang, router, pathname || '');
+    // Use client-side only language change (no router needed)
+    changeAppLanguage(newLang);
     setCurrentLang(newLang);
     setIsOpen(false);
   };
@@ -256,7 +254,6 @@ function TimeRangeSelector({ lang }: { lang?: string }) {
 }
 
 function HeaderMenuRight({ lang }: { lang?: string }) {
-  const pathname = usePathname();
   const [selectedMetric, setSelectedMetric] = useAtom(selectedMetricAtom);
   const [isMetricOpen, setIsMetricOpen] = useState(false);
   
