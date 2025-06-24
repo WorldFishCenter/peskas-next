@@ -16,6 +16,9 @@ import { CustomYAxisTick } from "./components";
 import { getBarColor } from "./utils";
 import { useTranslation } from "@/app/i18n/client";
 import React, { useCallback, useEffect, useRef } from "react";
+import { BASELINE_DATA, isIslandSite } from "./siteConfig";
+import { TimeRangeOption } from "@/app/components/filter-selector";
+import { getTimeRangeDescription } from "../utils/timeRangeFilter";
 
 interface ComparisonChartProps {
   chartData: ChartDataPoint[];
@@ -26,6 +29,8 @@ interface ComparisonChartProps {
   isCiaHistoricalMode?: boolean;
   historicalBmuName?: string;
   CustomLegend: (props: any) => React.ReactElement;
+  selectedMetric?: string;
+  selectedTimeRange?: TimeRangeOption;
 }
 
 export default function ComparisonChart({
@@ -37,6 +42,8 @@ export default function ComparisonChart({
   isCiaHistoricalMode = false,
   historicalBmuName,
   CustomLegend,
+  selectedMetric,
+  selectedTimeRange = 'all',
 }: ComparisonChartProps) {
   const contextLang = document.documentElement.getAttribute('data-language');
   const isLangReady = document.documentElement.getAttribute('data-language-ready') === 'true';
@@ -45,16 +52,46 @@ export default function ComparisonChart({
   // Keep a reference to translation state
   const translationsRef = useRef<Record<string, string>>({});
   
+  // Helper function to get time range label for translations
+  const getTimeRangeLabel = useCallback((timeRange: TimeRangeOption): string => {
+    switch (timeRange) {
+      case '3months':
+        return t('text-last-3-months') || 'Last 3 months';
+      case '6months':
+        return t('text-last-6-months') || 'Last 6 months';
+      case '1year':
+        return t('text-last-year') || 'Last year';
+      case 'all':
+        return t('text-all-time') || 'All time';
+      default:
+        return t('text-all-time') || 'All time';
+    }
+  }, [t]);
+
   // Pre-load critical translations to avoid flicker
   useEffect(() => {
     if (contextLang) {
       const averageText = t("text-average-of-all-bmus");
+      const performanceVsMsy = t("text-performance-vs-msy");
+      const ciaMsyExplanation = t("text-cia-msy-comparison-explanation");
+      const performanceVsMinWage = t("text-performance-vs-minimum-wage");
+      const ciaMinWageExplanation = t("text-cia-minimum-wage-comparison-explanation");
+      const timeRangeLabel = getTimeRangeLabel(selectedTimeRange);
+      const performanceVsSelected = t("text-performance-vs-selected-average", { timeRange: timeRangeLabel });
+      const ciaSelectedExplanation = t("text-cia-selected-time-comparison-explanation", { timeRange: timeRangeLabel });
+      
       translationsRef.current = {
         ...translationsRef.current,
         "text-average-of-all-bmus": averageText,
+        "text-performance-vs-msy": performanceVsMsy,
+        "text-cia-msy-comparison-explanation": ciaMsyExplanation,
+        "text-performance-vs-minimum-wage": performanceVsMinWage,
+        "text-cia-minimum-wage-comparison-explanation": ciaMinWageExplanation,
+        "text-performance-vs-selected-average": performanceVsSelected,
+        "text-cia-selected-time-comparison-explanation": ciaSelectedExplanation,
       };
     }
-  }, [contextLang, t]);
+  }, [contextLang, t, selectedTimeRange, getTimeRangeLabel]);
   
   // Sync with the parent language if needed
   useEffect(() => {
@@ -75,84 +112,23 @@ export default function ComparisonChart({
   };
 
   // Custom tooltip component
-  const CustomTooltip = ({ active, payload, selectedMetricOption }: any) => {
-    if (active && payload && payload.length && payload[0].payload) {
+  const CustomTooltip = ({ active, payload, selectedMetricOption, selectedMetric }: any) => {
+    if (active && payload && payload.length) {
       const data = payload[0].payload;
-      const date = new Date(data.date);
-      const formattedDate = new Intl.DateTimeFormat("en-US", {
-        year: "numeric",
-        month: "short",
-      }).format(date);
-
-      // For CIA historical mode with difference value
-      if (isCiaHistoricalMode) {
-        const difference = data.difference;
-        const historicalAvg = data.historical_average;
-        const actualValue = data.actualValue;
-        
-        return (
-          <div className="bg-white p-4 border border-gray-200 rounded-lg shadow-lg">
-            <p className="text-sm font-medium text-gray-600 mb-2">{formattedDate}</p>
-            <div className="space-y-1.5">
-              {difference !== undefined && (
-                <div className="flex items-center gap-2">
-                  <div
-                    className="w-3 h-3 rounded-full"
-                    style={{ backgroundColor: difference > 0 ? '#16a34a' : '#ef4444' }}
-                  />
-                  <p className="text-sm">
-                    <span className="font-medium">
-                      {difference > 0 ? t('text-above-average') : t('text-below-average')}:
-                    </span>{" "}
-                    <span className="font-semibold">
-                      {Math.abs(difference).toFixed(1)}
-                    </span>
-                  </p>
-                </div>
-              )}
-              
-              {/* Show 6-month average */}
-              {historicalAvg !== undefined && (
-                <div className="flex items-center gap-2">
-                  <div
-                    className="w-3 h-3 rounded-full"
-                    style={{ backgroundColor: '#94a3b8' }}
-                  />
-                  <p className="text-sm">
-                    <span className="font-medium">{t('text-6-month-average') || '6-Month Average'}:</span>{" "}
-                    <span className="font-semibold">
-                      {historicalAvg.toFixed(1)}
-                    </span>
-                  </p>
-                </div>
-              )}
-              
-              {/* Show actual value */}
-              {actualValue !== undefined && (
-                <div className="flex items-center gap-2">
-                  <div
-                    className="w-3 h-3 rounded-full"
-                    style={{ backgroundColor: '#3b82f6' }}
-                  />
-                  <p className="text-sm">
-                    <span className="font-medium">{t('text-actual-value') || 'Actual Value'}:</span>{" "}
-                    <span className="font-semibold">
-                      {actualValue.toFixed(1)}
-                    </span>
-                  </p>
-                </div>
-              )}
-            </div>
-          </div>
-        );
-      }
+      const formattedDate = formatDate(data.date);
       
-      // Regular tooltip for non-CIA mode
+      // Sort payload by value in descending order
+      const sortedPayload = [...payload].sort((a, b) => {
+        const valueA = a.value ?? -Infinity;
+        const valueB = b.value ?? -Infinity;
+        return valueB - valueA;
+      });
+      
       return (
         <div className="bg-white p-4 border border-gray-200 rounded-lg shadow-lg">
           <p className="text-sm font-medium text-gray-600 mb-2">{formattedDate}</p>
           <div className="space-y-1.5">
-            {payload.map((entry: any) => (
+            {sortedPayload.map((entry: any) => (
               <div key={entry.dataKey} className="flex items-center gap-2">
                 <div
                   className="w-3 h-3 rounded-full"
@@ -161,7 +137,7 @@ export default function ComparisonChart({
                 <p className="text-sm">
                   <span className="font-medium">{entry.name}:</span>{" "}
                   <span className="font-semibold">
-                    {entry.value ? entry.value.toFixed(1) : "N/A"}
+                    {entry.value !== undefined ? entry.value.toFixed(1) : "N/A"}
                   </span>
                 </p>
               </div>
@@ -181,7 +157,32 @@ export default function ComparisonChart({
     
     if (sites.length === 0) return null;
     
-    return sites.flatMap((site) => [
+    return sites.flatMap((site) => {
+      // Check if we're in baseline comparison mode for WBCIA users
+      const isBaselineComparison = isCiaHistoricalMode && (selectedMetric === 'mean_cpua' || selectedMetric === 'mean_rpue');
+      
+      if (isBaselineComparison) {
+        // For baseline comparisons, use regular BMU colors
+        // The position above/below zero line indicates positive/negative performance
+        return (
+          <Bar
+            key={`${site}Bar`}
+            dataKey={site}
+            name={site}
+            fill={siteColors[site]}
+            stroke={siteColors[site]}
+            strokeWidth={1}
+            maxBarSize={40}
+            radius={[2, 2, 0, 0]}
+            hide={false}
+            fillOpacity={visibilityState[site]?.opacity}
+            isAnimationActive={false}
+          />
+        );
+      }
+      
+      // Regular bars for non-baseline comparison
+      return (
       <Bar
         key={`${site}Bar`}
         dataKey={site}
@@ -196,7 +197,8 @@ export default function ComparisonChart({
         fillOpacity={visibilityState[site]?.opacity}
         isAnimationActive={false}
       />
-    ]);
+      );
+    });
   };
 
   // Custom Legend for difference data
@@ -205,23 +207,41 @@ export default function ComparisonChart({
     
     // For CIA historical mode with difference data, we need to customize the legend
     if (isCiaHistoricalMode) {
+      // For single BMU comparison (CIA users with 'difference' data)
+      if (hasNewDataFormat) {
+        // Determine legend labels based on metric
+        let aboveLabel = t('text-above-average') || 'Above Average';
+        let belowLabel = t('text-below-average') || 'Below Average';
+        
+        if (selectedMetric === 'mean_cpua') {
+          aboveLabel = t('text-above-msy') || 'Above MSY';
+          belowLabel = t('text-below-msy') || 'Below MSY';
+        } else if (selectedMetric === 'mean_rpue') {
+          aboveLabel = t('text-above-minimum-wage') || 'Above Minimum Wage';
+          belowLabel = t('text-below-minimum-wage') || 'Below Minimum Wage';
+        }
+        
       // Override the payload to show both positive and negative values
       const customPayload = [
         {
-          value: t('text-above-average') || 'Above Average',
+            value: aboveLabel,
           type: 'rect',
           color: '#16a34a',
-          id: 'above-average'
+            id: 'above-baseline'
         },
         {
-          value: t('text-below-average') || 'Below Average',
+            value: belowLabel,
           type: 'rect',
           color: '#ef4444',
-          id: 'below-average'
+            id: 'below-baseline'
         }
       ];
       
       return <CustomLegend {...props} payload={customPayload} />;
+      }
+      
+      // For WBCIA/admin users with multiple BMUs, use default legend to show BMU names
+      return <CustomLegend {...props} />;
     }
     
     // Use default legend for other cases
@@ -236,6 +256,15 @@ export default function ComparisonChart({
   // Validate if we have any CIA data to display
   const hasValidCiaData = () => {
     if (!isCiaHistoricalMode) return true;
+    
+    // For WBCIA users with baseline comparisons
+    if (selectedMetric === 'mean_cpua' || selectedMetric === 'mean_rpue') {
+      // Check if we have any BMU data (excluding date)
+      return chartData.some(point => {
+        const keys = Object.keys(point).filter(k => k !== 'date');
+        return keys.length > 0 && keys.some(k => point[k] !== undefined);
+      });
+    }
     
     if (hasNewDataFormat) {
       return chartData.some(point => point.difference !== undefined);
@@ -336,15 +365,26 @@ export default function ComparisonChart({
           <YAxis
             tickFormatter={(value) => value.toFixed(1)}
             axisLine={false}
-            tick={<CustomYAxisTick />}
-            width={40}
+            tick={(props) => <CustomYAxisTick {...props} metric={selectedMetric} />}
+            width={80}
             domain={yDomain}
+            label={{ 
+              value: selectedMetric === "mean_cpue" ? t('text-unit-kg-fisher-day') : 
+                     selectedMetric === "mean_cpua" ? t('text-unit-kg-km2-day') : 
+                     selectedMetric === "mean_rpue" ? t('text-unit-kes-fisher-day') : 
+                     selectedMetric === "mean_rpua" ? t('text-unit-kes-km2-day') : 
+                     selectedMetric === "mean_effort" ? t('text-unit-fishers-km2-day') : "",
+              angle: -90,
+              position: 'insideLeft',
+              style: { textAnchor: 'middle', fontSize: 15, fill: '#666' }
+            }}
           />
           <Tooltip
             content={(props) => (
               <CustomTooltip
                 {...props}
                 selectedMetricOption={selectedMetricOption}
+                selectedMetric={selectedMetric}
               />
             )}
             wrapperStyle={{ outline: "none" }}
@@ -352,6 +392,99 @@ export default function ComparisonChart({
           
           {/* Zero reference line - critical for negative values visualization */}
           <ReferenceLine y={0} stroke="#000" strokeWidth={1} />
+          
+          {/* Add baseline reference lines only when NOT showing baseline comparisons */}
+          {!isCiaHistoricalMode && selectedMetric === "mean_cpua" && (
+            <>
+              <ReferenceLine
+                y={BASELINE_DATA.CPUA.MSY.FRINGING}
+                stroke="#22c55e"
+                strokeDasharray="8 4"
+                strokeWidth={2}
+                label={{ value: "MSY Fringing", position: "left", fill: "#22c55e", fontSize: 11 }}
+              />
+              <ReferenceLine
+                y={BASELINE_DATA.CPUA.MSY.ISLAND}
+                stroke="#16a34a"
+                strokeDasharray="8 4"
+                strokeWidth={2}
+                label={{ value: "MSY Island", position: "left", fill: "#16a34a", fontSize: 11 }}
+              />
+              <ReferenceLine
+                y={BASELINE_DATA.CPUA.CURRENT.FRINGING}
+                stroke="#f59e0b"
+                strokeDasharray="4 4"
+                strokeWidth={1.5}
+                label={{ value: "Current Fringing", position: "left", fill: "#f59e0b", fontSize: 11 }}
+              />
+              <ReferenceLine
+                y={BASELINE_DATA.CPUA.CURRENT.ISLAND}
+                stroke="#ea580c"
+                strokeDasharray="4 4"
+                strokeWidth={1.5}
+                label={{ value: "Current Island", position: "left", fill: "#ea580c", fontSize: 11 }}
+              />
+            </>
+          )}
+          
+          {!isCiaHistoricalMode && selectedMetric === "mean_rpue" && (
+            <>
+              <ReferenceLine
+                y={BASELINE_DATA.INCOME.POVERTY_LINE}
+                stroke="#ef4444"
+                strokeDasharray="3 3"
+                strokeWidth={1.5}
+                label={{ value: "Poverty Line", position: "left", fill: "#ef4444", fontSize: 11 }}
+              />
+              <ReferenceLine
+                y={BASELINE_DATA.INCOME.NATIONAL_MINIMUM_WAGE}
+                stroke="#f59e0b"
+                strokeDasharray="3 3"
+                strokeWidth={1.5}
+                label={{ value: "Minimum Wage", position: "left", fill: "#f59e0b", fontSize: 11 }}
+              />
+              <ReferenceLine
+                y={BASELINE_DATA.INCOME.LIVING_WAGE}
+                stroke="#22c55e"
+                strokeDasharray="3 3"
+                strokeWidth={1.5}
+                label={{ value: "Living Wage", position: "left", fill: "#22c55e", fontSize: 11 }}
+              />
+            </>
+          )}
+          
+          {!isCiaHistoricalMode && selectedMetric === "mean_rpua" && (
+            <>
+              <ReferenceLine
+                y={BASELINE_DATA.REVENUE_PER_AREA.MSY.FRINGING}
+                stroke="#22c55e"
+                strokeDasharray="8 4"
+                strokeWidth={2}
+                label={{ value: "MSY Fringing", position: "left", fill: "#22c55e", fontSize: 11 }}
+              />
+              <ReferenceLine
+                y={BASELINE_DATA.REVENUE_PER_AREA.MSY.ISLAND}
+                stroke="#16a34a"
+                strokeDasharray="8 4"
+                strokeWidth={2}
+                label={{ value: "MSY Island", position: "left", fill: "#16a34a", fontSize: 11 }}
+              />
+              <ReferenceLine
+                y={BASELINE_DATA.REVENUE_PER_AREA.CURRENT.FRINGING}
+                stroke="#f59e0b"
+                strokeDasharray="4 4"
+                strokeWidth={1.5}
+                label={{ value: "Current Fringing", position: "left", fill: "#f59e0b", fontSize: 11 }}
+              />
+              <ReferenceLine
+                y={BASELINE_DATA.REVENUE_PER_AREA.CURRENT.ISLAND}
+                stroke="#ea580c"
+                strokeDasharray="4 4"
+                strokeWidth={1.5}
+                label={{ value: "Current Island", position: "left", fill: "#ea580c", fontSize: 11 }}
+              />
+            </>
+          )}
           
           {/* Month delimiters - ensure all months are shown */}
           {(() => {

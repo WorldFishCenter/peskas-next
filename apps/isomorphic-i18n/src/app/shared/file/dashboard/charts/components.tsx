@@ -1,6 +1,6 @@
 import { TickProps } from "./types";
 
-export function CustomYAxisTick({ x = 0, y = 0, payload = { value: 0 } }: TickProps) {
+export function CustomYAxisTick({ x = 0, y = 0, payload = { value: 0 }, metric }: TickProps & { metric?: string }) {
   // Format large numbers by using toLocaleString
   const formattedValue = Number.isInteger(payload.value) && payload.value > 999
     ? payload.value.toLocaleString()

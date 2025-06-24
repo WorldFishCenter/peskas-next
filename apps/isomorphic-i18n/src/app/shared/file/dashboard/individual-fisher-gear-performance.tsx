@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { useTranslation } from "@/app/i18n/client";
 import { useIndividualData } from "./hooks/useIndividualData";
 import { useUserPermissions } from "./hooks/useUserPermissions";
@@ -18,6 +18,9 @@ import {
 import cn from "@utils/class-names";
 import { api } from "@/trpc/react";
 import { getClientLanguage } from "@/app/i18n/language-link";
+import { useAtom } from 'jotai';
+import { selectedTimeRangeAtom } from "@/app/components/filter-selector";
+import { getTimeRangeStartDate } from "./utils/timeRangeFilter";
 
 const GEAR_COLORS: Record<string, string> = {
   handline: "#3b82f6", // blue
@@ -81,10 +84,16 @@ export default function IndividualFisherGearPerformance({
   }, [i18n]);
   
   const { userFisherId, isIiaUser } = useUserPermissions();
-  const { fisherData, isLoadingFisherData } = useIndividualData({
-    startDate,
-    endDate
-  });
+  const [selectedTimeRange] = useAtom(selectedTimeRangeAtom);
+  
+  // Calculate date range based on selected time range
+  const dateRange = useMemo(() => {
+    const endDate = new Date();
+    const startDate = getTimeRangeStartDate(selectedTimeRange, endDate);
+    return { startDate, endDate };
+  }, [selectedTimeRange]);
+  
+  const { fisherData, isLoadingFisherData } = useIndividualData(dateRange);
   const [selectedMetric, setSelectedMetric] = useState<MetricType>("fisher_cpue");
 
   // Get fisher's BMU

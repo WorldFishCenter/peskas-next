@@ -9,6 +9,7 @@ import { useScrollableSlider } from "@hooks/use-scrollable-slider";
 import { PiCaretLeftBold, PiCaretRightBold } from "react-icons/pi";
 import MetricCard from "@components/cards/metric-card";
 import { useTranslation } from "@/app/i18n/client";
+import { getClientLanguage } from "@/app/i18n/language-link";
 import { api } from "@/trpc/react";
 import useUserPermissions from "./hooks/useUserPermissions";
 import { bmusAtom } from "@/app/components/filter-selector";
@@ -31,6 +32,7 @@ interface StatData {
   unit: string;
   chart: ChartPoint[];
   userBMUValue?: number | null;
+  monthName?: string;
 }
 
 const LoadingState = () => {
@@ -54,12 +56,35 @@ const LoadingState = () => {
 };
 
 export function FileStatWBCIAGrid({ className, lang }: { className?: string; lang?: string }) {
-  const { t } = useTranslation(lang!, "common");
+  // Use client language instead of lang prop
+  const clientLang = getClientLanguage();
+  const { t, i18n } = useTranslation(clientLang, "common");
+  
+  // Track current language with state
+  const [currentLang, setCurrentLang] = useState(clientLang);
+  
   const [statsData, setStatsData] = useState<StatData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [hoveredBMU, setHoveredBMU] = useState<{[key: string]: { bmu: string; value: number | null }}>({});
   const [bmus] = useAtom(bmusAtom);
+  
+  // Listen for language changes
+  useEffect(() => {
+    const handleLanguageChange = (event: CustomEvent) => {
+      setCurrentLang(event.detail.language);
+      
+      // Make sure i18n instance is updated
+      if (i18n.language !== event.detail.language) {
+        i18n.changeLanguage(event.detail.language);
+      }
+    };
+    
+    window.addEventListener('i18n-language-changed', handleLanguageChange as EventListener);
+    return () => {
+      window.removeEventListener('i18n-language-changed', handleLanguageChange as EventListener);
+    };
+  }, [i18n]);
   
   // Get user permissions
   const { userBMU } = useUserPermissions();
@@ -87,27 +112,61 @@ export function FileStatWBCIAGrid({ className, lang }: { className?: string; lan
     { id: 'area-revenue', field: 'mean_rpua', title: t('text-metrics-area-revenue'), unit: t('text-unit-kes-km2-day') }
   ] as const, [t]);
 
-  // Process data - use latest month data per BMU
+  // Process data - use previous month data per BMU
   const processedData = useMemo(() => {
     if (!monthlyData || safeBmus.length === 0) return null;
     
     try {
-      // Group by BMU and find the latest record for each
-      const latestByBMU: { [key: string]: any } = {};
+      // Get current date and calculate previous month
+      const now = new Date();
+      const currentYear = now.getFullYear();
+      const currentMonth = now.getMonth(); // 0-indexed
+      
+      // Calculate previous month date
+      const previousMonth = currentMonth === 0 ? 11 : currentMonth - 1;
+      const previousYear = currentMonth === 0 ? currentYear - 1 : currentYear;
+      
+      // Group by BMU and find records from previous month
+      const previousMonthByBMU: { [key: string]: any } = {};
       
       monthlyData.forEach(record => {
-        const bmu = record.landing_site;
-        if (!latestByBMU[bmu] || new Date(record.date) > new Date(latestByBMU[bmu].date)) {
-          latestByBMU[bmu] = record;
+        const recordDate = new Date(record.date);
+        const recordYear = recordDate.getFullYear();
+        const recordMonth = recordDate.getMonth();
+        
+        // Check if this record is from the previous month
+        if (recordYear === previousYear && recordMonth === previousMonth) {
+          const bmu = record.landing_site;
+          previousMonthByBMU[bmu] = record;
         }
       });
       
+      // If no data from previous month, fall back to latest available
+      const dataByBMU = Object.keys(previousMonthByBMU).length > 0 
+        ? previousMonthByBMU 
+        : (() => {
+            const latestByBMU: { [key: string]: any } = {};
+            monthlyData.forEach(record => {
+              const bmu = record.landing_site;
+              if (!latestByBMU[bmu] || new Date(record.date) > new Date(latestByBMU[bmu].date)) {
+                latestByBMU[bmu] = record;
+              }
+            });
+            return latestByBMU;
+          })();
+      
+      // Get month name for display
+      const latestDate = Object.values(dataByBMU)[0]?.date;
+      const monthName = latestDate 
+        ? new Date(latestDate).toLocaleString('default', { month: 'long' })
+        : '';
+      
       return metrics.map(metric => {
-        // Collect values for this metric from latest month per BMU
+        // Collect values for this metric from data per BMU
         const bmuValues: ChartPoint[] = [];
         
-        Object.entries(latestByBMU).forEach(([bmu, record], index) => {
-          const value = record[metric.field];
+        Object.entries(dataByBMU).forEach(([bmu, record], index) => {
+          const value = (record as any)[metric.field];
           if (value !== null && value !== undefined) {
             bmuValues.push({
               bmu: bmu,
@@ -137,7 +196,8 @@ export function FileStatWBCIAGrid({ className, lang }: { className?: string; lan
           metric: Math.round(avgValue).toLocaleString(),
           unit: metric.unit,
           chart: sortedValues,
-          userBMUValue: userBMUData?.value
+          userBMUValue: userBMUData?.value,
+          monthName: monthName
         };
       });
     } catch (error) {
@@ -204,13 +264,39 @@ export function FileStatWBCIAGrid({ className, lang }: { className?: string; lan
 
   // Custom bar shape that filters out non-DOM props
   const CustomBar = (props: any) => {
-    // Extract non-DOM props that Recharts might pass
-    const { tooltipPayload, ...domProps } = props;
+    // Extract only the DOM-safe props that rect elements can accept
+    const {
+      x,
+      y,
+      width,
+      height,
+      payload,
+      // Remove all non-DOM props that Recharts might pass
+      dataKey,
+      index,
+      value,
+      tooltipPayload,
+      onClick,
+      onMouseEnter,
+      onMouseLeave,
+      ...otherProps // This should now be safe for DOM
+    } = props;
     
     // Determine fill color based on BMU
-    const fill = props.payload?.bmu === userBMU ? "#fc3468" : "rgba(178, 216, 216, 0.75)";
+    const fill = payload?.bmu === userBMU ? "#fc3468" : "rgba(178, 216, 216, 0.75)";
     
-    return <rect {...domProps} fill={fill} />;
+    return (
+      <rect 
+        x={x}
+        y={y}
+        width={width}
+        height={height}
+        fill={fill}
+        onClick={onClick}
+        onMouseEnter={onMouseEnter}
+        onMouseLeave={onMouseLeave}
+      />
+    );
   };
 
   if (loading) return <LoadingState />;
@@ -233,31 +319,33 @@ export function FileStatWBCIAGrid({ className, lang }: { className?: string; lan
         >
           <div className="p-4 pb-2">
             <div className="flex flex-col gap-1">
-              <div className="flex items-baseline gap-2">
+              <div className="flex items-baseline gap-1">
                 <Text className="text-m font-medium text-gray-700">{stat.title}</Text>
                 <Text className="text-xs text-gray-400">({stat.unit})</Text>
               </div>
-              <Text className="text-xs text-gray-500">Current month comparison across BMUs</Text>
+              <Text className="text-xs text-gray-500">
+                Latest month {stat.monthName ? `(${stat.monthName})` : ''} comparison across BMUs
+              </Text>
             </div>
             
             <div className="flex items-baseline justify-between mt-2">
               <div className="flex items-baseline gap-2">
-                <Text className="text-xl font-bold text-gray-900">
+                <Text className="text-l font-bold text-gray-900">
                   {hoveredBMU[stat.id] 
                     ? (hoveredBMU[stat.id].value === null ? "N/A" : Math.round(hoveredBMU[stat.id].value!).toLocaleString())
                     : stat.metric}
                 </Text>
-                <span className="text-xs text-gray-500">
-                  {hoveredBMU[stat.id] ? hoveredBMU[stat.id].bmu : "Average"}
-                </span>
+                                <span className="text-xs font-bold text-gray-500">
+                {hoveredBMU[stat.id] ? hoveredBMU[stat.id].bmu : "Average among all BMUs"}
+              </span>
               </div>
               
-              {userBMU && stat.userBMUValue !== null && stat.userBMUValue !== undefined && (
+              {/* {userBMU && stat.userBMUValue !== null && stat.userBMUValue !== undefined && (
                 <div className="flex items-center gap-1 text-2xs">
                   <div className="w-2 h-2 rounded-full bg-[#fc3468]" />
                   <span className="text-gray-600">{userBMU}: {Math.round(stat.userBMUValue).toLocaleString()}</span>
                 </div>
-              )}
+              )} */}
             </div>
           </div>
           
@@ -268,7 +356,7 @@ export function FileStatWBCIAGrid({ className, lang }: { className?: string; lan
             <ResponsiveContainer width="100%" height="100%">
               <BarChart 
                 data={stat.chart}
-                margin={{ top: 15, right: 8, bottom: 25, left: 8 }}
+                margin={{ top: 15, right: 8, bottom: 25, left: 30 }}
                 barGap={2}
                 onMouseMove={(state) => handleMouseMove(state, stat.id)}
                 onClick={(data) => handleBarClick(data, stat.id)}
@@ -284,8 +372,19 @@ export function FileStatWBCIAGrid({ className, lang }: { className?: string; lan
                   interval={0}
                 />
                 <YAxis 
-                  hide={true} 
-                  domain={[0, (dataMax: number) => dataMax * 1.1]} 
+                  hide={false}
+                  domain={[0, (dataMax: number) => dataMax * 1.1]}
+                  tick={{ fontSize: 9, fill: '#9ca3af' }}
+                  tickLine={false}
+                  axisLine={false}
+                  width={25}
+                  tickCount={3}
+                  tickFormatter={(value) => {
+                    if (value >= 1000) {
+                      return `${(value / 1000).toFixed(0)}k`;
+                    }
+                    return value.toFixed(0);
+                  }}
                 />
                 <Tooltip 
                   content={<></>}

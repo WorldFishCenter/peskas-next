@@ -1,15 +1,17 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useAtom } from "jotai";
 import { BarChart, Bar, ResponsiveContainer, XAxis, YAxis, CartesianGrid, Tooltip } from "recharts";
 import WidgetCard from "@components/cards/widget-card";
 import { api } from "@/trpc/react";
-import { bmusAtom } from "@/app/components/filter-selector";
+import { bmusAtom, selectedTimeRangeAtom } from "@/app/components/filter-selector";
 import { useTranslation } from "@/app/i18n/client";
+import { getClientLanguage } from "@/app/i18n/language-link";
 import SimpleBar from "@ui/simplebar";
 import useUserPermissions, { adminReferenceBmuAtom } from "./hooks/useUserPermissions";
 import { generateFishCategoryColor, updateBmuColorRegistry } from "./charts/utils";
+import { filterDataByTimeRange } from "./utils/timeRangeFilter";
 import cn from "@utils/class-names";
 
 
@@ -52,13 +54,23 @@ export default function FishCompositionComparison({
   lang, 
   bmu
 }: FishCompositionComparisonProps) {
-  const { t } = useTranslation(lang!, "common");
+  // Use client language instead of lang prop
+  const clientLang = getClientLanguage();
+  const { t, i18n } = useTranslation(clientLang, "common");
+  
+  // Track current language with state
+  const [currentLang, setCurrentLang] = useState(clientLang);
+  
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [chartData, setChartData] = useState<any[]>([]);
   const [categoryDisplays, setCategoryDisplays] = useState<CategoryDisplay[]>([]);
   const [visibilityState, setVisibilityState] = useState<VisibilityState>({});
   const [bmus] = useAtom(bmusAtom);
+  const [selectedTimeRange] = useAtom(selectedTimeRangeAtom);
+  
+  // Track time range changes for refetching
+  const previousTimeRangeRef = useRef<string>('all');
   
   // Get BMUs based on permissions
   const { userBMU, isAdmin, hasRestrictedAccess, referenceBMU, getLimitedBMUs } = useUserPermissions();
@@ -94,6 +106,36 @@ export default function FishCompositionComparison({
   const fishDistributionData = fishDistributionQuery.data;
   const isLoadingData = fishDistributionQuery.isLoading;
   const apiError = fishDistributionQuery.error;
+
+  // Track selectedTimeRange changes and force data reprocessing
+  useEffect(() => {
+    if (previousTimeRangeRef.current !== selectedTimeRange) {
+      console.log('Fish composition comparison: Time range changed from', previousTimeRangeRef.current, 'to', selectedTimeRange);
+      previousTimeRangeRef.current = selectedTimeRange;
+      setChartData([]);
+      setCategoryDisplays([]);
+      setLoading(true);
+      // Force refetch when time range changes
+      fishDistributionQuery.refetch();
+    }
+  }, [selectedTimeRange, fishDistributionQuery]);
+
+  // Listen for language changes
+  useEffect(() => {
+    const handleLanguageChange = (event: CustomEvent) => {
+      setCurrentLang(event.detail.language);
+      
+      // Make sure i18n instance is updated
+      if (i18n.language !== event.detail.language) {
+        i18n.changeLanguage(event.detail.language);
+      }
+    };
+    
+    window.addEventListener('i18n-language-changed', handleLanguageChange as EventListener);
+    return () => {
+      window.removeEventListener('i18n-language-changed', handleLanguageChange as EventListener);
+    };
+  }, [i18n]);
 
   // Handle legend item click
   const handleLegendClick = (categoryId: string) => {
@@ -149,6 +191,9 @@ export default function FishCompositionComparison({
       // Update the global BMU color registry to ensure unique colors across all dashboard components
       updateBmuColorRegistry(queryBmus);
       
+      // Apply time range filter to the data
+      const filteredFishDistributionData = filterDataByTimeRange(fishDistributionData, selectedTimeRange);
+      
       // Process the fish category data
       const totals: Record<string, Record<string, number>> = {};
       const categories: Set<string> = new Set();
@@ -158,8 +203,8 @@ export default function FishCompositionComparison({
         totals[bmu] = {};
       });
       
-      // Process the monthly data
-      fishDistributionData.forEach(monthData => {
+      // Process the filtered monthly data
+      filteredFishDistributionData.forEach(monthData => {
         const bmuName = monthData.landing_site;
         
         // Skip if this BMU isn't in our query list
@@ -265,7 +310,7 @@ export default function FishCompositionComparison({
       setError("Error processing data");
       setLoading(false);
     }
-  }, [fishDistributionData, isLoadingData, apiError, queryBmus.join(',')]);
+  }, [fishDistributionData, isLoadingData, apiError, queryBmus.join(','), selectedTimeRange]);
   
   // Custom tooltip for the chart
   const CustomTooltip = ({ active, payload, label }: any) => {

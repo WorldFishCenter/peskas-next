@@ -9,6 +9,7 @@ export type TGearSummary = {
   mean_cpua: number;
   mean_rpue: number;
   mean_rpua: number;
+  date: Date;
 };
 
 /**
@@ -23,6 +24,7 @@ const gearSummarySchema = new Schema<TGearSummary>(
     mean_cpua: Number,
     mean_rpue: Number,
     mean_rpua: Number,
+    date: Date,
   },
   {
     collection: "gear_summaries",

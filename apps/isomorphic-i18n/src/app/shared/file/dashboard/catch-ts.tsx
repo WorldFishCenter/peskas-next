@@ -17,7 +17,7 @@ import {
   ComposedChart,
 } from "recharts";
 
-import { bmusAtom } from "@/app/components/filter-selector";
+import { bmusAtom, selectedTimeRangeAtom } from "@/app/components/filter-selector";
 import { useTranslation } from "@/app/i18n/client";
 import { api } from "@/trpc/react";
 import { useMedia } from "@hooks/use-media";
@@ -26,6 +26,10 @@ import cn from "@utils/class-names";
 import { ActionIcon, Popover } from "rizzui";
 import { useSession } from "next-auth/react";
 import { generateColor, updateBmuColorRegistry } from "./charts/utils";
+import { MetricKey, METRIC_OPTIONS } from "./charts/types";
+import useUserPermissions from "./hooks/useUserPermissions";
+import { getClientLanguage } from "@/app/i18n/language-link";
+import { filterDataByTimeRange } from "./utils/timeRangeFilter";
 
 // Add local formatNumber function to replace the import
 const formatNumber = (num: number, precision = 0): string => {
@@ -35,8 +39,6 @@ const formatNumber = (num: number, precision = 0): string => {
     maximumFractionDigits: precision
   });
 };
-
-type MetricKey = "mean_effort" | "mean_cpue" | "mean_cpua" | "mean_rpue" | "mean_rpua";
 
 interface ChartDataPoint {
   date: number;
@@ -103,39 +105,6 @@ type TickProps = {
     value: number;
   };
 };
-
-const METRIC_OPTIONS: MetricOption[] = [
-  {
-    value: "mean_effort",
-    label: "Effort",
-    unit: "fishers/km²/day",
-    category: "catch",
-  },
-  {
-    value: "mean_cpue",
-    label: "Catch Rate",
-    unit: "kg/fisher/day",
-    category: "catch",
-  },
-  {
-    value: "mean_cpua",
-    label: "Catch Density",
-    unit: "kg/km²/day",
-    category: "catch",
-  },
-  {
-    value: "mean_rpue",
-    label: "Fisher Revenue",
-    unit: "KES/fisher/day",
-    category: "revenue",
-  },
-  {
-    value: "mean_rpua",
-    label: "Area Revenue",
-    unit: "KES/km²/day",
-    category: "revenue",
-  },
-];
 
 // Get positive and negative colors for each site
 const getBarColor = (baseColor: string, isPositive: boolean): string => {
@@ -368,6 +337,7 @@ export default function CatchMetricsChart({
   const isTablet = useMedia("(max-width: 800px)", false);
   const { t } = useTranslation("common");
   const [bmus] = useAtom(bmusAtom);
+  const [selectedTimeRange] = useAtom(selectedTimeRangeAtom);
   const { data: session } = useSession();
 
   // Determine if the user is part of the CIA group
@@ -479,11 +449,8 @@ export default function CatchMetricsChart({
       
       setVisibilityState(initialVisibility);
 
-      // Filter data from 2023 onwards
-      const filteredData = monthlyData.filter((item: ApiDataPoint) => {
-        const year = new Date(item.date).getFullYear();
-        return year >= 2023;
-      });
+      // Apply time range filter
+      const filteredData = filterDataByTimeRange(monthlyData as ApiDataPoint[], selectedTimeRange);
 
       // Group data by date
       const groupedData = filteredData.reduce<Record<string, ChartDataPoint>>(
@@ -498,7 +465,7 @@ export default function CatchMetricsChart({
               ),
             };
           }
-          acc[date][item.landing_site] = item[selectedMetric];
+          acc[date][item.landing_site] = item[selectedMetric as keyof ApiDataPoint] as number;
           return acc;
         },
         {}
@@ -545,7 +512,7 @@ export default function CatchMetricsChart({
     } finally {
       setLoading(false);
     }
-  }, [monthlyData, selectedMetric, bmu]);
+  }, [monthlyData, selectedMetric, bmu, selectedTimeRange]);
 
   const CustomLegend = ({ payload }: any) => {
     // Filter out the auto-generated average entry from the payload
@@ -627,12 +594,12 @@ export default function CatchMetricsChart({
     };
   });
 
-  // Get last 6 months of data with comparison to average
+  // Get last 24 months of data with comparison to average
   const getRecentData = () => {
     if (!chartData.length) return [];
     
     const sortedData = [...chartData].sort((a, b) => b.date - a.date);
-    const lastSixMonths = sortedData.slice(0, 6).reverse();
+    const lastSixMonths = sortedData.slice(0, 24).reverse();
     
     // For CIA users who don't have access to average, just return the data as is
     if (isCiaUser) return lastSixMonths;

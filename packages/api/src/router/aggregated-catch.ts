@@ -190,17 +190,33 @@ export const aggregatedCatchRouter = createTRPCRouter({
       z.object({
         bmus: z.string().array(),
         metric: metricSchema.default("mean_effort"),
+        startDate: z.string().optional(),
+        endDate: z.string().optional(),
       })
     )
     .query(async ({ input }) => {
       try {
         await getDb(); // Ensure DB connection is established
+        
+        // Prepare match stage with optional date filtering
+        const matchStage: any = {
+          BMU: { $in: input.bmus },
+          [input.metric]: { $ne: null },
+        };
+        
+        if (input.startDate || input.endDate) {
+          matchStage.date = {};
+          if (input.startDate) {
+            matchStage.date.$gte = new Date(input.startDate);
+          }
+          if (input.endDate) {
+            matchStage.date.$lte = new Date(input.endDate);
+          }
+        }
+        
         return await CatchMonthlyModel.aggregate([
           {
-            $match: {
-              BMU: { $in: input.bmus },
-              [input.metric]: { $ne: null },
-            },
+            $match: matchStage,
           },
           {
             $addFields: {

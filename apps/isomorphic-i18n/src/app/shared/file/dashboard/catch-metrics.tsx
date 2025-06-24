@@ -4,14 +4,11 @@ import WidgetCard from "@components/cards/widget-card";
 import { useAtom } from "jotai";
 import { useEffect, useState, useCallback, useRef, useMemo, createContext, useContext } from "react";
 
-import { bmusAtom } from "@/app/components/filter-selector";
+import { bmusAtom, selectedTimeRangeAtom } from "@/app/components/filter-selector";
 import { useTranslation } from "@/app/i18n/client";
 import { api } from "@/trpc/react";
 import { useMedia } from "@hooks/use-media";
 import SimpleBar from "@ui/simplebar";
-import { useSession } from "next-auth/react";
-import { useTheme } from "next-themes";
-import cn from "@utils/class-names";
 
 import { 
   MetricKey, 
@@ -31,6 +28,7 @@ import { getClientLanguage } from "@/app/i18n/language-link";
 // Import shared permissions hook
 import useUserPermissions from "./hooks/useUserPermissions";
 import { CustomYAxisTick } from "./charts/components";
+import { filterDataByTimeRange } from "./utils/timeRangeFilter";
 
 // Create a more robust language context that includes both the language code and translations
 const LanguageContext = createContext<{
@@ -83,32 +81,51 @@ const LoadingState = () => {
 };
 
 // Custom function to prepare data for CIA users' comparison view
-const prepareDataForCiaComparison = (chartData: ChartDataPoint[], bmuName: string) => {
+const prepareDataForCiaComparison = (chartData: ChartDataPoint[], bmuName: string, selectedMetric?: string) => {
   if (!chartData.length) return [];
   
-  // Need at least 6 data points to calculate 6-month average
-  if (chartData.length < 6) return chartData;
+  // Import baseline data and helper function
+  const { BASELINE_DATA, isIslandSite } = require('./charts/siteConfig');
   
-  // Calculate a single historical average using the most recent 6 months of data
-  // Sort the data by date (descending) to get most recent data first
+  // First, filter to only the most recent 24 months
   const sortedData = [...chartData].sort((a, b) => b.date - a.date);
-  const recentSixMonths = sortedData.slice(0, 6);
+  const recentData = sortedData.slice(0, 24).reverse();
   
-  // Calculate the average from these 6 months
-  let sum = 0;
-  let count = 0;
+  // Determine the baseline to use based on the metric
+  let baseline: number;
+  let baselineLabel: string;
   
-  for (let i = 0; i < recentSixMonths.length; i++) {
-    const value = recentSixMonths[i][bmuName];
-    if (value !== undefined && !isNaN(Number(value))) {
-      sum += Number(value);
-      count++;
+  if (selectedMetric === 'mean_cpua') {
+    // For catch density, use MSY baseline (island or fringing)
+    const isIsland = isIslandSite(bmuName);
+    baseline = isIsland ? BASELINE_DATA.CPUA.MSY.ISLAND : BASELINE_DATA.CPUA.MSY.FRINGING;
+    baselineLabel = `MSY baseline (${isIsland ? 'Island' : 'Fringing'})`;
+  } else if (selectedMetric === 'mean_rpue') {
+    // For fisher revenue, use minimum wage
+    baseline = BASELINE_DATA.INCOME.NATIONAL_MINIMUM_WAGE;
+    baselineLabel = 'Minimum wage baseline';
+  } else {
+    // For other metrics, calculate 24-month average
+    // Need at least 6 data points to calculate average
+    if (recentData.length < 6) return recentData;
+    
+    // Calculate the average from the recent 24 months
+    let sum = 0;
+    let count = 0;
+    
+    for (let i = 0; i < recentData.length; i++) {
+      const value = recentData[i][bmuName];
+      if (value !== undefined && !isNaN(Number(value))) {
+        sum += Number(value);
+        count++;
+      }
     }
+    
+    baseline = count > 0 ? sum / count : 0;
+    baselineLabel = '24-month average';
   }
   
-  // Calculate the fixed historical average
-  const historicalAverage = count > 0 ? sum / count : 0;
-  console.log(`Calculated fixed 6-month average: ${historicalAverage.toFixed(2)} from the latest 6 months`);
+  console.log(`Using ${baselineLabel}: ${baseline.toFixed(2)} for metric ${selectedMetric}`);
   
   // For testing purposes, ensure we have some negative values
   const ensureNegativeValues = (data: ChartDataPoint[]): ChartDataPoint[] => {
@@ -144,33 +161,33 @@ const prepareDataForCiaComparison = (chartData: ChartDataPoint[], bmuName: strin
     return modifiedData;
   };
   
-  // Create result array with the fixed historical average
+  // Create result array with the fixed baseline
   let result: ChartDataPoint[] = [];
   
-  // Process each data point with the fixed historical average
-  for (const point of chartData) {
+  // Process each data point with the fixed baseline (only recent 24 months)
+  for (const point of recentData) {
     // Clone the current point
     const currentPoint = { ...point };
     
-    // Set the same historical average for all points
-    currentPoint['historical_average'] = historicalAverage;
+    // Set the same baseline for all points (stored as historical_average for compatibility)
+    currentPoint['historical_average'] = baseline;
     
-    // Calculate the difference from the historical average
+    // Calculate the difference from the baseline
     if (currentPoint[bmuName] !== undefined) {
       const actualValue = Number(currentPoint[bmuName]);
-      const difference = actualValue - historicalAverage;
+      const difference = actualValue - baseline;
       
       // Store the difference directly
       currentPoint['difference'] = difference;
       
-      // Store whether this is above or below average (as a number 1/0)
+      // Store whether this is above or below baseline (as a number 1/0)
       currentPoint['isAboveAverage'] = difference > 0 ? 1 : 0;
       
       // Also store the actual BMU value for reference
       currentPoint['actualValue'] = actualValue;
       
       // Log for debugging
-      console.log(`Date: ${new Date(currentPoint.date).toISOString().split('T')[0]}, Fixed 6-Month Avg: ${historicalAverage.toFixed(2)}, Value: ${actualValue}, Diff: ${difference > 0 ? '+' : ''}${difference.toFixed(2)}`);
+      console.log(`Date: ${new Date(currentPoint.date).toISOString().split('T')[0]}, ${baselineLabel}: ${baseline.toFixed(2)}, Value: ${actualValue}, Diff: ${difference > 0 ? '+' : ''}${difference.toFixed(2)}`);
       
       result.push(currentPoint);
     }
@@ -183,6 +200,49 @@ const prepareDataForCiaComparison = (chartData: ChartDataPoint[], bmuName: strin
   const modifiedResult = ensureNegativeValues(result);
   
   return modifiedResult;
+};
+
+// Function to prepare baseline comparison data for multiple BMUs (WBCIA users)
+const prepareMultiBMUBaselineComparison = (chartData: ChartDataPoint[], selectedMetric: string) => {
+  if (!chartData.length) return [];
+  
+  // Import baseline data and helper function
+  const { BASELINE_DATA, isIslandSite } = require('./charts/siteConfig');
+  
+  // Get the last 24 months of data
+  const sortedData = [...chartData].sort((a, b) => b.date - a.date);
+  const lastSixMonths = sortedData.slice(0, 24).reverse();
+  
+  // Process each data point
+  return lastSixMonths.map(point => {
+    const result: ChartDataPoint = { date: point.date };
+    
+    // Process each BMU
+    Object.entries(point).forEach(([bmuName, value]) => {
+      if (bmuName === 'date' || bmuName === 'average' || value === undefined || value === null) return;
+      
+      // Determine the baseline based on metric and BMU type
+      let baseline: number;
+      
+      if (selectedMetric === 'mean_cpua') {
+        // For catch density, use MSY baseline
+        const isIsland = isIslandSite(bmuName);
+        baseline = isIsland ? BASELINE_DATA.CPUA.MSY.ISLAND : BASELINE_DATA.CPUA.MSY.FRINGING;
+      } else if (selectedMetric === 'mean_rpue') {
+        // For fisher revenue, use minimum wage
+        baseline = BASELINE_DATA.INCOME.NATIONAL_MINIMUM_WAGE;
+      } else {
+        // For other metrics, we shouldn't be here, but default to value itself
+        baseline = value as number;
+      }
+      
+      // Calculate difference from baseline
+      const difference = (value as number) - baseline;
+      result[bmuName] = difference;
+    });
+    
+    return result;
+  });
 };
 
 export default function CatchMetricsChart({
@@ -205,6 +265,7 @@ export default function CatchMetricsChart({
   const prevTabRef = useRef<string | null>(null);
   const previousBmus = useRef<string[]>([]);
   const previousMetricRef = useRef<string>(selectedMetric);
+  const previousTimeRangeRef = useRef<string>('all');
 
   // Map old tab names to new ones for backwards compatibility
   const getNewTabName = useCallback((oldTab: string) => {
@@ -218,6 +279,7 @@ export default function CatchMetricsChart({
   const [annualData, setAnnualData] = useState<ChartDataPoint[]>([]);
   const [recentData, setRecentData] = useState<ChartDataPoint[]>([]);
   const [ciaComparisonData, setCiaComparisonData] = useState<ChartDataPoint[]>([]);
+  const [selectedTimeRange] = useAtom(selectedTimeRangeAtom);
 
   const isTablet = useMedia("(max-width: 800px)", false);
   
@@ -297,6 +359,20 @@ export default function CatchMetricsChart({
     }
   }, [selectedMetric]);
 
+  // Track selectedTimeRange changes and force data reprocessing
+  useEffect(() => {
+    if (previousTimeRangeRef.current !== selectedTimeRange) {
+      console.log('Time range changed from', previousTimeRangeRef.current, 'to', selectedTimeRange);
+      previousTimeRangeRef.current = selectedTimeRange;
+      setChartData([]);
+      setRecentData([]);
+      setAnnualData([]);
+      setCiaComparisonData([]);
+      dataProcessed.current = false;
+      setLoading(true);
+    }
+  }, [selectedTimeRange]);
+
   // Force refetch when bmus changes
   useEffect(() => {
     // Check if bmus array has changed
@@ -317,13 +393,6 @@ export default function CatchMetricsChart({
       prevTabRef.current = newTabName;
     }
   }, [activeTab, getNewTabName, localActiveTab]);
-
-  // Ensure language is maintained during tab changes
-  useEffect(() => {
-    if (lang && i18n.language !== lang) {
-      i18n.changeLanguage(lang);
-    }
-  }, [lang, i18n, chartData.length, loading, visibilityState]);
 
   const handleLegendClick = useCallback((site: string) => {
     // Don't toggle visibility for the average line or special CIA comparison lines
@@ -357,11 +426,7 @@ export default function CatchMetricsChart({
     // Don't process if it's the same tab
     if (prevTabRef.current === tab) return;
     
-    // Get the current language from the i18n instance which should be the most up-to-date
-    const currentActiveLang = i18n.language || currentLang || getClientLanguage();
-    
-    // Log for debugging
-    console.log('Tab change - Current language:', currentActiveLang);
+    // Language is handled through client-side events
     
     // Update tab reference
     prevTabRef.current = tab;
@@ -376,35 +441,7 @@ export default function CatchMetricsChart({
     if (onTabChange) {
       onTabChange(oldTabName);
     }
-    
-    // Force language persistence after React re-render cycle
-    // Use requestAnimationFrame to ensure this runs after all React updates
-    requestAnimationFrame(() => {
-      // Double-check and force language if needed
-      const storedLang = localStorage.getItem('i18nextLng') || 
-                        localStorage.getItem('selectedLanguage') || 
-                        localStorage.getItem('peskas-language');
-      
-      if (storedLang && storedLang !== i18n.language) {
-        console.log('Language mismatch detected, forcing to:', storedLang);
-        i18n.changeLanguage(storedLang);
-        
-        // Also update all storage to ensure consistency
-        localStorage.setItem('i18nextLng', storedLang);
-        localStorage.setItem('selectedLanguage', storedLang);
-        localStorage.setItem('peskas-language', storedLang);
-        
-        // Update document attributes
-        document.documentElement.lang = storedLang;
-        document.documentElement.setAttribute('data-language', storedLang);
-        
-        // Dispatch event to notify all components
-        window.dispatchEvent(new CustomEvent('i18n-language-changed', {
-          detail: { language: storedLang }
-        }));
-      }
-    });
-  }, [i18n, currentLang, onTabChange]);
+  }, [onTabChange]);
 
   // Update visibility state when changing tabs - but only once per tab change
   useEffect(() => {
@@ -451,16 +488,18 @@ export default function CatchMetricsChart({
   useEffect(() => {
     if (!monthlyData || safeBmus.length === 0) return;
     
-    // Reset processing flag if metric changed
-    if (previousMetricRef.current !== selectedMetric) {
+    // Reset processing flag if metric or time range changed
+    if (previousMetricRef.current !== selectedMetric || previousTimeRangeRef.current !== selectedTimeRange) {
       dataProcessed.current = false;
       previousMetricRef.current = selectedMetric;
+      previousTimeRangeRef.current = selectedTimeRange;
     }
     
     // Prevent re-processing data unnecessarily
     if (chartData.length > 0 && !loading && 
         JSON.stringify(previousBmus.current) === JSON.stringify(safeBmus) && 
-        previousMetricRef.current === selectedMetric) return;
+        previousMetricRef.current === selectedMetric &&
+        previousTimeRangeRef.current === selectedTimeRange) return;
 
     try {
       // Get unique sites from the data
@@ -527,11 +566,8 @@ export default function CatchMetricsChart({
       setVisibilityState(initialVisibility);
       }
 
-      // Filter data from 2023 onwards
-      const filteredData = monthlyData.filter((item: ApiDataPoint) => {
-        const year = new Date(item.date).getFullYear();
-        return year >= 2023;
-      });
+      // Apply time range filter instead of hardcoded 2023 filter
+      const filteredData = filterDataByTimeRange(monthlyData as ApiDataPoint[], selectedTimeRange);
 
       // Get all dates in the range
       const dates = filteredData.map((item: ApiDataPoint) => new Date(item.date));
@@ -630,28 +666,34 @@ export default function CatchMetricsChart({
     } finally {
       setLoading(false);
     }
-  }, [monthlyData, selectedMetric, effectiveBMU, hasRestrictedAccess, getAccessibleBMUs, safeBmus, isCiaUser, localActiveTab]);
+  }, [monthlyData, selectedMetric, effectiveBMU, hasRestrictedAccess, getAccessibleBMUs, safeBmus, isCiaUser, localActiveTab, selectedTimeRange]);
 
   // Calculate derived data when chartData changes
   useEffect(() => {
     if (chartData.length === 0) return;
     
-    // Skip if already calculated
-    if (recentData.length > 0 && annualData.length > 0) return;
+    // Skip if already calculated, unless metric changed
+    if (recentData.length > 0 && annualData.length > 0 && ciaComparisonData.length > 0 && previousMetricRef.current === selectedMetric) return;
     
-      // For non-CIA users, use standard comparison
-      if (canCompareWithOthers) {
+      // For WBCIA users viewing catch density or fisher revenue, use baseline comparison
+      if (isWbciaUser && (selectedMetric === 'mean_cpua' || selectedMetric === 'mean_rpue')) {
+        // Prepare comparison data for all BMUs against the baseline
+        const comparisonData = prepareMultiBMUBaselineComparison(chartData, selectedMetric);
+        setRecentData(comparisonData);
+      }
+      // For other non-CIA users, use standard comparison
+      else if (canCompareWithOthers) {
         setRecentData(getRecentData(chartData, false) as ChartDataPoint[]);
       } 
       // For CIA users, create comparison against historical average if they have a BMU
       else if (isCiaUser && effectiveBMU) {
-        setCiaComparisonData(prepareDataForCiaComparison(chartData, effectiveBMU));
+        setCiaComparisonData(prepareDataForCiaComparison(chartData, effectiveBMU, selectedMetric));
       }
       
       // Annual data is the same for all users
       setAnnualData(getAnnualData(chartData, !canCompareWithOthers, siteColors));
     
-  }, [chartData, canCompareWithOthers, isCiaUser, effectiveBMU, siteColors, recentData.length, annualData.length]);
+  }, [chartData, canCompareWithOthers, isCiaUser, isWbciaUser, effectiveBMU, siteColors, recentData.length, annualData.length, selectedMetric]);
 
   // Find the selected metric option
   const selectedMetricOption = METRIC_OPTIONS.find(
@@ -660,15 +702,38 @@ export default function CatchMetricsChart({
 
   // Get appropriate tab title and description based on user role
   const getTabTitle = (tab: string): string => {
-    // Special titles for CIA users
-    if (isCiaUser) {
+    // Special titles for CIA and WBCIA users
+    if (isCiaUser || isWbciaUser) {
       switch(tab) {
         case 'trends':
         case 'standard':
           return t("text-monthly-trends-over-time");
         case 'comparison':
         case 'recent':
-          return t("text-performance-vs-6-month-average") || "Performance vs 6-Month Average";
+          // Title varies by metric for both CIA and WBCIA users
+          if (selectedMetric === 'mean_cpua') {
+            return t("text-performance-vs-msy") || "Performance vs MSY";
+          } else if (selectedMetric === 'mean_rpue') {
+            return t("text-performance-vs-minimum-wage") || "Performance vs Minimum Wage";
+          } else {
+            // Get time range label for dynamic baseline description
+            const getTimeRangeLabel = (timeRange: string): string => {
+              switch (timeRange) {
+                case '3months':
+                  return t('text-last-3-months') || 'Last 3 months';
+                case '6months':
+                  return t('text-last-6-months') || 'Last 6 months';
+                case '1year':
+                  return t('text-last-year') || 'Last year';
+                case 'all':
+                  return t('text-all-time') || 'All time';
+                default:
+                  return t('text-all-time') || 'All time';
+              }
+            };
+            const timeRangeLabel = getTimeRangeLabel(selectedTimeRange);
+            return t("text-performance-vs-selected-average", { timeRange: timeRangeLabel }) || `Performance vs ${timeRangeLabel} Average`;
+          }
         case 'annual':
           return t("text-yearly-summary");
         default:
@@ -692,15 +757,38 @@ export default function CatchMetricsChart({
   };
   
   const getTabDescription = (tab: string): string => {
-    // Special descriptions for CIA users
-    if (isCiaUser) {
+    // Special descriptions for CIA and WBCIA users
+    if (isCiaUser || isWbciaUser) {
       switch(tab) {
         case 'trends':
         case 'standard':
           return t("text-trends-explanation");
         case 'comparison':
         case 'recent':
-          return t("text-cia-comparison-explanation") || "Shows values compared to your 6-month average";
+          // Description varies by metric for both CIA and WBCIA users
+          if (selectedMetric === 'mean_cpua') {
+            return t("text-cia-msy-comparison-explanation") || "Shows values compared to the Maximum Sustainable Yield baseline";
+          } else if (selectedMetric === 'mean_rpue') {
+            return t("text-cia-minimum-wage-comparison-explanation") || "Shows values compared to the national minimum wage";
+          } else {
+            // Get time range label for dynamic baseline description
+            const getTimeRangeLabel = (timeRange: string): string => {
+              switch (timeRange) {
+                case '3months':
+                  return t('text-last-3-months') || 'Last 3 months';
+                case '6months':
+                  return t('text-last-6-months') || 'Last 6 months';
+                case '1year':
+                  return t('text-last-year') || 'Last year';
+                case 'all':
+                  return t('text-all-time') || 'All time';
+                default:
+                  return t('text-all-time') || 'All time';
+              }
+            };
+            const timeRangeLabel = getTimeRangeLabel(selectedTimeRange);
+            return t("text-cia-selected-time-comparison-explanation", { timeRange: timeRangeLabel }) || `Shows values compared to your ${timeRangeLabel} average`;
+          }
         case 'annual':
           return t("text-yearly-explanation");
         default:
@@ -803,6 +891,7 @@ export default function CatchMetricsChart({
               isCiaUser={!!isCiaUser}
               isTablet={isTablet}
               fiveYearMarks={fiveYearMarks}
+              selectedMetric={selectedMetric}
               CustomLegend={(props) => (
                 <CustomLegend 
                   {...props} 
@@ -837,6 +926,9 @@ export default function CatchMetricsChart({
               )}
               visibilityState={visibilityState}
               isTablet={isTablet}
+              selectedMetric={selectedMetric}
+              selectedTimeRange={selectedTimeRange}
+              isCiaHistoricalMode={isWbciaUser && (selectedMetric === 'mean_cpua' || selectedMetric === 'mean_rpue')}
               CustomLegend={(props) => (
                 <CustomLegend 
                   {...props} 
@@ -858,6 +950,8 @@ export default function CatchMetricsChart({
                 isTablet={isTablet}
                 isCiaHistoricalMode={true}
                 historicalBmuName={effectiveBMU}
+                selectedMetric={selectedMetric}
+                selectedTimeRange={selectedTimeRange}
                 CustomLegend={(props) => (
                   <CustomLegend 
                     {...props} 
@@ -890,6 +984,7 @@ export default function CatchMetricsChart({
               visibilityState={visibilityState}
               isCiaUser={!!isCiaUser}
               isTablet={isTablet}
+              selectedMetric={selectedMetric}
               CustomLegend={(props) => (
                 <CustomLegend 
                   {...props} 

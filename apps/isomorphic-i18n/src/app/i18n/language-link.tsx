@@ -18,8 +18,8 @@ export function getClientLanguage(): string {
   if (typeof window !== 'undefined') {
     // Try each storage key in order of priority
     const fromLocalStorage = localStorage.getItem('selectedLanguage') || 
-                            localStorage.getItem('i18nextLng') || 
-                            localStorage.getItem('peskas-language');
+                        localStorage.getItem('i18nextLng') || 
+                        localStorage.getItem('peskas-language');
     
     if (fromLocalStorage && ['en', 'sw'].includes(fromLocalStorage)) {
       // Cache the value for future use

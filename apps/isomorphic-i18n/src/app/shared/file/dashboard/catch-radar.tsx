@@ -13,7 +13,7 @@ import {
   ResponsiveContainer,
   Tooltip,
 } from "recharts";
-import { bmusAtom, selectedMetricAtom } from "@/app/components/filter-selector";
+import { bmusAtom, selectedMetricAtom, selectedTimeRangeAtom } from "@/app/components/filter-selector";
 import { useTranslation } from "@/app/i18n/client";
 import { api } from "@/trpc/react";
 import cn from "@utils/class-names";
@@ -23,6 +23,10 @@ import useUserPermissions from "./hooks/useUserPermissions";
 // Import shared color function
 import { generateColor, updateBmuColorRegistry } from "./charts/utils";
 import { MetricKey, MetricOption } from "./charts/types";
+// Import site configuration
+// Import time range filtering utilities
+import { getTimeRangeStartDate } from "./utils/timeRangeFilter";
+
 
 interface RadarData {
   month: string;
@@ -167,6 +171,7 @@ export default function CatchRadarChart({
   const { t } = useTranslation(lang!, "common");
   const [bmus] = useAtom(bmusAtom);
   const [selectedMetric] = useAtom(selectedMetricAtom);
+  const [selectedTimeRange] = useAtom(selectedTimeRangeAtom);
   
   // Use centralized permissions hook
   const {
@@ -194,13 +199,37 @@ export default function CatchRadarChart({
   const previousBmus = useRef<string[]>([]);
   const previousMetric = useRef<string>(selectedMetric);
   const previousActiveTab = useRef<string>(activeTab);
+  const previousTimeRange = useRef<string>(selectedTimeRange);
 
   // Force refetch when bmus or metric changes - optimized with memoized dependency string
   const bmsDependencyString = useMemo(() => JSON.stringify(bmus), [bmus]);
   
+  // Use the selected metric directly for API calls
+  const apiMetric = selectedMetric;
+  
+  // Calculate time range dates for API call
+  const queryParams = useMemo(() => {
+    const startDate = getTimeRangeStartDate(selectedTimeRange);
+    
+          const params: any = {
+        bmus,
+        metric: apiMetric
+      };
+    
+    if (startDate) {
+      const endDate = new Date();
+      endDate.setHours(23, 59, 59, 999);
+      
+      params.startDate = startDate.toISOString();
+      params.endDate = endDate.toISOString();
+    }
+    
+    return params;
+  }, [bmus, apiMetric, selectedTimeRange]);
+
   const { data: meanCatch, isLoading: isFetching, error: queryError, refetch } =
     api.aggregatedCatch.meanCatchRadar.useQuery(
-      { bmus, metric: selectedMetric },
+      queryParams,
       {
         refetchOnMount: true,
         refetchOnWindowFocus: false,
@@ -210,22 +239,26 @@ export default function CatchRadarChart({
       }
     );
 
+
+
   // Force refetch when bmus or metric changes - more efficient check
   useEffect(() => {
     // Save current scroll position
     const scrollPosition = window.scrollY || document.documentElement.scrollTop;
     
-    // Check if bmus array or metric has changed
+    // Check if bmus array, metric, or time range has changed
     const bmusChanged = JSON.stringify(previousBmus.current) !== bmsDependencyString;
     const metricChanged = previousMetric.current !== selectedMetric;
+    const timeRangeChanged = previousTimeRange.current !== selectedTimeRange;
     const tabChanged = previousActiveTab.current !== activeTab;
     
-    if (bmusChanged || metricChanged) {
-      console.log('BMUs or metric changed, refetching data');
+    if (bmusChanged || metricChanged || timeRangeChanged) {
+      console.log('BMUs, metric, or time range changed, refetching data');
       setData([]);
       setIsInitialLoad(true);
       previousBmus.current = [...bmus];
       previousMetric.current = selectedMetric;
+      previousTimeRange.current = selectedTimeRange;
       previousActiveTab.current = activeTab;
       refetch();
     } else if (tabChanged) {
@@ -238,7 +271,7 @@ export default function CatchRadarChart({
     setTimeout(() => {
       window.scrollTo(0, scrollPosition);
     }, 10);
-  }, [bmsDependencyString, selectedMetric, activeTab, refetch, bmus]);
+  }, [bmsDependencyString, selectedMetric, selectedTimeRange, activeTab, refetch, bmus]);
 
   // Handle query errors
   useEffect(() => {
@@ -304,11 +337,14 @@ export default function CatchRadarChart({
           {}
         );
 
+      // Use the data as-is since the API call already applied the time range filter
+      const filteredMeanCatch = meanCatch;
+
       // Create a map to track which sites have data for which months
       const dataMap: Record<string, Record<string, number | string>> = {};
       
-      // First pass: collect all available data
-      meanCatch.forEach((item) => {
+      // First pass: collect all available data from filtered data
+      filteredMeanCatch.forEach((item) => {
         const month = item.month;
         if (!dataMap[month]) {
           dataMap[month] = { month, monthDisplay: month };
@@ -324,7 +360,7 @@ export default function CatchRadarChart({
       
       // Process and sort the data by month
       let processedData = MONTH_ORDER
-        .filter(month => dataMap[month]) // Only include months that have data
+        .filter(month => dataMap[month])
         .map(month => {
           const completeItem: RadarData = { 
             month, 
@@ -402,6 +438,7 @@ export default function CatchRadarChart({
     if (!isInitialLoad && !isFetching && bmus.length > 0 && 
         JSON.stringify(previousBmus.current) === bmsDependencyString &&
         previousMetric.current === selectedMetric &&
+        previousTimeRange.current === selectedTimeRange &&
         previousActiveTab.current === activeTab) return;
     
     setLoading(true);
@@ -423,7 +460,7 @@ export default function CatchRadarChart({
       setLoading(false);
       setIsInitialLoad(false);
     }
-  }, [bmsDependencyString, selectedMetric, activeTab, processedData, isFetching, isInitialLoad, bmus.length]);
+  }, [bmsDependencyString, selectedMetric, selectedTimeRange, activeTab, processedData, isFetching, isInitialLoad, bmus.length]);
 
   // Memoize legend click handler
   const handleLegendClick = useCallback((site: string) => {

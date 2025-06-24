@@ -14,6 +14,7 @@ import {
 } from '@/validators/reset-password.schema';
 import { api } from "@/trpc/react";
 import Alert from "@/app/_components/alert";
+import HydrationSafeInput from "@/app/_components/hydration-safe-input";
 import { useTranslation } from "@/app/i18n/client";
 
 export default function ResetPasswordForm({ lang, token }: { lang?: string, token: string }) {
@@ -74,22 +75,26 @@ export default function ResetPasswordForm({ lang, token }: { lang?: string, toke
               type="hidden"
               {...register('token')}
             />
-            <Password
-              label="New Password"
-              placeholder="Enter your new password"
-              size="xl"
-              className="[&>label>span]:font-large"
-              {...register("newPassword")}
-              error={t(errors.newPassword?.message as string)}
-            />
-            <Password
-              label="Confirm Password"
-              placeholder="Confirm your password"
-              size="xl"
-              className="[&>label>span]:font-large"
-              {...register("confirmPassword")}
-              error={t(errors.confirmPassword?.message as string)}
-            />                             
+            <HydrationSafeInput>
+              <Password
+                label="New Password"
+                placeholder="Enter your new password"
+                size="xl"
+                className="[&>label>span]:font-large"
+                {...register("newPassword")}
+                error={t(errors.newPassword?.message as string)}
+              />
+            </HydrationSafeInput>
+            <HydrationSafeInput>
+              <Password
+                label="Confirm Password"
+                placeholder="Confirm your password"
+                size="xl"
+                className="[&>label>span]:font-large"
+                {...register("confirmPassword")}
+                error={t(errors.confirmPassword?.message as string)}
+              />
+            </HydrationSafeInput>                             
             <Button className="w-full" type="submit" size={isMedium ? 'lg' : 'xl'}>
               {loading ? (
                 <Loader variant="spinner" color="current" />

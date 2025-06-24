@@ -8,12 +8,12 @@ import cn from "@utils/class-names";
 import { useScrollableSlider } from "@hooks/use-scrollable-slider";
 import { PiCaretLeftBold, PiCaretRightBold } from "react-icons/pi";
 import MetricCard from "@components/cards/metric-card";
-import TrendingUpIcon from "@components/icons/trending-up";
-import TrendingDownIcon from "@components/icons/trending-down";
+import { PiTrendUp as TrendingUpIcon, PiTrendDown as TrendingDownIcon } from "react-icons/pi";
 import { useTranslation } from "@/app/i18n/client";
 import { api } from "@/trpc/react";
 import { bmusAtom } from "@/app/components/filter-selector";
 import useUserPermissions from "./hooks/useUserPermissions";
+import { getClientLanguage } from "@/app/i18n/language-link";
 
 type FileStatsType = {
   className?: string;
@@ -108,7 +108,13 @@ const LoadingState = () => {
 };
 
 export function FileStatGrid({ className, lang, bmu }: { className?: string; lang?: string; bmu?: string }) {
-  const { t } = useTranslation(lang!, "common");
+  // Use client language instead of lang prop
+  const clientLang = getClientLanguage();
+  const { t, i18n } = useTranslation(clientLang, "common");
+  
+  // Track current language with state
+  const [currentLang, setCurrentLang] = useState(clientLang);
+  
   const [statsData, setStatsData] = useState<StatData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -116,6 +122,23 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
   const [selectedMonth, setSelectedMonth] = useState<string | null>(null);
   const [comparisonValues, setComparisonValues] = useState<{[key: string]: ComparisonValue}>({});
   const [bmus] = useAtom(bmusAtom);
+  
+  // Listen for language changes
+  useEffect(() => {
+    const handleLanguageChange = (event: CustomEvent) => {
+      setCurrentLang(event.detail.language);
+      
+      // Make sure i18n instance is updated
+      if (i18n.language !== event.detail.language) {
+        i18n.changeLanguage(event.detail.language);
+      }
+    };
+    
+    window.addEventListener('i18n-language-changed', handleLanguageChange as EventListener);
+    return () => {
+      window.removeEventListener('i18n-language-changed', handleLanguageChange as EventListener);
+    };
+  }, [i18n]);
   
   // Get user permissions
   const {
@@ -443,7 +466,7 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
             <ResponsiveContainer width="100%" height="100%">
               <BarChart 
                 data={stat.chart}
-                margin={{ top: 5, right: 8, bottom: 5, left: 8 }}
+                margin={{ top: 5, right: 8, bottom: 5, left: 30 }}
                 barGap={1}
                 onMouseMove={handleMouseMove}
                 onClick={handleBarClick}
@@ -451,8 +474,19 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
               >
                 <XAxis dataKey="day" hide={true} />
                 <YAxis 
-                  hide={true} 
-                  domain={[(dataMin: number) => 0, (dataMax: number) => dataMax * 1.1]} 
+                  hide={false}
+                  domain={[(dataMin: number) => 0, (dataMax: number) => dataMax * 1.1]}
+                  tick={{ fontSize: 9, fill: '#9ca3af' }}
+                  tickLine={false}
+                  axisLine={false}
+                  width={25}
+                  tickCount={3}
+                  tickFormatter={(value) => {
+                    if (value >= 1000) {
+                      return `${(value / 1000).toFixed(0)}k`;
+                    }
+                    return value.toFixed(0);
+                  }}
                 />
                 <Tooltip 
                   content={<></>}
@@ -482,7 +516,7 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
             </ResponsiveContainer>
           </div>
           
-          <div className="px-3 py-2 border-t border-gray-100 bg-gray-50/30 flex justify-between text-xs">
+          {/* <div className="px-3 py-2 border-t border-gray-100 bg-gray-50/30 flex justify-between text-xs">
             <div className="flex flex-col">
               <span className="text-2xs text-gray-500">{displayName}</span>
               <span className="font-medium">
@@ -501,7 +535,7 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
                 </span>
               </div>
             )}
-          </div>
+          </div> */}
         </MetricCard>
       ))}
     </>

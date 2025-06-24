@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import React, { useState, useCallback, useMemo, useEffect } from "react";
 import { useTranslation } from "@/app/i18n/client";
 import { useIndividualData } from "./hooks/useIndividualData";
 import { useUserPermissions } from "./hooks/useUserPermissions";
@@ -20,6 +20,10 @@ import { format } from "date-fns";
 import cn from "@utils/class-names";
 import { api } from "@/trpc/react";
 import { getClientLanguage } from "@/app/i18n/language-link";
+import { BASELINE_DATA, isIslandSite } from "./charts/siteConfig";
+import { useAtom } from 'jotai';
+import { selectedTimeRangeAtom } from "@/app/components/filter-selector";
+import { getTimeRangeStartDate } from "./utils/timeRangeFilter";
 
 // Custom Y-axis tick component for consistent styling
 function CustomYAxisTick({ x = 0, y = 0, payload = { value: 0 }, selectedMetric }: any) {
@@ -27,9 +31,11 @@ function CustomYAxisTick({ x = 0, y = 0, payload = { value: 0 }, selectedMetric 
     ? payload.value.toLocaleString()
     : payload.value.toFixed(1);
     
-  // Add KES for revenue and cost metrics
-  if (selectedMetric === "fisher_rpue" || selectedMetric === "fisher_cost") {
-    formattedValue = `${formattedValue}`;
+  // Add units based on metric
+  if (selectedMetric === "fisher_cpue") {
+    formattedValue = `${formattedValue} kg`;
+  } else if (selectedMetric === "fisher_rpue" || selectedMetric === "fisher_cost") {
+    formattedValue = `KES ${formattedValue}`;
   }
     
   return (
@@ -64,36 +70,19 @@ export default function IndividualFisherTrends({
   startDate?: Date | null;
   endDate?: Date;
 }) {
-  // Use client language instead of lang prop
-  const clientLang = getClientLanguage();
-  const { t, i18n } = useTranslation(clientLang);
-  
-  // Track current language with state
-  const [currentLang, setCurrentLang] = useState(clientLang);
-  
-  // Listen for language changes
-  useEffect(() => {
-    const handleLanguageChange = (event: CustomEvent) => {
-      setCurrentLang(event.detail.language);
-      
-      // Make sure i18n instance is updated
-      if (i18n.language !== event.detail.language) {
-        i18n.changeLanguage(event.detail.language);
-      }
-    };
-    
-    window.addEventListener('i18n-language-changed', handleLanguageChange as EventListener);
-    return () => {
-      window.removeEventListener('i18n-language-changed', handleLanguageChange as EventListener);
-    };
-  }, [i18n]);
-  
+  const { t, i18n } = useTranslation(lang || 'en');
+  const [selectedTimeRange] = useAtom(selectedTimeRangeAtom);
   const { userFisherId, isIiaUser } = useUserPermissions();
-  const { fisherData, isLoadingFisherData } = useIndividualData({
-    startDate,
-    endDate
-  });
   const [selectedMetric, setSelectedMetric] = useState<MetricType>("fisher_cpue");
+
+  // Calculate date range based on selected time range
+  const dateRange = useMemo(() => {
+    const endDate = new Date();
+    const startDate = getTimeRangeStartDate(selectedTimeRange, endDate);
+    return { startDate, endDate };
+  }, [selectedTimeRange]);
+
+  const { fisherData, isLoadingFisherData } = useIndividualData(dateRange);
 
   // Get the fisher's BMU from their data
   const fisherBMU = useMemo(() => {
@@ -252,7 +241,7 @@ export default function IndividualFisherTrends({
               if (value === undefined || value === null) return null;
               
               const isAverage = entry.dataKey.startsWith('avg');
-              const color = isAverage ? "#6b7280" : COLORS[getMetricKey(selectedMetric)];
+              const color = isAverage ? "#6b7280" : COLORS[selectedMetric.replace("fisher_", "") as keyof typeof COLORS];
               
               return (
                 <div key={index} className="flex items-center gap-2">
@@ -306,10 +295,6 @@ export default function IndividualFisherTrends({
       </WidgetCard>
     );
   }
-
-  const getMetricKey = (metric: MetricType): keyof typeof COLORS => {
-    return metric.replace("fisher_", "") as keyof typeof COLORS;
-  };
 
   return (
           <WidgetCard
@@ -379,9 +364,9 @@ export default function IndividualFisherTrends({
             
             <Line
               dataKey={selectedMetric === "fisher_cpue" ? "cpue" : selectedMetric === "fisher_rpue" ? "rpue" : "cost"}
-              stroke={COLORS[getMetricKey(selectedMetric)]}
+              stroke={COLORS[selectedMetric.replace("fisher_", "") as keyof typeof COLORS]}
               strokeWidth={2}
-              dot={{ fill: COLORS[getMetricKey(selectedMetric)], strokeWidth: 0, r: 4 }}
+              dot={{ fill: COLORS[selectedMetric.replace("fisher_", "") as keyof typeof COLORS], strokeWidth: 0, r: 4 }}
               activeDot={{ r: 6, strokeWidth: 0 }}
               connectNulls={false}
               isAnimationActive={false}
@@ -400,6 +385,33 @@ export default function IndividualFisherTrends({
               isAnimationActive={false}
               name={`${fisherBMU} ${t('text-average')}`}
             />
+            
+            {/* Income baseline reference lines (only for RPUE) */}
+            {selectedMetric === "fisher_rpue" && (
+              <>
+                <ReferenceLine
+                  y={BASELINE_DATA.INCOME.POVERTY_LINE}
+                  stroke="#ef4444"
+                  strokeDasharray="3 3"
+                  strokeWidth={1.5}
+                  label={{ value: t('text-poverty-line'), position: "right", fill: "#ef4444", fontSize: 11 }}
+                />
+                <ReferenceLine
+                  y={BASELINE_DATA.INCOME.NATIONAL_MINIMUM_WAGE}
+                  stroke="#f59e0b"
+                  strokeDasharray="3 3"
+                  strokeWidth={1.5}
+                  label={{ value: t('text-minimum-wage'), position: "right", fill: "#f59e0b", fontSize: 11 }}
+                />
+                <ReferenceLine
+                  y={BASELINE_DATA.INCOME.LIVING_WAGE}
+                  stroke="#22c55e"
+                  strokeDasharray="3 3"
+                  strokeWidth={1.5}
+                  label={{ value: t('text-living-wage'), position: "right", fill: "#22c55e", fontSize: 11 }}
+                />
+              </>
+            )}
             
             {/* Legend */}
             <Legend 

@@ -15,6 +15,7 @@ import {
 } from '@/validators/forget-password.schema';
 import { api } from "@/trpc/react";
 import Alert from "@/app/_components/alert";
+import HydrationSafeInput from "@/app/_components/hydration-safe-input";
 
 const initialValues = {
   email: '',
@@ -66,15 +67,17 @@ export default function ForgetPasswordForm({ lang }: { lang?: string }) {
             {loginSucessMessage && (
               <Alert color="success" message={loginSucessMessage} className="mb-[16px]" />
             )}            
-            <Input
-              type="email"
-              size={isMedium ? 'lg' : 'xl'}
-              label="Email"
-              placeholder="Enter your email"
-              className="[&>label>span]:font-medium"
-              {...register('email')}
-              error={errors.email?.message}
-            />
+            <HydrationSafeInput>
+              <Input
+                type="email"
+                size={isMedium ? 'lg' : 'xl'}
+                label="Email"
+                placeholder="Enter your email"
+                className="[&>label>span]:font-medium"
+                {...register('email')}
+                error={errors.email?.message}
+              />
+            </HydrationSafeInput>
             <Button className="w-full" type="submit" size={isMedium ? 'lg' : 'xl'}>
               {loading ? (
                 <Loader variant="spinner" color="current" />
