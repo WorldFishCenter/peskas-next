@@ -295,7 +295,7 @@ export function FileStatWBCIAGrid({ className, lang }: { className?: string; lan
         >
           <div className="p-4 pb-2">
             <div className="flex flex-col gap-1">
-              <div className="flex items-baseline gap-2">
+              <div className="flex items-baseline gap-1">
                 <Text className="text-m font-medium text-gray-700">{stat.title}</Text>
                 <Text className="text-xs text-gray-400">({stat.unit})</Text>
               </div>
@@ -306,7 +306,7 @@ export function FileStatWBCIAGrid({ className, lang }: { className?: string; lan
             
             <div className="flex items-baseline justify-between mt-2">
               <div className="flex items-baseline gap-2">
-                <Text className="text-xl font-bold text-gray-900">
+                <Text className="text-l font-bold text-gray-900">
                   {hoveredBMU[stat.id] 
                     ? (hoveredBMU[stat.id].value === null ? "N/A" : Math.round(hoveredBMU[stat.id].value!).toLocaleString())
                     : stat.metric}

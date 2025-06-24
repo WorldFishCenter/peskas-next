@@ -337,6 +337,9 @@ export default function BMURanking({
     const metricLabel = selectedMetricOption?.label || t("text-selected-metric");
     const unit = selectedMetricOption?.unit || "";
 
+    if (selectedMetricOption?.value === 'mean_effort') {
+      return t("text-bmu-ranking-description-effort", { metric: metricLabel, unit: unit });
+    }
     if (selectedMetricOption?.category === 'revenue') {
       return t("text-bmu-ranking-description-revenue", { metric: metricLabel, unit: unit });
     }

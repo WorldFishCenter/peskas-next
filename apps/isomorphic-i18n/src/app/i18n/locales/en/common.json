@@ -1033,5 +1033,16 @@
   "text-last-year": "Last year",
   "text-last-year-desc": "Show data from the last 12 months",
   "text-all-time": "All time",
-  "text-all-time-desc": "Show all available data"
+  "text-all-time-desc": "Show all available data",
+  "text-performance-vs-msy": "Performance vs MSY",
+  "text-cia-msy-comparison-explanation": "Shows values compared to the Maximum Sustainable Yield baseline",
+  "text-performance-vs-minimum-wage": "Performance vs Minimum Wage",
+  "text-cia-minimum-wage-comparison-explanation": "Shows values compared to the national minimum wage",
+  "text-above-msy": "Above MSY",
+  "text-below-msy": "Below MSY",
+  "text-above-minimum-wage": "Above Minimum Wage",
+  "text-below-minimum-wage": "Below Minimum Wage",
+  "text-bmu-ranking-description-effort": "Comparing {{metric}} across all Beach Management Units. Higher values indicate excessive fishing pressure",
+  "text-performance-vs-selected-average": "Performance vs {{timeRange}} Average",
+  "text-cia-selected-time-comparison-explanation": "Shows values compared to your {{timeRange}} average"
 }

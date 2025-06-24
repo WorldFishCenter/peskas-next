@@ -759,7 +759,23 @@ export default function CatchMetricsChart({
           } else if (selectedMetric === 'mean_rpue') {
             return t("text-performance-vs-minimum-wage") || "Performance vs Minimum Wage";
           } else {
-            return t("text-performance-vs-24-month-average") || "Performance vs 24-Month Average";
+            // Get time range label for dynamic baseline description
+            const getTimeRangeLabel = (timeRange: string): string => {
+              switch (timeRange) {
+                case '3months':
+                  return t('text-last-3-months') || 'Last 3 months';
+                case '6months':
+                  return t('text-last-6-months') || 'Last 6 months';
+                case '1year':
+                  return t('text-last-year') || 'Last year';
+                case 'all':
+                  return t('text-all-time') || 'All time';
+                default:
+                  return t('text-all-time') || 'All time';
+              }
+            };
+            const timeRangeLabel = getTimeRangeLabel(selectedTimeRange);
+            return t("text-performance-vs-selected-average", { timeRange: timeRangeLabel }) || `Performance vs ${timeRangeLabel} Average`;
           }
         case 'annual':
           return t("text-yearly-summary");
@@ -798,7 +814,23 @@ export default function CatchMetricsChart({
           } else if (selectedMetric === 'mean_rpue') {
             return t("text-cia-minimum-wage-comparison-explanation") || "Shows values compared to the national minimum wage";
           } else {
-            return t("text-cia-comparison-explanation") || "Shows values compared to your 24-month average";
+            // Get time range label for dynamic baseline description
+            const getTimeRangeLabel = (timeRange: string): string => {
+              switch (timeRange) {
+                case '3months':
+                  return t('text-last-3-months') || 'Last 3 months';
+                case '6months':
+                  return t('text-last-6-months') || 'Last 6 months';
+                case '1year':
+                  return t('text-last-year') || 'Last year';
+                case 'all':
+                  return t('text-all-time') || 'All time';
+                default:
+                  return t('text-all-time') || 'All time';
+              }
+            };
+            const timeRangeLabel = getTimeRangeLabel(selectedTimeRange);
+            return t("text-cia-selected-time-comparison-explanation", { timeRange: timeRangeLabel }) || `Shows values compared to your ${timeRangeLabel} average`;
           }
         case 'annual':
           return t("text-yearly-explanation");
@@ -938,6 +970,7 @@ export default function CatchMetricsChart({
               visibilityState={visibilityState}
               isTablet={isTablet}
               selectedMetric={selectedMetric}
+              selectedTimeRange={selectedTimeRange}
               isCiaHistoricalMode={isWbciaUser && (selectedMetric === 'mean_cpua' || selectedMetric === 'mean_rpue')}
               CustomLegend={(props) => (
                 <CustomLegend 
@@ -961,6 +994,7 @@ export default function CatchMetricsChart({
                 isCiaHistoricalMode={true}
                 historicalBmuName={effectiveBMU}
                 selectedMetric={selectedMetric}
+                selectedTimeRange={selectedTimeRange}
                 CustomLegend={(props) => (
                   <CustomLegend 
                     {...props} 

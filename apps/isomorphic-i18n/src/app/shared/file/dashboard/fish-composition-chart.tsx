@@ -778,7 +778,23 @@ export default function FishCompositionChart({
           return t("text-monthly-trends-over-time") + " (kg)";
         case 'comparison':
         case 'recent':
-          return t("text-performance-vs-24-month-average") + " (kg)" || "Performance vs 24-Month Average (kg)";
+          // Get time range label for dynamic baseline description
+          const getTimeRangeLabel = (timeRange: string): string => {
+            switch (timeRange) {
+              case '3months':
+                return t('text-last-3-months') || 'Last 3 months';
+              case '6months':
+                return t('text-last-6-months') || 'Last 6 months';
+              case '1year':
+                return t('text-last-year') || 'Last year';
+              case 'all':
+                return t('text-all-time') || 'All time';
+              default:
+                return t('text-all-time') || 'All time';
+            }
+          };
+          const timeRangeLabel = getTimeRangeLabel(selectedTimeRange);
+          return (t("text-performance-vs-selected-average", { timeRange: timeRangeLabel }) || `Performance vs ${timeRangeLabel} Average`) + " (kg)";
         case 'annual':
           return t("text-yearly-summary") + " (kg)";
         default:
@@ -810,7 +826,23 @@ export default function FishCompositionChart({
           return t("text-trends-explanation") || "Shows how fish catch weight changes month by month";
         case 'comparison':
         case 'recent':
-          return t("text-cia-comparison-explanation") || "Shows fish catch weight compared to your 24-month average";
+          // Get time range label for dynamic baseline description
+          const getTimeRangeLabel = (timeRange: string): string => {
+            switch (timeRange) {
+              case '3months':
+                return t('text-last-3-months') || 'Last 3 months';
+              case '6months':
+                return t('text-last-6-months') || 'Last 6 months';
+              case '1year':
+                return t('text-last-year') || 'Last year';
+              case 'all':
+                return t('text-all-time') || 'All time';
+              default:
+                return t('text-all-time') || 'All time';
+            }
+          };
+          const timeRangeLabel = getTimeRangeLabel(selectedTimeRange);
+          return t("text-cia-selected-time-comparison-explanation", { timeRange: timeRangeLabel }) || `Shows fish catch weight compared to your ${timeRangeLabel} average`;
         case 'annual':
           return t("text-yearly-explanation") || "Shows average fish catch weight for each year";
         default:
@@ -958,6 +990,7 @@ export default function FishCompositionChart({
                 )}
                 visibilityState={visibilityState}
                 isTablet={isTablet}
+                selectedTimeRange={selectedTimeRange}
                 CustomLegend={(props) => (
                   <CustomLegend 
                     {...props} 
@@ -979,6 +1012,7 @@ export default function FishCompositionChart({
                 isTablet={isTablet}
                 isCiaHistoricalMode={true}
                 historicalBmuName={effectiveBMU}
+                selectedTimeRange={selectedTimeRange}
                 CustomLegend={(props) => (
                   <CustomLegend 
                     {...props} 

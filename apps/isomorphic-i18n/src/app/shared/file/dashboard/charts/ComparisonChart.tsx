@@ -17,6 +17,8 @@ import { getBarColor } from "./utils";
 import { useTranslation } from "@/app/i18n/client";
 import React, { useCallback, useEffect, useRef } from "react";
 import { BASELINE_DATA, isIslandSite } from "./siteConfig";
+import { TimeRangeOption } from "@/app/components/filter-selector";
+import { getTimeRangeDescription } from "../utils/timeRangeFilter";
 
 interface ComparisonChartProps {
   chartData: ChartDataPoint[];
@@ -28,6 +30,7 @@ interface ComparisonChartProps {
   historicalBmuName?: string;
   CustomLegend: (props: any) => React.ReactElement;
   selectedMetric?: string;
+  selectedTimeRange?: TimeRangeOption;
 }
 
 export default function ComparisonChart({
@@ -40,6 +43,7 @@ export default function ComparisonChart({
   historicalBmuName,
   CustomLegend,
   selectedMetric,
+  selectedTimeRange = 'all',
 }: ComparisonChartProps) {
   const contextLang = document.documentElement.getAttribute('data-language');
   const isLangReady = document.documentElement.getAttribute('data-language-ready') === 'true';
@@ -48,16 +52,46 @@ export default function ComparisonChart({
   // Keep a reference to translation state
   const translationsRef = useRef<Record<string, string>>({});
   
+  // Helper function to get time range label for translations
+  const getTimeRangeLabel = (timeRange: TimeRangeOption): string => {
+    switch (timeRange) {
+      case '3months':
+        return t('text-last-3-months') || 'Last 3 months';
+      case '6months':
+        return t('text-last-6-months') || 'Last 6 months';
+      case '1year':
+        return t('text-last-year') || 'Last year';
+      case 'all':
+        return t('text-all-time') || 'All time';
+      default:
+        return t('text-all-time') || 'All time';
+    }
+  };
+
   // Pre-load critical translations to avoid flicker
   useEffect(() => {
     if (contextLang) {
       const averageText = t("text-average-of-all-bmus");
+      const performanceVsMsy = t("text-performance-vs-msy");
+      const ciaMsyExplanation = t("text-cia-msy-comparison-explanation");
+      const performanceVsMinWage = t("text-performance-vs-minimum-wage");
+      const ciaMinWageExplanation = t("text-cia-minimum-wage-comparison-explanation");
+      const timeRangeLabel = getTimeRangeLabel(selectedTimeRange);
+      const performanceVsSelected = t("text-performance-vs-selected-average", { timeRange: timeRangeLabel });
+      const ciaSelectedExplanation = t("text-cia-selected-time-comparison-explanation", { timeRange: timeRangeLabel });
+      
       translationsRef.current = {
         ...translationsRef.current,
         "text-average-of-all-bmus": averageText,
+        "text-performance-vs-msy": performanceVsMsy,
+        "text-cia-msy-comparison-explanation": ciaMsyExplanation,
+        "text-performance-vs-minimum-wage": performanceVsMinWage,
+        "text-cia-minimum-wage-comparison-explanation": ciaMinWageExplanation,
+        "text-performance-vs-selected-average": performanceVsSelected,
+        "text-cia-selected-time-comparison-explanation": ciaSelectedExplanation,
       };
     }
-  }, [contextLang, t]);
+  }, [contextLang, t, selectedTimeRange]);
   
   // Sync with the parent language if needed
   useEffect(() => {
