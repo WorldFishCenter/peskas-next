@@ -1,7 +1,6 @@
 "use client";
 
-import Link from "next/link";
-import { Badge, ActionIcon, Text } from "rizzui";
+import { ActionIcon } from "rizzui";
 import cn from "@utils/class-names";
 import ProfileMenu from "@/layouts/profile-menu";
 import HamburgerButton from "@/layouts/hamburger-button";

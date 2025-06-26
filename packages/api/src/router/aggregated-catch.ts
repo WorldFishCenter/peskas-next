@@ -28,6 +28,7 @@ export const aggregatedCatchRouter = createTRPCRouter({
                 { mean_cpua: { $ne: null } },
                 { mean_rpue: { $ne: null } },
                 { mean_rpua: { $ne: null } },
+                { fdays: { $ne: null } },
               ],
             },
           },
@@ -41,6 +42,7 @@ export const aggregatedCatchRouter = createTRPCRouter({
               mean_cpua: 1,
               mean_rpue: 1,
               mean_rpua: 1,
+              fdays: 1,
             },
           },
           {
@@ -72,6 +74,7 @@ export const aggregatedCatchRouter = createTRPCRouter({
                 { mean_cpua: { $ne: null } },
                 { mean_rpue: { $ne: null } },
                 { mean_rpua: { $ne: null } },
+                { fdays: { $ne: null } },
               ],
             },
           },
@@ -89,7 +92,9 @@ export const aggregatedCatchRouter = createTRPCRouter({
               avgCPUA: { $avg: "$mean_cpua" },
               avgRPUE: { $avg: "$mean_rpue" },
               avgRPUA: { $avg: "$mean_rpua" },
+              avgFdays: { $avg: "$fdays" },
               totalEffort: { $sum: "$mean_effort" },
+              totalFdays: { $sum: "$fdays" },
               monthlyData: {
                 $push: {
                   date: "$date",
@@ -98,6 +103,7 @@ export const aggregatedCatchRouter = createTRPCRouter({
                   mean_cpua: "$mean_cpua",
                   mean_rpue: "$mean_rpue",
                   mean_rpua: "$mean_rpua",
+                  fdays: "$fdays",
                 },
               },
             },
@@ -114,6 +120,7 @@ export const aggregatedCatchRouter = createTRPCRouter({
                     maxCPUA: { $max: "$avgCPUA" },
                     maxRPUE: { $max: "$avgRPUE" },
                     maxRPUA: { $max: "$avgRPUA" },
+                    maxFdays: { $max: "$avgFdays" },
                     bmus: { $push: "$$ROOT" },
                   },
                 },
@@ -128,11 +135,19 @@ export const aggregatedCatchRouter = createTRPCRouter({
                     avgCPUA: "$bmus.avgCPUA",
                     avgRPUE: "$bmus.avgRPUE",
                     avgRPUA: "$bmus.avgRPUA",
+                    avgFdays: "$bmus.avgFdays",
                     totalEffort: "$bmus.totalEffort",
+                    totalFdays: "$bmus.totalFdays",
                     monthlyData: "$bmus.monthlyData",
                     effortPerformance: {
                       $multiply: [
                         { $divide: ["$bmus.avgEffort", "$maxEffort"] },
+                        100,
+                      ],
+                    },
+                    fdaysPerformance: {
+                      $multiply: [
+                        { $divide: ["$bmus.avgFdays", "$maxFdays"] },
                         100,
                       ],
                     },
@@ -198,10 +213,13 @@ export const aggregatedCatchRouter = createTRPCRouter({
       try {
         await getDb(); // Ensure DB connection is established
         
+        // For radar chart, use fdays instead of mean_effort when metric is effort
+        const actualMetric = input.metric === "mean_effort" ? "fdays" : input.metric;
+        
         // Prepare match stage with optional date filtering
         const matchStage: any = {
           BMU: { $in: input.bmus },
-          [input.metric]: { $ne: null },
+          [actualMetric]: { $ne: null },
         };
         
         if (input.startDate || input.endDate) {
@@ -229,7 +247,7 @@ export const aggregatedCatchRouter = createTRPCRouter({
                 month: "$monthNum",
                 bmu: "$BMU",
               },
-              value: { $avg: `$${input.metric}` },
+              value: { $avg: `$${actualMetric}` },
             },
           },
           {

@@ -12,7 +12,6 @@ import SimpleBar from "@ui/simplebar";
 
 import { 
   MetricKey, 
-  MetricOption, 
   METRIC_OPTIONS, 
   ChartDataPoint, 
   ApiDataPoint, 
@@ -27,7 +26,6 @@ import AnnualChart from "./charts/AnnualChart";
 import { getClientLanguage } from "@/app/i18n/language-link";
 // Import shared permissions hook
 import useUserPermissions from "./hooks/useUserPermissions";
-import { CustomYAxisTick } from "./charts/components";
 import { filterDataByTimeRange } from "./utils/timeRangeFilter";
 
 // Create a more robust language context that includes both the language code and translations

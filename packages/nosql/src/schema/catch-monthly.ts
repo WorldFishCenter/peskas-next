@@ -11,6 +11,7 @@ export type TCatchMonthly = {
   mean_cpua?: number;
   mean_rpue?: number;
   mean_rpua?: number;
+  fdays?: number;
 };
 
 /**
@@ -25,6 +26,7 @@ const catchMonthlySchema = new Schema<TCatchMonthly>(
     mean_cpua: Number,
     mean_rpue: Number,
     mean_rpua: Number,
+    fdays: Number,
   },
   {
     collection: "catch_monthly",

@@ -1,5 +1,4 @@
-import { ChartDataPoint, TickProps } from "./types";
-import { CustomYAxisTick } from "./components";
+import { ChartDataPoint } from "./types";
 
 // Global array to keep track of all BMU names for consistent color assignment
 let globalBmuNames: string[] = [];

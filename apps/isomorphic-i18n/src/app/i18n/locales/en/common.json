@@ -897,6 +897,7 @@
   "text-metrics-revenue": "Revenue Metrics",
   "text-metrics-catch": "Catch Metrics",
   "text-metrics-effort": "Effort",
+  "text-metrics-effort-radar": "Effort (fisher days)",
   "text-metrics-catch-rate": "Catch Rate",
   "text-metrics-catch-density": "Catch Density",
   "text-metrics-fisher-revenue": "Fisher Revenue",

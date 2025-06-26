@@ -13,12 +13,10 @@ import {
 import { format } from "date-fns";
 import { ChartDataPoint, MetricOption, VisibilityState } from "./types";
 import { CustomYAxisTick } from "./components";
-import { getBarColor } from "./utils";
 import { useTranslation } from "@/app/i18n/client";
 import React, { useCallback, useEffect, useRef } from "react";
-import { BASELINE_DATA, isIslandSite } from "./siteConfig";
+import { BASELINE_DATA } from "./siteConfig";
 import { TimeRangeOption } from "@/app/components/filter-selector";
-import { getTimeRangeDescription } from "../utils/timeRangeFilter";
 
 interface ComparisonChartProps {
   chartData: ChartDataPoint[];

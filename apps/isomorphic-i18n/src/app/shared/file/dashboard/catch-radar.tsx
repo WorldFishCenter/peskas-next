@@ -44,7 +44,7 @@ interface VisibilityState {
 }
 
 const METRIC_INFO: Record<MetricKey, MetricInfo> = {
-  mean_effort: { translationKey: "text-metrics-effort", unit: "fishers/km²/day" },
+  mean_effort: { translationKey: "text-metrics-effort", unit: "fisher days" },
   mean_cpue: { translationKey: "text-metrics-catch-rate", unit: "kg/fisher/day" },
   mean_cpua: { translationKey: "text-metrics-catch-density", unit: "kg/km²/day" },
   mean_rpue: { translationKey: "text-metrics-fisher-revenue", unit: "KSH/fisher/day" },
@@ -53,6 +53,10 @@ const METRIC_INFO: Record<MetricKey, MetricInfo> = {
 
 const getMetricLabel = (metric: string, t: any): string => {
   const metricKey = metric as MetricKey;
+  // Use specific radar translation for effort metric
+  if (metricKey === "mean_effort") {
+    return t("text-metrics-effort-radar");
+  }
   const translationKey = METRIC_INFO[metricKey]?.translationKey || "text-metrics-catch";
   return t(translationKey);
 };
