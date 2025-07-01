@@ -970,11 +970,19 @@ export default function CatchMetricsChart({
         {localActiveTab === 'annual' && (
           <SimpleBar>
             <AnnualChart
-              chartData={annualData.map(point => {
-                // Always filter out historical_average for annual chart
-                const { historical_average, ...rest } = point;
-                return rest;
-              })}
+              chartData={(() => {
+                // Only show the latest year if time range is '1year'
+                let filtered = annualData;
+                if (selectedTimeRange === '1year' && annualData.length > 0) {
+                  const latestYear = Math.max(...annualData.map(point => new Date(point.date).getFullYear()));
+                  filtered = annualData.filter(point => new Date(point.date).getFullYear() === latestYear);
+                }
+                return filtered.map(point => {
+                  // Always filter out historical_average for annual chart
+                  const { historical_average, ...rest } = point;
+                  return rest;
+                });
+              })()}
               selectedMetricOption={selectedMetricOption}
               siteColors={Object.fromEntries(
                 Object.entries(siteColors).filter(([key]) => key !== 'historical_average')

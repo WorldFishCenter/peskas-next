@@ -8,6 +8,9 @@ import { TimeRangeOption } from "@/app/components/filter-selector";
  */
 export function getTimeRangeStartDate(timeRange: TimeRangeOption, referenceDate: Date = new Date()): Date | null {
   const date = new Date(referenceDate);
+  // Always set to first day of the month for monthly data
+  date.setDate(1);
+  date.setHours(0, 0, 0, 0);
   
   switch (timeRange) {
     case '3months':

@@ -374,11 +374,11 @@ export function FileStatWBCIAGrid({ className, lang }: { className?: string; lan
                 <YAxis 
                   hide={false}
                   domain={[0, (dataMax: number) => dataMax * 1.1]}
-                  tick={{ fontSize: 9, fill: '#9ca3af' }}
-                  tickLine={false}
-                  axisLine={false}
-                  width={25}
-                  tickCount={3}
+                  tick={{ fontSize: 11, fill: '#64748b' }}
+                  tickLine={{ stroke: '#cbd5e1' }}
+                  axisLine={{ stroke: '#cbd5e1', strokeWidth: 1 }}
+                  width={40}
+                  tickCount={4}
                   tickFormatter={(value) => {
                     if (value >= 1000) {
                       return `${(value / 1000).toFixed(0)}k`;
