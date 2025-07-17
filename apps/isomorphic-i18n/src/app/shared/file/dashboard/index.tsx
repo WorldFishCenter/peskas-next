@@ -15,6 +15,7 @@ import IndividualFisherTrends from "@/app/shared/file/dashboard/individual-fishe
 import IndividualFisherGearPerformance from "@/app/shared/file/dashboard/individual-fisher-gear-performance";
 import { selectedMetricAtom } from "@/app/components/filter-selector";
 import { useUserPermissions } from "./hooks/useUserPermissions";
+import PageHeader from '@/app/shared/page-header';
 
 type SerializedBmu = {
   _id: string;
@@ -38,30 +39,31 @@ export default function FileDashboard({ lang }: { lang?: string }) {
   // Use reference BMU if available or fall back to user's BMU
   const effectiveBMU = referenceBMU || undefined;
 
+  // Add this at the top of the IIA dashboard section, before the return:
+  const dashboardHeader = {
+    title: t('text-your-performance'),
+    description: t('text-performance-description'),
+  };
+
   // If user is IIA, show individual fisher dashboard
   if (isIiaUser && userFisherId) {
+    const pageHeader = {
+      title: 'text-your-performance',
+      breadcrumb: [
+        { name: 'text-home', href: '/' },
+        { name: 'text-your-performance' },
+      ],
+    };
     return (
       <div className="w-full space-y-5 xl:space-y-6">
-        {/* Dashboard header */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-white rounded-xl p-5 shadow-sm border border-gray-200">
-          <div>
-            <h1 className="text-xl font-semibold text-gray-900">
-              {t('text-your-performance')}
-            </h1>
-            <p className="text-sm text-gray-500 mt-1">
-              {t('text-performance-description')}
-            </p>
-          </div>
-        </div>
-        
+        <PageHeader title={pageHeader.title} breadcrumb={pageHeader.breadcrumb} lang={lang} />
+        {/* No metric selector or filter controls in IIA mode */}
         {/* Dashboard content */}
         <div className="grid grid-cols-1 gap-5 xl:gap-6">
           {/* Individual fisher stats cards */}
           <IndividualFisherStats lang={lang} />
-          
           {/* Individual fisher daily trends */}
           <IndividualFisherTrends lang={lang} />
-          
           {/* Individual gear performance */}
           <IndividualFisherGearPerformance lang={lang} />
         </div>

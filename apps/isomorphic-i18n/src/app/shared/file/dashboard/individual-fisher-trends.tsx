@@ -6,8 +6,8 @@ import { useIndividualData } from "./hooks/useIndividualData";
 import { useUserPermissions } from "./hooks/useUserPermissions";
 import WidgetCard from "@components/cards/widget-card";
 import {
-  LineChart,
-  Line,
+  BarChart,
+  Bar,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -32,9 +32,9 @@ function CustomYAxisTick({ x = 0, y = 0, payload = { value: 0 }, selectedMetric 
     : payload.value.toFixed(1);
     
   // Add units based on metric
-  if (selectedMetric === "fisher_cpue") {
+  if (selectedMetric === "mean_cpue") {
     formattedValue = `${formattedValue} kg`;
-  } else if (selectedMetric === "fisher_rpue" || selectedMetric === "fisher_cost") {
+  } else if (selectedMetric === "mean_rpue" || selectedMetric === "mean_costs" || selectedMetric === "mean_profit") {
     formattedValue = `KES ${formattedValue}`;
   }
     
@@ -54,12 +54,19 @@ function CustomYAxisTick({ x = 0, y = 0, payload = { value: 0 }, selectedMetric 
 }
 
 const COLORS = {
-  cpue: "#3b82f6", // blue
-  rpue: "#10b981", // green
-  cost: "#f59e0b", // amber
+  blue: "#3b82f6", // blue
+  green: "#10b981", // green
+  amber: "#f59e0b", // amber
+  orange: "#f97316", // orange
+  purple: "#9333ea", // purple
 };
 
-type MetricType = "fisher_cpue" | "fisher_rpue" | "fisher_cost";
+const METRIC_OPTIONS = [
+  { key: 'mean_cpue', label: 'CPUE', color: 'blue', unit: 'kg/trip' },
+  { key: 'mean_rpue', label: 'RPUE', color: 'green', unit: 'KES/trip' },
+  { key: 'mean_costs', label: 'Costs', color: 'amber', unit: 'KES/trip' },
+  { key: 'mean_profit', label: 'Profit', color: 'orange', unit: 'KES/trip' },
+];
 
 export default function IndividualFisherTrends({ 
   lang, 
@@ -73,7 +80,7 @@ export default function IndividualFisherTrends({
   const { t, i18n } = useTranslation(lang || 'en');
   const [selectedTimeRange] = useAtom(selectedTimeRangeAtom);
   const { userFisherId, isIiaUser } = useUserPermissions();
-  const [selectedMetric, setSelectedMetric] = useState<MetricType>("fisher_cpue");
+  const [selectedMetric, setSelectedMetric] = useState<string>('mean_cpue');
 
   // Calculate date range based on selected time range
   const dateRange = useMemo(() => {
@@ -105,9 +112,11 @@ export default function IndividualFisherTrends({
       totalCpue: number; 
       totalRpue: number; 
       totalCost: number; 
+      totalProfit: number;
       countCpue: number;
       countRpue: number;
       countCost: number;
+      countProfit: number;
     }> = {};
     
     bmuData.forEach(record => {
@@ -120,33 +129,40 @@ export default function IndividualFisherTrends({
           totalCpue: 0,
           totalRpue: 0,
           totalCost: 0,
+          totalProfit: 0,
           countCpue: 0,
           countRpue: 0,
           countCost: 0,
+          countProfit: 0,
         };
       }
       
-      if (record.fisher_cpue != null) {
-        dateGroups[dateKey].totalCpue += record.fisher_cpue;
+      if (record.mean_cpue != null) {
+        dateGroups[dateKey].totalCpue += record.mean_cpue;
         dateGroups[dateKey].countCpue++;
       }
-      if (record.fisher_rpue != null) {
-        dateGroups[dateKey].totalRpue += record.fisher_rpue;
+      if (record.mean_rpue != null) {
+        dateGroups[dateKey].totalRpue += record.mean_rpue;
         dateGroups[dateKey].countRpue++;
       }
-      if (record.fisher_cost != null) {
-        dateGroups[dateKey].totalCost += record.fisher_cost;
+      if (record.mean_costs != null) {
+        dateGroups[dateKey].totalCost += record.mean_costs;
         dateGroups[dateKey].countCost++;
+      }
+      if (record.mean_profit != null) {
+        dateGroups[dateKey].totalProfit += record.mean_profit;
+        dateGroups[dateKey].countProfit++;
       }
     });
     
     // Calculate averages
-    const averages: Record<string, { cpue?: number; rpue?: number; cost?: number }> = {};
+    const averages: Record<string, { cpue?: number; rpue?: number; cost?: number; profit?: number }> = {};
     Object.entries(dateGroups).forEach(([date, totals]) => {
       averages[date] = {
         cpue: totals.countCpue > 0 ? totals.totalCpue / totals.countCpue : undefined,
         rpue: totals.countRpue > 0 ? totals.totalRpue / totals.countRpue : undefined,
         cost: totals.countCost > 0 ? totals.totalCost / totals.countCost : undefined,
+        profit: totals.countProfit > 0 ? totals.totalProfit / totals.countProfit : undefined,
       };
     });
     
@@ -167,14 +183,16 @@ export default function IndividualFisherTrends({
           dateDisplay: format(new Date(record.date), "MMM dd"),
           fullDate: record.date,
           // Fisher's own data
-          cpue: record.fisher_cpue ?? undefined,
-          rpue: record.fisher_rpue ?? undefined,
-          cost: record.fisher_cost ?? undefined,
+          cpue: record.mean_cpue ?? undefined,
+          rpue: record.mean_rpue ?? undefined,
+          cost: record.mean_costs ?? undefined,
+          profit: record.mean_profit ?? undefined,
+          priceKg: record.mean_price_kg ?? undefined,
           // BMU average data
           avgCpue: avgData.cpue,
           avgRpue: avgData.rpue,
           avgCost: avgData.cost,
-          gear: record.gear ?? undefined,
+          avgProfit: avgData.profit,
           bmu: record.BMU,
         };
       });
@@ -187,35 +205,37 @@ export default function IndividualFisherTrends({
         avgCpue: 0,
         avgRpue: 0,
         avgCost: 0,
+        avgProfit: 0,
         totalDays: 0,
         fishingDays: 0,
       };
     }
-
     // Filter out records with null values
-    const validCpueData = fisherData.filter(d => d.fisher_cpue != null);
-    const validRpueData = fisherData.filter(d => d.fisher_rpue != null);
-    const validCostData = fisherData.filter(d => d.fisher_cost != null);
-
+    const validCpueData = fisherData.filter(d => d.mean_cpue != null);
+    const validRpueData = fisherData.filter(d => d.mean_rpue != null);
+    const validCostData = fisherData.filter(d => d.mean_costs != null);
+    const validProfitData = fisherData.filter(d => d.mean_profit != null);
     const avgCpue = validCpueData.length > 0 
-      ? validCpueData.reduce((sum, d) => sum + d.fisher_cpue, 0) / validCpueData.length 
+      ? validCpueData.reduce((sum, d) => sum + d.mean_cpue, 0) / validCpueData.length 
       : 0;
     const avgRpue = validRpueData.length > 0 
-      ? validRpueData.reduce((sum, d) => sum + d.fisher_rpue, 0) / validRpueData.length 
+      ? validRpueData.reduce((sum, d) => sum + d.mean_rpue, 0) / validRpueData.length 
       : 0;
     const avgCost = validCostData.length > 0 
-      ? validCostData.reduce((sum, d) => sum + d.fisher_cost, 0) / validCostData.length 
+      ? validCostData.reduce((sum, d) => sum + d.mean_costs, 0) / validCostData.length 
       : 0;
-
+    const avgProfit = validProfitData.length > 0 
+      ? validProfitData.reduce((sum, d) => sum + d.mean_profit, 0) / validProfitData.length 
+      : 0;
     // Count actual fishing days (days with at least one non-null value)
     const fishingDays = fisherData.filter(d => 
-      d.fisher_cpue != null || d.fisher_rpue != null || d.fisher_cost != null
+      d.mean_cpue != null || d.mean_rpue != null || d.mean_costs != null || d.mean_profit != null
     ).length;
-
     return {
       avgCpue: avgCpue.toFixed(2),
       avgRpue: avgRpue.toFixed(2),
       avgCost: avgCost.toFixed(2),
+      avgProfit: avgProfit.toFixed(2),
       totalDays: fisherData.length,
       fishingDays,
     };
@@ -241,7 +261,7 @@ export default function IndividualFisherTrends({
               if (value === undefined || value === null) return null;
               
               const isAverage = entry.dataKey.startsWith('avg');
-              const color = isAverage ? "#6b7280" : COLORS[selectedMetric.replace("fisher_", "") as keyof typeof COLORS];
+              const color = isAverage ? "#6b7280" : COLORS[selectedMetric.replace("mean_", "") as keyof typeof COLORS];
               
               return (
                 <div key={index} className="flex items-center gap-2">
@@ -252,14 +272,16 @@ export default function IndividualFisherTrends({
                   <p className="text-sm">
                     <span className="font-medium">
                       {isAverage ? `${fisherBMU} ${t('text-average')}` : t('text-your')} 
-                      {selectedMetric === "fisher_cpue" && ` ${t('text-cpue')}`}
-                      {selectedMetric === "fisher_rpue" && ` ${t('text-rpue')}`}
-                      {selectedMetric === "fisher_cost" && ` ${t('text-cost')}`}:
+                      {selectedMetric === "mean_cpue" && ` ${t('text-cpue')}`}
+                      {selectedMetric === "mean_rpue" && ` ${t('text-rpue')}`}
+                      {selectedMetric === "mean_costs" && ` ${t('text-costs')}`}
+                      {selectedMetric === "mean_profit" && ` ${t('text-profit')}`}
                     </span>{" "}
                     <span className="font-semibold">
-                      {selectedMetric === "fisher_cpue" && `${value.toFixed(2)} kg/trip`}
-                      {selectedMetric === "fisher_rpue" && `KES ${value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
-                      {selectedMetric === "fisher_cost" && `KES ${value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+                      {selectedMetric === "mean_cpue" && `${value.toFixed(2)} kg/trip`}
+                      {selectedMetric === "mean_rpue" && `KES ${value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/trip`}
+                      {selectedMetric === "mean_costs" && `KES ${value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/trip`}
+                      {selectedMetric === "mean_profit" && `KES ${value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/trip`}
                     </span>
                   </p>
                 </div>
@@ -268,9 +290,9 @@ export default function IndividualFisherTrends({
             {payload.length === 0 && (
               <p className="text-sm text-gray-500 italic">{t('text-no-data')}</p>
             )}
-            {data.gear && (
+            {data.bmu && (
               <p className="text-xs text-gray-500 mt-1 border-t pt-1">
-                {data.gear} | {data.bmu}
+                {data.bmu}
               </p>
             )}
           </div>
@@ -297,60 +319,48 @@ export default function IndividualFisherTrends({
   }
 
   return (
-          <WidgetCard
-        title={t('text-your-daily-trends')}
-        description={`${summaryStats.fishingDays} ${t('text-fishing-days')} (${summaryStats.totalDays} ${t('text-total-days')}) - ${t('text-compared-with-bmu-average', { bmu: fisherBMU })}`}
+    <WidgetCard
+      title={t('text-your-daily-trends')}
+      description={
+        <span>
+          {summaryStats.fishingDays} {t('text-fishing-days')} ({summaryStats.totalDays} {t('text-total-days')}) - {t('text-compared-with-bmu-average', { bmu: fisherBMU })}
+        </span>
+      }
       headerClassName="pb-2"
     >
       {/* Metric selector buttons */}
-      <div className="grid w-full grid-cols-3 gap-2 mb-4">
-        <button
-          onClick={() => setSelectedMetric("fisher_cpue")}
-          className={cn(
-            "px-3 py-2 rounded-md text-xs font-medium transition-colors",
-            selectedMetric === "fisher_cpue"
-              ? "bg-blue-100 text-blue-700 border-blue-200 border"
-              : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-          )}
-        >
-          {t('text-cpue')} {Number(summaryStats.avgCpue) > 0 && `(${summaryStats.avgCpue} ${t('text-average').toLowerCase()})`}
-        </button>
-        <button
-          onClick={() => setSelectedMetric("fisher_rpue")}
-          className={cn(
-            "px-3 py-2 rounded-md text-xs font-medium transition-colors",
-            selectedMetric === "fisher_rpue"
-              ? "bg-green-100 text-green-700 border-green-200 border"
-              : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-          )}
-        >
-          {t('text-rpue')} {Number(summaryStats.avgRpue) > 0 && `(KES ${Number(summaryStats.avgRpue).toLocaleString('en-US', { minimumFractionDigits: 2 })} ${t('text-average').toLowerCase()})`}
-        </button>
-        <button
-          onClick={() => setSelectedMetric("fisher_cost")}
-          className={cn(
-            "px-3 py-2 rounded-md text-xs font-medium transition-colors",
-            selectedMetric === "fisher_cost"
-              ? "bg-amber-100 text-amber-700 border-amber-200 border"
-              : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-          )}
-        >
-          {t('text-cost')} {Number(summaryStats.avgCost) > 0 && `(KES ${Number(summaryStats.avgCost).toLocaleString('en-US', { minimumFractionDigits: 2 })} ${t('text-average').toLowerCase()})`}
-        </button>
+      <div className="flex w-full gap-2 mb-4 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-gray-200">
+        {METRIC_OPTIONS.map((option) => (
+          <button
+            key={option.key}
+            onClick={() => setSelectedMetric(option.key)}
+            className={cn(
+              "px-3 py-2 rounded-md text-xs font-medium whitespace-nowrap transition-colors",
+              selectedMetric === option.key
+                ? "bg-blue-100 text-blue-700 border-blue-200 border"
+                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+            )}
+          >
+            {option.label} {Number(summaryStats[option.key.replace("mean_", "") as keyof typeof summaryStats]) > 0 && `(${summaryStats[option.key.replace("mean_", "") as keyof typeof summaryStats]} ${t('text-average').toLowerCase()})`}
+          </button>
+        ))}
       </div>
 
       {/* Chart */}
       <div className="h-96 w-full pt-9">
         <ResponsiveContainer width="100%" height="100%">
-          <LineChart
+          <BarChart
             data={chartData}
-            margin={{ top: 10, right: 30, left: 10, bottom: 0 }}
+            margin={{ top: 10, right: 50, left: 30, bottom: 0 }}
+            barGap={0}
+            barCategoryGap={300}
           >
             <XAxis
               dataKey="date"
-              tickFormatter={(timestamp) => format(new Date(timestamp), "MMM dd")}
+              tickFormatter={(timestamp) => format(new Date(timestamp), "MMM yyyy")}
+              tickCount={8}
+              minTickGap={5}
               tickMargin={10}
-              minTickGap={20}
               axisLine={false}
               tick={{ fontSize: 12 }}
             />
@@ -361,33 +371,24 @@ export default function IndividualFisherTrends({
             />
             <CartesianGrid strokeDasharray="3 3" vertical={false} />
             <Tooltip content={<CustomTooltip />} />
-            
-            <Line
-              dataKey={selectedMetric === "fisher_cpue" ? "cpue" : selectedMetric === "fisher_rpue" ? "rpue" : "cost"}
-              stroke={COLORS[selectedMetric.replace("fisher_", "") as keyof typeof COLORS]}
-              strokeWidth={2}
-              dot={{ fill: COLORS[selectedMetric.replace("fisher_", "") as keyof typeof COLORS], strokeWidth: 0, r: 4 }}
-              activeDot={{ r: 6, strokeWidth: 0 }}
-              connectNulls={false}
-              isAnimationActive={false}
+            {/* Fisher's own data as bars */}
+            <Bar
+              dataKey={selectedMetric === "mean_cpue" ? "cpue" : selectedMetric === "mean_rpue" ? "rpue" : selectedMetric === "mean_costs" ? "cost" : "profit"}
+              fill="#F79F79"
               name={t('text-your-performance')}
+              radius={[4, 4, 0, 0]}
+              maxBarSize={32}
             />
-            
-            {/* BMU Average Line */}
-            <Line
-              dataKey={selectedMetric === "fisher_cpue" ? "avgCpue" : selectedMetric === "fisher_rpue" ? "avgRpue" : "avgCost"}
-              stroke="#6b7280"
-              strokeWidth={2}
-              strokeDasharray="5 5"
-              dot={{ fill: "#6b7280", strokeWidth: 0, r: 3 }}
-              activeDot={{ r: 5, strokeWidth: 0 }}
-              connectNulls={false}
-              isAnimationActive={false}
+            {/* BMU Average as bars (slightly lighter color) */}
+            <Bar
+              dataKey={selectedMetric === "mean_cpue" ? "avgCpue" : selectedMetric === "mean_rpue" ? "avgRpue" : selectedMetric === "mean_costs" ? "avgCost" : "avgProfit"}
+              fill="#8693AB"
               name={`${fisherBMU} ${t('text-average')}`}
+              radius={[4, 4, 0, 0]}
+              maxBarSize={32}
             />
-            
             {/* Income baseline reference lines (only for RPUE) */}
-            {selectedMetric === "fisher_rpue" && (
+            {selectedMetric === "mean_rpue" && (
               <>
                 <ReferenceLine
                   y={BASELINE_DATA.INCOME.POVERTY_LINE}
@@ -412,15 +413,24 @@ export default function IndividualFisherTrends({
                 />
               </>
             )}
-            
+            {/* Zero line for profit plot */}
+            {selectedMetric === "mean_profit" && (
+              <ReferenceLine
+                y={0}
+                stroke="#9ca3af"
+                strokeDasharray="2 2"
+                strokeWidth={1.2}
+                label={{ value: '0', position: "right", fill: "#9ca3af", fontSize: 11 }}
+              />
+            )}
             {/* Legend */}
             <Legend 
               verticalAlign="bottom" 
               height={36}
-              iconType="line"
+              iconType="rect"
               wrapperStyle={{ paddingTop: '10px' }}
             />
-          </LineChart>
+          </BarChart>
         </ResponsiveContainer>
       </div>
     </WidgetCard>

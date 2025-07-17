@@ -1,4 +1,4 @@
-import { IndividualDataModel } from "@repo/nosql/schema/individual-data";
+import { IndividualStatsModel } from "@repo/nosql/schema/individual-data";
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "../trpc";
 import { TRPCError } from "@trpc/server";
@@ -11,18 +11,19 @@ export const individualDataRouter = createTRPCRouter({
     .query(async ({ input }) => {
       try {
         await getDb(); // Ensure DB connection is established
-        return await IndividualDataModel.find({
+        return await IndividualStatsModel.find({
           BMU: { $in: input.bmus },
         })
         .select({
           _id: 0,
           date: 1,
           BMU: 1,
-          gear: 1,
           fisher_id: 1,
-          fisher_cpue: 1,
-          fisher_rpue: 1,
-          fisher_cost: 1,
+          mean_cpue: 1,
+          mean_rpue: 1,
+          mean_price_kg: 1,
+          mean_costs: 1,
+          mean_profit: 1,
         })
         .sort({ date: -1 })
         .exec();
@@ -62,15 +63,17 @@ export const individualDataRouter = createTRPCRouter({
           }
         }
         
-        return await IndividualDataModel.find(matchStage)
+        return await IndividualStatsModel.find(matchStage)
           .select({
             _id: 0,
             date: 1,
             BMU: 1,
-            gear: 1,
-            fisher_cpue: 1,
-            fisher_rpue: 1,
-            fisher_cost: 1,
+            fisher_id: 1,
+            mean_cpue: 1,
+            mean_rpue: 1,
+            mean_price_kg: 1,
+            mean_costs: 1,
+            mean_profit: 1,
           })
           .sort({ date: -1 })
           .exec();
@@ -110,7 +113,7 @@ export const individualDataRouter = createTRPCRouter({
           }
         }
         
-        return await IndividualDataModel.aggregate([
+        return await IndividualStatsModel.aggregate([
           {
             $match: matchStage,
           },
@@ -161,12 +164,12 @@ export const individualDataRouter = createTRPCRouter({
       try {
         await getDb();
         
-        return await IndividualDataModel.aggregate([
+        return await IndividualStatsModel.aggregate([
           {
             $match: {
               BMU: { $in: input.bmus },
-              fisher_cpue: { $ne: null },
-              fisher_rpue: { $ne: null },
+              mean_cpue: { $ne: null },
+              mean_rpue: { $ne: null },
             },
           },
           {
@@ -175,11 +178,12 @@ export const individualDataRouter = createTRPCRouter({
                 fisher_id: "$fisher_id",
                 BMU: "$BMU",
               },
-              avg_cpue: { $avg: "$fisher_cpue" },
-              avg_rpue: { $avg: "$fisher_rpue" },
-              avg_cost: { $avg: "$fisher_cost" },
+              avg_cpue: { $avg: "$mean_cpue" },
+              avg_rpue: { $avg: "$mean_rpue" },
+              avg_costs: { $avg: "$mean_costs" },
+              avg_price_kg: { $avg: "$mean_price_kg" },
+              avg_profit: { $avg: "$mean_profit" },
               total_trips: { $sum: 1 },
-              primary_gear: { $first: "$gear" },
             },
           },
           {
@@ -189,9 +193,10 @@ export const individualDataRouter = createTRPCRouter({
               BMU: "$_id.BMU",
               avg_cpue: { $round: ["$avg_cpue", 2] },
               avg_rpue: { $round: ["$avg_rpue", 2] },
-              avg_cost: { $round: ["$avg_cost", 2] },
+              avg_costs: { $round: ["$avg_costs", 2] },
+              avg_price_kg: { $round: ["$avg_price_kg", 2] },
+              avg_profit: { $round: ["$avg_profit", 2] },
               total_trips: 1,
-              primary_gear: 1,
             },
           },
           {
@@ -215,13 +220,13 @@ export const individualDataRouter = createTRPCRouter({
   monthlyTrends: protectedProcedure
     .input(z.object({ 
       bmus: z.string().array(),
-      metric: z.enum(['fisher_cpue', 'fisher_rpue', 'fisher_cost']).optional().default('fisher_cpue'),
+      metric: z.enum(['mean_cpue', 'mean_rpue', 'mean_costs', 'mean_profit', 'mean_price_kg']).optional().default('mean_cpue'),
     }))
     .query(async ({ input }) => {
       try {
         await getDb();
         
-        return await IndividualDataModel.aggregate([
+        return await IndividualStatsModel.aggregate([
           {
             $match: {
               BMU: { $in: input.bmus },
@@ -266,13 +271,13 @@ export const individualDataRouter = createTRPCRouter({
   fisherMonthlyTrends: protectedProcedure
     .input(z.object({ 
       fisherId: z.string(),
-      metric: z.enum(['fisher_cpue', 'fisher_rpue', 'fisher_cost']).optional().default('fisher_cpue'),
+      metric: z.enum(['mean_cpue', 'mean_rpue', 'mean_costs', 'mean_profit', 'mean_price_kg']).optional().default('mean_cpue'),
     }))
     .query(async ({ input }) => {
       try {
         await getDb();
         
-        return await IndividualDataModel.aggregate([
+        return await IndividualStatsModel.aggregate([
           {
             $match: {
               fisher_id: input.fisherId,
@@ -284,22 +289,15 @@ export const individualDataRouter = createTRPCRouter({
               _id: { $dateToString: { format: "%Y-%m", date: "$date" } },
               avg_value: { $avg: `$${input.metric}` },
               count: { $sum: 1 },
-              gear_breakdown: {
-                $push: {
-                  gear: "$gear",
-                  value: `$${input.metric}`,
-                },
-              },
             },
           },
           {
             $project: {
               _id: 0,
-              month: "$_id",
+              month: "_id",
               date: { $dateFromString: { dateString: { $concat: ["$_id", "-01"] } } },
               avg_value: { $round: ["$avg_value", 2] },
               count: 1,
-              gear_breakdown: 1,
             },
           },
           {
@@ -342,7 +340,7 @@ export const individualDataRouter = createTRPCRouter({
           }
         }
         
-        return await IndividualDataModel.aggregate([
+        return await IndividualStatsModel.aggregate([
           {
             $match: matchStage,
           },
@@ -350,13 +348,13 @@ export const individualDataRouter = createTRPCRouter({
             $group: {
               _id: null,
               total_trips: { $sum: 1 },
-              avg_cpue: { $avg: "$fisher_cpue" },
-              avg_rpue: { $avg: "$fisher_rpue" },
-              avg_cost: { $avg: "$fisher_cost" },
-              total_cost: { $sum: "$fisher_cost" },
-              total_revenue: { $sum: "$fisher_rpue" },
-              gears_used: { $addToSet: "$gear" },
-              bmus_visited: { $addToSet: "$BMU" },
+              avg_cpue: { $avg: "$mean_cpue" },
+              avg_rpue: { $avg: "$mean_rpue" },
+              avg_costs: { $avg: "$mean_costs" },
+              avg_price_kg: { $avg: "$mean_price_kg" },
+              avg_profit: { $avg: "$mean_profit" },
+              total_costs: { $sum: "$mean_costs" },
+              total_revenue: { $sum: "$mean_rpue" },
               latest_trip: { $max: "$date" },
               earliest_trip: { $min: "$date" },
             },
@@ -367,12 +365,12 @@ export const individualDataRouter = createTRPCRouter({
               total_trips: 1,
               avg_cpue: { $round: ["$avg_cpue", 2] },
               avg_rpue: { $round: ["$avg_rpue", 2] },
-              avg_cost: { $round: ["$avg_cost", 2] },
-              total_cost: { $round: ["$total_cost", 2] },
+              avg_costs: { $round: ["$avg_costs", 2] },
+              avg_price_kg: { $round: ["$avg_price_kg", 2] },
+              avg_profit: { $round: ["$avg_profit", 2] },
+              total_costs: { $round: ["$total_costs", 2] },
               total_revenue: { $round: ["$total_revenue", 2] },
-              net_profit: { $round: [{ $subtract: ["$total_revenue", "$total_cost"] }, 2] },
-              gears_used: 1,
-              bmus_visited: 1,
+              net_profit: { $round: [{ $subtract: ["$total_revenue", "$total_costs"] }, 2] },
               latest_trip: 1,
               earliest_trip: 1,
             },

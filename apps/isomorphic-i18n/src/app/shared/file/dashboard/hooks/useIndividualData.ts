@@ -31,16 +31,6 @@ export const useIndividualData = (options?: UseIndividualDataOptions) => {
     { enabled: accessibleBMUs.length > 0 }
   );
 
-  // Fetch gear summary
-  const {
-    data: gearData,
-    isLoading: isLoadingGear,
-    error: errorGear,
-  } = api.individualData.gearSummary.useQuery(
-    { bmus: accessibleBMUs },
-    { enabled: accessibleBMUs.length > 0 }
-  );
-
   // Fetch performance metrics
   const {
     data: performanceData,
@@ -62,7 +52,7 @@ export const useIndividualData = (options?: UseIndividualDataOptions) => {
   } = api.individualData.monthlyTrends.useQuery(
     { 
       bmus: accessibleBMUs,
-      metric: 'fisher_cpue'
+      metric: 'mean_cpue'
     },
     { enabled: accessibleBMUs.length > 0 }
   );
@@ -88,7 +78,7 @@ export const useIndividualData = (options?: UseIndividualDataOptions) => {
   } = api.individualData.fisherMonthlyTrends.useQuery(
     { 
       fisherId: userFisherId || '',
-      metric: 'fisher_cpue'
+      metric: 'mean_cpue'
     },
     { enabled: isIiaUser && !!userFisherId }
   );
@@ -109,7 +99,6 @@ export const useIndividualData = (options?: UseIndividualDataOptions) => {
   return {
     // Data
     individualData,
-    gearData,
     performanceData,
     monthlyTrendsData,
     fisherData,
@@ -118,23 +107,21 @@ export const useIndividualData = (options?: UseIndividualDataOptions) => {
     
     // Loading states
     isLoadingAll,
-    isLoadingGear,
     isLoadingPerformance,
     isLoadingTrends,
     isLoadingFisherData,
     isLoadingFisherTrends,
     isLoadingFisherSummary,
-    isLoading: isLoadingAll || isLoadingGear || isLoadingPerformance || isLoadingTrends || isLoadingFisherData || isLoadingFisherTrends || isLoadingFisherSummary,
+    isLoading: isLoadingAll || isLoadingPerformance || isLoadingTrends || isLoadingFisherData || isLoadingFisherTrends || isLoadingFisherSummary,
     
     // Error states
     errorAll,
-    errorGear,
     errorPerformance,
     errorTrends,
     errorFisherData,
     errorFisherTrends,
     errorFisherSummary,
-    hasError: !!(errorAll || errorGear || errorPerformance || errorTrends || errorFisherData || errorFisherTrends || errorFisherSummary),
+    hasError: !!(errorAll || errorPerformance || errorTrends || errorFisherData || errorFisherTrends || errorFisherSummary),
     
     // Utility
     accessibleBMUs,

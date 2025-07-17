@@ -82,21 +82,23 @@ export default function IndividualFisherStats({
     const otherFishersData = bmuData.filter(record => record.fisher_id !== userFisherId);
     if (otherFishersData.length === 0) return null;
 
-    const cpueValues = otherFishersData.filter(d => d.fisher_cpue != null).map(d => d.fisher_cpue);
-    const rpueValues = otherFishersData.filter(d => d.fisher_rpue != null).map(d => d.fisher_rpue);
-    const costValues = otherFishersData.filter(d => d.fisher_cost != null).map(d => d.fisher_cost);
+    const cpueValues = otherFishersData.filter(d => d.mean_cpue != null).map(d => d.mean_cpue);
+    const rpueValues = otherFishersData.filter(d => d.mean_rpue != null).map(d => d.mean_rpue);
+    const costValues = otherFishersData.filter(d => d.mean_costs != null).map(d => d.mean_costs);
+    const profitValues = otherFishersData.filter(d => d.mean_profit != null).map(d => d.mean_profit);
 
     return {
       avgCpue: cpueValues.length > 0 ? cpueValues.reduce((a, b) => a + b, 0) / cpueValues.length : 0,
       avgRpue: rpueValues.length > 0 ? rpueValues.reduce((a, b) => a + b, 0) / rpueValues.length : 0,
       avgCost: costValues.length > 0 ? costValues.reduce((a, b) => a + b, 0) / costValues.length : 0,
+      avgProfit: profitValues.length > 0 ? profitValues.reduce((a, b) => a + b, 0) / profitValues.length : 0,
     };
   }, [bmuData, userFisherId]);
 
   // Calculate net profit BMU average - MUST be before any conditional returns
   const bmuNetProfit = useMemo(() => {
     if (!bmuAverages) return null;
-    return bmuAverages.avgRpue - bmuAverages.avgCost;
+    return bmuAverages.avgProfit;
   }, [bmuAverages]);
 
   const summary = fisherPerformanceSummary?.[0] || {};
@@ -193,20 +195,20 @@ export default function IndividualFisherStats({
     },
     {
       title: t('text-cost'),
-      value: summary.avg_cost || 0,
+      value: summary.avg_costs || 0,
       bmuAvg: bmuAverages?.avgCost || 0,
       format: formatCurrency,
-      trend: getPerformanceStatus(summary.avg_cost || 0, bmuAverages?.avgCost || 0, 'cost'),
+      trend: getPerformanceStatus(summary.avg_costs || 0, bmuAverages?.avgCost || 0, 'cost'),
       color: 'purple' as const,
       metric: 'cost',
       description: t('text-average-cost-per-trip'),
     },
     {
       title: t('text-net-profit'),
-      value: summary.net_profit || 0,
+      value: summary.avg_profit || 0,
       bmuAvg: bmuNetProfit,
       format: formatCurrency,
-      trend: getPerformanceStatus(summary.net_profit || 0, bmuNetProfit, 'profit'),
+      trend: getPerformanceStatus(summary.avg_profit || 0, bmuNetProfit, 'profit'),
       color: 'orange' as const,
       metric: 'profit',
       description: t('text-average-profit-per-trip'),
@@ -264,7 +266,7 @@ export default function IndividualFisherStats({
   return (
     <div className="space-y-5">
       {/* Income baseline indicators */}
-      <WidgetCard
+      {/* <WidgetCard
         title={t('text-income-indicators')}
         description={t('text-daily-income-comparison')}
         headerClassName="pb-3"
@@ -293,7 +295,7 @@ export default function IndividualFisherStats({
             {t('text-your-daily-income')}: <span className="font-semibold">{formatCurrency(dailyIncome)}</span>
           </Text>
         </div>
-      </WidgetCard>
+      </WidgetCard> */}
 
       {/* Stats cards */}
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
