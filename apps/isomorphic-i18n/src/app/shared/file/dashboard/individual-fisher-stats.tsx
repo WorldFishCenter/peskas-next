@@ -303,25 +303,42 @@ export default function IndividualFisherStats({
           const percentDiff = stat.bmuAvg !== null && stat.bmuAvg !== 0
             ? ((stat.value - stat.bmuAvg) / stat.bmuAvg * 100)
             : null;
-          
-          // Determine if performance is better or worse
-          const isBetter = stat.metric === 'cost' 
-            ? (percentDiff !== null && percentDiff < 0)
-            : (stat.metric === 'profit' ? stat.value > 0 : (percentDiff !== null && percentDiff > 0));
-          
-          // Determine if the trend is positive for the card border
-          const isPositiveTrend = stat.metric === 'cost' 
-            ? stat.trend === 'down' 
-            : stat.trend === 'up';
-          
+
+          // Consistent performance logic
+          let isBetter = false;
+          if (stat.metric === 'cost') {
+            isBetter = percentDiff !== null && percentDiff < 0; // Lower cost is better
+          } else {
+            isBetter = percentDiff !== null && percentDiff > 0; // Higher is better
+          }
+
+          // Consistent trend for arrow
+          let trend: 'up' | 'down' | 'neutral' = 'neutral';
+          if (percentDiff !== null) {
+            if (percentDiff > 2) trend = stat.metric === 'cost' ? 'down' : 'up';
+            else if (percentDiff < -2) trend = stat.metric === 'cost' ? 'up' : 'down';
+            else trend = 'neutral';
+          }
+
+          // Card border color
+          let borderColor = 'border-gray-200';
+          if (trend === 'up' && isBetter) borderColor = 'border-green-200';
+          else if (trend === 'down' && !isBetter) borderColor = 'border-red-200';
+
+          // Progress bar fill: 50% at average, 100% at double average, 0% at zero (or double worse)
+          let barFill = 50;
+          if (stat.bmuAvg && stat.bmuAvg !== 0) {
+            let ratio = stat.value / stat.bmuAvg;
+            if (stat.metric === 'cost') ratio = stat.bmuAvg / stat.value; // Invert for cost
+            barFill = Math.max(0, Math.min(100, ratio * 50));
+          }
+
           return (
             <div
               key={index}
               className={cn(
                 "rounded-lg border p-5 relative bg-white shadow-sm hover:shadow-md transition-shadow",
-                isPositiveTrend && "border-green-200",
-                stat.trend === 'neutral' && "border-gray-200",
-                !isPositiveTrend && stat.trend !== 'neutral' && "border-red-200"
+                borderColor
               )}
             >
               {/* Header with title and trend */}
@@ -335,10 +352,11 @@ export default function IndividualFisherStats({
                   </Text>
                 </div>
                 <div className="ml-2">
-                  {getTrendIcon(stat.trend, stat.metric)}
+                  {trend === 'up' && <PiTrendUp className="h-5 w-5 text-green-500" />}
+                  {trend === 'down' && <PiTrendDown className="h-5 w-5 text-red-500" />}
+                  {trend === 'neutral' && <PiEquals className="h-5 w-5 text-gray-500" />}
                 </div>
               </div>
-              
               {/* Main value */}
               <div className="mb-4">
                 <Text className="text-2xl font-bold text-gray-900">
@@ -348,7 +366,6 @@ export default function IndividualFisherStats({
                   {t('text-your-average')}
                 </Text>
               </div>
-              
               {/* BMU comparison with visual indicator */}
               {stat.bmuAvg !== null && (
                 <div className="space-y-2">
@@ -360,7 +377,6 @@ export default function IndividualFisherStats({
                         {stat.format(stat.bmuAvg)}
                       </Text>
                     </div>
-                    
                     {/* Visual comparison indicator */}
                     {percentDiff !== null && (
                       <div className="mt-2">
@@ -380,18 +396,51 @@ export default function IndividualFisherStats({
                              (stat.metric === 'cost' ? t('text-higher-than-average') : t('text-lower-than-average'))}
                           </Text>
                         </div>
-                        
-                        {/* Progress bar showing relative performance */}
-                        <div className="mt-2 h-1.5 bg-gray-200 rounded-full overflow-hidden">
-                          <div 
-                            className={cn(
-                              "h-full transition-all duration-500",
-                              isBetter ? "bg-green-500" : percentDiff === 0 ? "bg-gray-400" : "bg-red-500"
-                            )}
-                            style={{ 
-                              width: `${Math.min(Math.abs(percentDiff || 0) / 2 + 50, 100)}%` 
-                            }}
-                          />
+                        {/* Diverging progress bar showing relative performance */}
+                        <div className="mt-2 h-1.5 bg-gray-200 rounded-full overflow-hidden relative flex items-center">
+                          {/* Center reference line and label */}
+                          <div className="absolute left-1/2 top-0 bottom-0 w-1 bg-gray-800 z-20" style={{height: '150%'}} />
+                          <div className="absolute left-1/2 -top-4 z-30 text-xs font-semibold text-gray-800 select-none" style={{transform: 'translateX(-50%)'}}>
+                            Avg
+                          </div>
+                          {/* Diverging fill logic */}
+                          {percentDiff !== null && stat.metric === 'cost' && percentDiff < 0 && (
+                            <div
+                              className="h-full bg-green-500 transition-all duration-500 z-0 rounded-l-full"
+                              style={{
+                                width: `${Math.min(Math.abs(percentDiff), 100) / 2}%`,
+                                marginLeft: `${50 - Math.min(Math.abs(percentDiff), 100) / 2}%`,
+                              }}
+                            />
+                          )}
+                          {percentDiff !== null && stat.metric === 'cost' && percentDiff > 0 && (
+                            <div
+                              className="h-full bg-red-500 transition-all duration-500 z-0 rounded-r-full"
+                              style={{
+                                width: `${Math.min(percentDiff, 100) / 2}%`,
+                                marginLeft: '50%',
+                              }}
+                            />
+                          )}
+                          {/* Default diverging fill for other metrics */}
+                          {percentDiff !== null && stat.metric !== 'cost' && percentDiff < 0 && (
+                            <div
+                              className="h-full bg-red-500 transition-all duration-500 z-0 rounded-l-full"
+                              style={{
+                                width: `${Math.min(Math.abs(percentDiff), 100) / 2}%`,
+                                marginLeft: `${50 - Math.min(Math.abs(percentDiff), 100) / 2}%`,
+                              }}
+                            />
+                          )}
+                          {percentDiff !== null && stat.metric !== 'cost' && percentDiff > 0 && (
+                            <div
+                              className="h-full bg-green-500 transition-all duration-500 z-0 rounded-r-full"
+                              style={{
+                                width: `${Math.min(percentDiff, 100) / 2}%`,
+                                marginLeft: '50%',
+                              }}
+                            />
+                          )}
                         </div>
                       </div>
                     )}

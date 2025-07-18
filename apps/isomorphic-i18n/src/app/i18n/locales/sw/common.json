@@ -849,7 +849,7 @@
   "text-better": "bora",
   "text-higher": "juu",
   "text-lower": "chini",
-  "text-compared-with-bmu-average": "Ikilinganishwa na wastani wa {{bmu}}",
+  "text-compared-with-bmu-average": "Ikilinganishwa na wastani wa wavuvi wengine wa {{bmu}}",
   "text-total-days": "jumla ya siku",
   "text-no-data": "Hakuna data",
   "text-of-total": "ya jumla",
@@ -909,5 +909,10 @@
   "text-fish-composition-trends-absolute-bmu": "Mienendo ya Muundo wa Samaki ya {{bmuName}} (kg)",
   "text-fish-composition-trends-percent-bmu": "Mienendo ya Muundo wa Samaki ya {{bmuName}} (%)",
   "text-fish-composition-trends-absolute-desc": "Inaonyesha kiasi halisi cha uvuvi kwa wakati kulingana na aina za samaki",
-  "text-fish-composition-trends-percent-desc": "Inaonyesha usambazaji wa asilimia ya aina za samaki kwa wakati"
+  "text-fish-composition-trends-percent-desc": "Inaonyesha usambazaji wa asilimia ya aina za samaki kwa wakati",
+  "text-your-monthly-trends": "Mwenendo Wako wa Kila Mwezi",
+  "text-cpue": "CPUE",
+  "text-rpue": "RPUE",
+  "text-costs": "Gharama",
+  "text-profit": "Faida"
 }

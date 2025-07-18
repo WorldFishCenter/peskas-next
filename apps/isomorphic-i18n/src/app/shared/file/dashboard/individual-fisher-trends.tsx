@@ -62,10 +62,10 @@ const COLORS = {
 };
 
 const METRIC_OPTIONS = [
-  { key: 'mean_cpue', label: 'CPUE', color: 'blue', unit: 'kg/trip' },
-  { key: 'mean_rpue', label: 'RPUE', color: 'green', unit: 'KES/trip' },
-  { key: 'mean_costs', label: 'Costs', color: 'amber', unit: 'KES/trip' },
-  { key: 'mean_profit', label: 'Profit', color: 'orange', unit: 'KES/trip' },
+  { key: 'mean_cpue', label: 'text-cpue', color: 'blue', unit: 'kg/trip' },
+  { key: 'mean_rpue', label: 'text-rpue', color: 'green', unit: 'KES/trip' },
+  { key: 'mean_costs', label: 'text-costs', color: 'amber', unit: 'KES/trip' },
+  { key: 'mean_profit', label: 'text-profit', color: 'orange', unit: 'KES/trip' },
 ];
 
 export default function IndividualFisherTrends({ 
@@ -249,53 +249,46 @@ export default function IndividualFisherTrends({
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
       const data = payload[0].payload;
-      
+      // Get values for both bars
+      const metricKey = selectedMetric === "mean_cpue" ? "cpue" : selectedMetric === "mean_rpue" ? "rpue" : selectedMetric === "mean_costs" ? "cost" : "profit";
+      const avgKey = selectedMetric === "mean_cpue" ? "avgCpue" : selectedMetric === "mean_rpue" ? "avgRpue" : selectedMetric === "mean_costs" ? "avgCost" : "avgProfit";
+      const yourValue = data[metricKey];
+      const avgValue = data[avgKey];
+      // Metric-specific label
+      const metricLabel = selectedMetric === "mean_cpue" ? t('text-cpue') : selectedMetric === "mean_rpue" ? t('text-rpue') : selectedMetric === "mean_costs" ? t('text-costs') : t('text-profit');
+      // Format value
+      const formatValue = (val: number) => {
+        if (selectedMetric === "mean_cpue") return `${val.toFixed(2)} kg/trip`;
+        return `KES ${val.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/trip`;
+      };
       return (
         <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
-          <p className="text-sm font-medium text-gray-600 mb-2">{data.dateDisplay}</p>
+          <p className="text-sm font-medium text-gray-600 mb-2">{format(new Date(data.fullDate), 'MMM yyyy')}</p>
           <div className="space-y-1.5">
-            {payload.map((entry: any, index: number) => {
-              const value = entry.value;
-              
-              // Skip if no value
-              if (value === undefined || value === null) return null;
-              
-              const isAverage = entry.dataKey.startsWith('avg');
-              const color = isAverage ? "#6b7280" : COLORS[selectedMetric.replace("mean_", "") as keyof typeof COLORS];
-              
-              return (
-                <div key={index} className="flex items-center gap-2">
-                  <div
-                    className="w-2 h-2 rounded-full"
-                    style={{ backgroundColor: color }}
-                  />
-                  <p className="text-sm">
-                    <span className="font-medium">
-                      {isAverage ? `${fisherBMU} ${t('text-average')}` : t('text-your')} 
-                      {selectedMetric === "mean_cpue" && ` ${t('text-cpue')}`}
-                      {selectedMetric === "mean_rpue" && ` ${t('text-rpue')}`}
-                      {selectedMetric === "mean_costs" && ` ${t('text-costs')}`}
-                      {selectedMetric === "mean_profit" && ` ${t('text-profit')}`}
-                    </span>{" "}
-                    <span className="font-semibold">
-                      {selectedMetric === "mean_cpue" && `${value.toFixed(2)} kg/trip`}
-                      {selectedMetric === "mean_rpue" && `KES ${value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/trip`}
-                      {selectedMetric === "mean_costs" && `KES ${value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/trip`}
-                      {selectedMetric === "mean_profit" && `KES ${value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/trip`}
-                    </span>
-                  </p>
-                </div>
-              );
-            })}
-            {payload.length === 0 && (
-              <p className="text-sm text-gray-500 italic">{t('text-no-data')}</p>
+            {/* Your Performance */}
+            {yourValue !== undefined && yourValue !== null && (
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full" style={{ backgroundColor: '#F79F79' }} />
+                <p className="text-sm font-medium">
+                  {t('text-your')} {metricLabel} <span className="font-semibold">{formatValue(yourValue)}</span>
+                </p>
+              </div>
             )}
-            {data.bmu && (
-              <p className="text-xs text-gray-500 mt-1 border-t pt-1">
-                {data.bmu}
-              </p>
+            {/* BMU Average */}
+            {avgValue !== undefined && avgValue !== null && (
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full" style={{ backgroundColor: '#8693AB' }} />
+                <p className="text-sm font-medium">
+                  {fisherBMU} {t('text-average')} {metricLabel} <span className="font-semibold">{formatValue(avgValue)}</span>
+                </p>
+              </div>
             )}
           </div>
+          {data.bmu && (
+            <div className="mt-2 border-t pt-1">
+              <p className="text-xs text-gray-500">{data.bmu}</p>
+            </div>
+          )}
         </div>
       );
     }
@@ -320,28 +313,24 @@ export default function IndividualFisherTrends({
 
   return (
     <WidgetCard
-      title={t('text-your-daily-trends')}
-      description={
-        <span>
-          {summaryStats.fishingDays} {t('text-fishing-days')} ({summaryStats.totalDays} {t('text-total-days')}) - {t('text-compared-with-bmu-average', { bmu: fisherBMU })}
-        </span>
-      }
+      title={t('text-your-monthly-trends')}
+      description={t('text-compared-with-bmu-average', { bmu: fisherBMU })}
       headerClassName="pb-2"
     >
       {/* Metric selector buttons */}
-      <div className="flex w-full gap-2 mb-4 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-gray-200">
+      <div className="flex w-full gap-2 mb-4 overflow-x-auto">
         {METRIC_OPTIONS.map((option) => (
           <button
             key={option.key}
             onClick={() => setSelectedMetric(option.key)}
             className={cn(
-              "px-3 py-2 rounded-md text-xs font-medium whitespace-nowrap transition-colors",
+              "px-4 py-2 font-semibold rounded-md transition duration-200 w-full sm:w-auto",
               selectedMetric === option.key
-                ? "bg-blue-100 text-blue-700 border-blue-200 border"
-                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                ? "bg-blue-500 text-white"
+                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
             )}
           >
-            {option.label} {Number(summaryStats[option.key.replace("mean_", "") as keyof typeof summaryStats]) > 0 && `(${summaryStats[option.key.replace("mean_", "") as keyof typeof summaryStats]} ${t('text-average').toLowerCase()})`}
+            {t(option.label)}
           </button>
         ))}
       </div>
