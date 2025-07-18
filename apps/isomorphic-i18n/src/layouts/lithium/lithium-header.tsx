@@ -185,6 +185,7 @@ function TimeRangeSelector({ lang }: { lang?: string }) {
   }, [i18n]);
 
   const timeRangeOptions: { value: TimeRangeOption; label: string; description: string }[] = [
+    { value: 'currentMonth', label: t('text-current-month'), description: t('text-current-month-desc') || 'Show data for the current month' },
     { value: '3months', label: t('text-last-3-months'), description: t('text-last-3-months-desc') || 'Show data from the last 3 months' },
     { value: '6months', label: t('text-last-6-months'), description: t('text-last-6-months-desc') || 'Show data from the last 6 months' },
     { value: '1year', label: t('text-last-year'), description: t('text-last-year-desc') || 'Show data from the last 12 months' },

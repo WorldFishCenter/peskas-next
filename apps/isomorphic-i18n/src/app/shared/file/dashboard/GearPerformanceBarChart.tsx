@@ -34,6 +34,13 @@ const GearPerformanceBarChart: React.FC<GearPerformanceBarChartProps> = ({
   METRIC_OPTIONS,
   bmuName,
 }) => {
+  // Sort data: descending for most metrics, ascending for 'fisher_cost'
+  const sortedData = React.useMemo(() => {
+    if (selectedMetric === 'fisher_cost') {
+      return [...data].sort((a, b) => a.yourValue - b.yourValue);
+    }
+    return [...data].sort((a, b) => b.yourValue - a.yourValue);
+  }, [data, selectedMetric]);
   return (
     <>
       {/* Metric selector buttons */}
@@ -56,7 +63,7 @@ const GearPerformanceBarChart: React.FC<GearPerformanceBarChartProps> = ({
       <div className="h-[600px] w-full">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart
-            data={data}
+            data={sortedData}
             layout="vertical"
             margin={{ top: 10, right: 50, left: 30, bottom: 0 }}
             barGap={0}

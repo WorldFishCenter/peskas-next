@@ -13,21 +13,20 @@ export function getTimeRangeStartDate(timeRange: TimeRangeOption, referenceDate:
   date.setHours(0, 0, 0, 0);
   
   switch (timeRange) {
+    case 'currentMonth':
+      // Start of current month
+      return date;
     case '3months':
       date.setMonth(date.getMonth() - 3);
       return date;
-    
     case '6months':
       date.setMonth(date.getMonth() - 6);
       return date;
-    
     case '1year':
       date.setFullYear(date.getFullYear() - 1);
       return date;
-    
     case 'all':
       return null; // No filtering for "all time"
-    
     default:
       return null;
   }
@@ -45,6 +44,15 @@ export function filterDataByTimeRange<T extends Record<string, any>>(
   timeRange: TimeRangeOption,
   dateField: string = 'date'
 ): T[] {
+  if (timeRange === 'currentMonth') {
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+    return data.filter(item => {
+      const itemDate = new Date(item[dateField]);
+      return itemDate.getMonth() === currentMonth && itemDate.getFullYear() === currentYear;
+    });
+  }
   const startDate = getTimeRangeStartDate(timeRange);
   
   // If "all time" is selected, return all data

@@ -114,13 +114,13 @@ export default function IndividualFisherGearPerformance({
 
   // Fetch gear stats for the current fisher
   const { data: fisherGearData, isLoading: isLoadingFisherGear } = api.individualGearData.byFisher.useQuery(
-    { fisher_id: userFisherId || '' },
+    { fisher_id: userFisherId || '', startDate: dateRange.startDate?.toISOString(), endDate: dateRange.endDate?.toISOString() },
     { enabled: isIiaUser && !!userFisherId }
   );
 
   // Fetch BMU average gear stats (excluding current fisher)
   const { data: bmuGearData, isLoading: isLoadingBmuGear } = api.individualGearData.bmuAverage.useQuery(
-    { BMU: fisherBMU || '', excludeFisherId: userFisherId || '' },
+    { BMU: fisherBMU || '', excludeFisherId: userFisherId || '', startDate: dateRange.startDate?.toISOString(), endDate: dateRange.endDate?.toISOString() },
     { enabled: isIiaUser && !!userFisherId && !!fisherBMU }
   );
 

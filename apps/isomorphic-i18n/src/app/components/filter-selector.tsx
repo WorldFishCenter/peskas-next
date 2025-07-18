@@ -21,7 +21,7 @@ import { useTranslation } from "@/app/i18n/client";
 import cn from "@utils/class-names";
 
 // Time range type
-export type TimeRangeOption = '3months' | '6months' | '1year' | 'all';
+export type TimeRangeOption = 'currentMonth' | '3months' | '6months' | '1year' | 'all';
 
 type DropdownTypes = {
   sectionName: string;

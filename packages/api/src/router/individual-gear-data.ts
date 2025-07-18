@@ -6,10 +6,16 @@ import getDb from "@repo/nosql";
 export const individualGearDataRouter = createTRPCRouter({
   // Get all gear stats for a specific fisher
   byFisher: protectedProcedure
-    .input(z.object({ fisher_id: z.string() }))
+    .input(z.object({ fisher_id: z.string(), startDate: z.string().optional(), endDate: z.string().optional() }))
     .query(async ({ input }) => {
       await getDb();
-      return IndividualGearStatsModel.find({ fisher_id: input.fisher_id });
+      const query: any = { fisher_id: input.fisher_id };
+      if (input.startDate || input.endDate) {
+        query.date = {};
+        if (input.startDate) query.date.$gte = new Date(input.startDate);
+        if (input.endDate) query.date.$lte = new Date(input.endDate);
+      }
+      return IndividualGearStatsModel.find(query);
     }),
 
   // Get all gear stats for a specific BMU
@@ -22,9 +28,15 @@ export const individualGearDataRouter = createTRPCRouter({
 
   // Get all gear stats for a BMU excluding a specific fisher (for BMU average)
   bmuAverage: protectedProcedure
-    .input(z.object({ BMU: z.string(), excludeFisherId: z.string() }))
+    .input(z.object({ BMU: z.string(), excludeFisherId: z.string(), startDate: z.string().optional(), endDate: z.string().optional() }))
     .query(async ({ input }) => {
       await getDb();
-      return IndividualGearStatsModel.find({ BMU: input.BMU, fisher_id: { $ne: input.excludeFisherId } });
+      const query: any = { BMU: input.BMU, fisher_id: { $ne: input.excludeFisherId } };
+      if (input.startDate || input.endDate) {
+        query.date = {};
+        if (input.startDate) query.date.$gte = new Date(input.startDate);
+        if (input.endDate) query.date.$lte = new Date(input.endDate);
+      }
+      return IndividualGearStatsModel.find(query);
     }),
 }); 

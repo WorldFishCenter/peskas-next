@@ -1052,5 +1052,7 @@
   "text-fish-composition-trends-absolute-bmu": "Fish Composition Trends for {{bmuName}} (kg)",
   "text-fish-composition-trends-percent-bmu": "Fish Composition Trends for {{bmuName}} (%)",
   "text-fish-composition-trends-absolute-desc": "Shows absolute catch amounts over time by fish category",
-  "text-fish-composition-trends-percent-desc": "Shows percentage distribution of fish categories over time"
+  "text-fish-composition-trends-percent-desc": "Shows percentage distribution of fish categories over time",
+  "text-current-month": "Current month",
+  "text-current-month-desc": "Show data for the current month"
 }

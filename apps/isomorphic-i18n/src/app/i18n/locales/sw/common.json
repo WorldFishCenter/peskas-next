@@ -914,5 +914,7 @@
   "text-cpue": "CPUE",
   "text-rpue": "RPUE",
   "text-costs": "Gharama",
-  "text-profit": "Faida"
+  "text-profit": "Faida",
+  "text-current-month": "Mwezi huu",
+  "text-current-month-desc": "Onyesha data ya mwezi huu"
 }
