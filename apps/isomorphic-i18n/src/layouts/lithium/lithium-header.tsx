@@ -28,6 +28,7 @@ import { changeAppLanguage } from '@/app/i18n/language-switcher';
 import { USFlag } from "@components/icons/language/USFlag";
 import { SWFlag } from "@components/icons/language/SWFlag";
 import { useTranslation } from "@/app/i18n/client";
+import useUserPermissions from "@/app/shared/file/dashboard/hooks/useUserPermissions";
 
 type SerializedBmu = {
   _id: string;
@@ -396,14 +397,16 @@ function HeaderMenuRight({ lang }: { lang?: string }) {
     );
   };
 
+  const { isIiaUser } = useUserPermissions();
+
   return (
     <div className="ms-auto flex shrink-0 items-center gap-1 text-gray-700 xs:gap-1 md:gap-2 xl:gap-3">
       {/* <ReferenceBMU /> */}
-      <HeaderMetricSelector />
+      {/* Only show HeaderMetricSelector if not IIA user */}
+      {!isIiaUser && <HeaderMetricSelector />}
       <TimeRangeSelector lang={lang} />
-      <div className="hidden sm:block">
-        <FilterSelector />
-      </div>
+      {/* Only show FilterSelector if not IIA user */}
+      {!isIiaUser && <FilterSelector />}
       <CompactLanguageSwitcher />
       {/* <ThemeToggle /> */}
       <ProfileMenu
