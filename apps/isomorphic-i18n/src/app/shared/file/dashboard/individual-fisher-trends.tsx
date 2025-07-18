@@ -342,7 +342,7 @@ export default function IndividualFisherTrends({
             data={chartData}
             margin={{ top: 10, right: 50, left: 30, bottom: 0 }}
             barGap={0}
-            barCategoryGap={300}
+            barCategoryGap={0}
           >
             <XAxis
               dataKey="date"
@@ -366,7 +366,7 @@ export default function IndividualFisherTrends({
               fill="#F79F79"
               name={t('text-your-performance')}
               radius={[4, 4, 0, 0]}
-              maxBarSize={32}
+              barSize={18}
             />
             {/* BMU Average as bars (slightly lighter color) */}
             <Bar
@@ -374,7 +374,7 @@ export default function IndividualFisherTrends({
               fill="#8693AB"
               name={`${fisherBMU} ${t('text-average')}`}
               radius={[4, 4, 0, 0]}
-              maxBarSize={32}
+              barSize={18}
             />
             {/* Income baseline reference lines (only for RPUE) */}
             {selectedMetric === "mean_rpue" && (

@@ -4,8 +4,6 @@ import { Text, Title } from "rizzui";
 import { useTranslation } from "@/app/i18n/client";
 import { useIndividualData } from "./hooks/useIndividualData";
 import { useUserPermissions } from "./hooks/useUserPermissions";
-import WidgetCard from "@components/cards/widget-card";
-import MetricCard from "@components/cards/metric-card";
 import cn from "@utils/class-names";
 import { PiTrendUp, PiTrendDown, PiEquals } from "react-icons/pi";
 import { api } from "@/trpc/react";

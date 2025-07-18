@@ -8,6 +8,7 @@ import { fishDistributionRouter } from "./fish-distribution";
 import { pingRouter } from "./ping";
 import { mapDistributionRouter } from "./map-distribution";
 import { individualDataRouter } from "./individual-data";
+import { individualGearDataRouter } from "./individual-gear-data";
 
 // Export all routers for easier imports
 export {
@@ -21,4 +22,5 @@ export {
   pingRouter,
   mapDistributionRouter,
   individualDataRouter,
+  individualGearDataRouter,
 }; 
