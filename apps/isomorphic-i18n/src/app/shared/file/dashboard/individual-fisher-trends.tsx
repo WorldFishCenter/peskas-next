@@ -19,7 +19,6 @@ import {
 import { format } from "date-fns";
 import cn from "@utils/class-names";
 import { api } from "@/trpc/react";
-import { getClientLanguage } from "@/app/i18n/language-link";
 import { BASELINE_DATA, isIslandSite } from "./charts/siteConfig";
 import { useAtom } from 'jotai';
 import { selectedTimeRangeAtom } from "@/app/components/filter-selector";
@@ -70,8 +69,6 @@ const METRIC_OPTIONS = [
 
 export default function IndividualFisherTrends({ 
   lang, 
-  startDate, 
-  endDate 
 }: { 
   lang?: string;
   startDate?: Date | null;

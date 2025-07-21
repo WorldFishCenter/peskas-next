@@ -3,6 +3,7 @@ import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "../trpc";
 import { TRPCError } from "@trpc/server";
 import getDb from "@repo/nosql";
+import { IndividualFishDistributionModel } from "@repo/nosql/schema/individual-fish-distribution";
 
 export const individualDataRouter = createTRPCRouter({
   // Get all individual data for specified BMUs
@@ -384,5 +385,41 @@ export const individualDataRouter = createTRPCRouter({
           cause: error,
         });
       }
+    }),
+
+  // Get individual fish distribution by fisher_id
+  individualFishDistributionByFisher: protectedProcedure
+    .input(z.object({ 
+      fisherId: z.string(),
+      startDate: z.string().optional(),
+      endDate: z.string().optional(),
+    }))
+    .query(async ({ input }) => {
+      await getDb();
+      const query: any = { fisher_id: input.fisherId };
+      if (input.startDate || input.endDate) {
+        query.date = {};
+        if (input.startDate) query.date.$gte = new Date(input.startDate);
+        if (input.endDate) query.date.$lte = new Date(input.endDate);
+      }
+      return IndividualFishDistributionModel.find(query).sort({ date: 1 }).exec();
+    }),
+
+  // Get individual fish distribution by BMU
+  individualFishDistributionByBMU: protectedProcedure
+    .input(z.object({ 
+      bmu: z.string(),
+      startDate: z.string().optional(),
+      endDate: z.string().optional(),
+    }))
+    .query(async ({ input }) => {
+      await getDb();
+      const query: any = { landing_site: input.bmu };
+      if (input.startDate || input.endDate) {
+        query.date = {};
+        if (input.startDate) query.date.$gte = new Date(input.startDate);
+        if (input.endDate) query.date.$lte = new Date(input.endDate);
+      }
+      return IndividualFishDistributionModel.find(query).sort({ date: 1 }).exec();
     }),
 }); 

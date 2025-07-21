@@ -96,6 +96,20 @@ export const useIndividualData = (options?: UseIndividualDataOptions) => {
     { enabled: isIiaUser && !!userFisherId }
   );
 
+  // Fetch individual fish distribution for the current fisher (for IIA users)
+  const {
+    data: individualFishDistribution,
+    isLoading: isLoadingIndividualFishDistribution,
+    error: errorIndividualFishDistribution,
+  } = api.individualData.individualFishDistributionByFisher.useQuery(
+    {
+      fisherId: userFisherId || '',
+      startDate: startDate?.toISOString(),
+      endDate: endDate?.toISOString(),
+    },
+    { enabled: isIiaUser && !!userFisherId }
+  );
+
   return {
     // Data
     individualData,
@@ -104,6 +118,7 @@ export const useIndividualData = (options?: UseIndividualDataOptions) => {
     fisherData,
     fisherMonthlyTrends,
     fisherPerformanceSummary,
+    individualFishDistribution,
     
     // Loading states
     isLoadingAll,
@@ -112,7 +127,8 @@ export const useIndividualData = (options?: UseIndividualDataOptions) => {
     isLoadingFisherData,
     isLoadingFisherTrends,
     isLoadingFisherSummary,
-    isLoading: isLoadingAll || isLoadingPerformance || isLoadingTrends || isLoadingFisherData || isLoadingFisherTrends || isLoadingFisherSummary,
+    isLoadingIndividualFishDistribution,
+    isLoading: isLoadingAll || isLoadingPerformance || isLoadingTrends || isLoadingFisherData || isLoadingFisherTrends || isLoadingFisherSummary || isLoadingIndividualFishDistribution,
     
     // Error states
     errorAll,
@@ -121,7 +137,8 @@ export const useIndividualData = (options?: UseIndividualDataOptions) => {
     errorFisherData,
     errorFisherTrends,
     errorFisherSummary,
-    hasError: !!(errorAll || errorPerformance || errorTrends || errorFisherData || errorFisherTrends || errorFisherSummary),
+    errorIndividualFishDistribution,
+    hasError: !!(errorAll || errorPerformance || errorTrends || errorFisherData || errorFisherTrends || errorFisherSummary || errorIndividualFishDistribution),
     
     // Utility
     accessibleBMUs,
