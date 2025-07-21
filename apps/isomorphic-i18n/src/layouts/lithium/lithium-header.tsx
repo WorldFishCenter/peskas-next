@@ -428,10 +428,10 @@ export default function Header({ lang }: { lang?: string }) {
         <LanguageLink
           aria-label="Site Logo"
           href="/"
-          className="me-4 hidden w-[155px] shrink-0 text-gray-800 hover:text-gray-900 lg:me-5 xl:block"
+          className="me-4 hidden w-[200px] shrink-0 text-gray-800 hover:text-gray-900 lg:me-5 xl:block"
         >
           <div className="flex items-center gap-2">
-            <Logo className="max-w-[155px]" />
+            <Logo className="max-w-[200px]" />
             <KenyaFlag className="h-6 w-auto" />
           </div>
         </LanguageLink>
@@ -446,7 +446,7 @@ export default function Header({ lang }: { lang?: string }) {
           <LanguageLink
             aria-label="Site Logo"
             href="/"
-            className="me-2 w-8 sm:me-3 sm:w-9 shrink-0 text-gray-800 hover:text-gray-900 lg:me-5 xl:hidden"
+            className="me-2 w-12 sm:me-3 sm:w-12 shrink-0 text-gray-800 hover:text-gray-900 lg:me-5 xl:hidden"
           >
             <Logo iconOnly={true} />
           </LanguageLink>
