@@ -5,17 +5,6 @@ import { useTranslation } from "@/app/i18n/client";
 import { useIndividualData } from "./hooks/useIndividualData";
 import { useUserPermissions } from "./hooks/useUserPermissions";
 import WidgetCard from "@components/cards/widget-card";
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  Legend,
-} from "recharts";
-import cn from "@utils/class-names";
 import { api } from "@/trpc/react";
 import { getClientLanguage } from "@/app/i18n/language-link";
 import { useAtom } from 'jotai';

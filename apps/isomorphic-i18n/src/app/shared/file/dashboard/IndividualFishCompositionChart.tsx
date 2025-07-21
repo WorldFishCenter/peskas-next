@@ -1,10 +1,9 @@
 import React, { useMemo } from "react";
 import WidgetCard from "@components/cards/widget-card";
 import { BarChart, Bar, ResponsiveContainer, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from "recharts";
-import cn from "@utils/class-names";
 import { useAtom } from "jotai";
 import { selectedTimeRangeAtom } from "@/app/components/filter-selector";
-import { getTimeRangeStartDate, filterDataByTimeRange } from "./utils/timeRangeFilter";
+import { getTimeRangeStartDate } from "./utils/timeRangeFilter";
 import { FISH_CATEGORIES } from "./fish-composition-chart";
 import FishCategorySelector from "./charts/FishCategorySelector";
 

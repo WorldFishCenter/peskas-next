@@ -1,14 +1,11 @@
 import React, { useState, useMemo } from "react";
 import WidgetCard from "@components/cards/widget-card";
 import { BarChart, Bar, ResponsiveContainer, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from "recharts";
-import cn from "@utils/class-names";
 import { FISH_CATEGORIES } from "./fish-composition-chart";
-import FishCategorySelector from "./charts/FishCategorySelector";
 import SimpleBar from "@ui/simplebar";
 import { generateFishCategoryColor } from "./charts/utils";
 import { useAtom } from "jotai";
 import { selectedTimeRangeAtom } from "@/app/components/filter-selector";
-import { filterDataByTimeRange } from "./utils/timeRangeFilter";
 
 export default function IndividualFishCompositionComparison({
   allData,

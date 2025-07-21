@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useCallback, useMemo, useEffect } from "react";
+import React, { useState, useMemo } from "react";
 import { useTranslation } from "@/app/i18n/client";
 import { useIndividualData } from "./hooks/useIndividualData";
 import { useUserPermissions } from "./hooks/useUserPermissions";
@@ -19,7 +19,7 @@ import {
 import { format } from "date-fns";
 import cn from "@utils/class-names";
 import { api } from "@/trpc/react";
-import { BASELINE_DATA, isIslandSite } from "./charts/siteConfig";
+import { BASELINE_DATA } from "./charts/siteConfig";
 import { useAtom } from 'jotai';
 import { selectedTimeRangeAtom } from "@/app/components/filter-selector";
 import { getTimeRangeStartDate } from "./utils/timeRangeFilter";

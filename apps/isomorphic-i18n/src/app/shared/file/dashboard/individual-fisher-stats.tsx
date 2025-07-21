@@ -1,6 +1,6 @@
 "use client";
 
-import { Text, Title } from "rizzui";
+import { Text } from "rizzui";
 import { useTranslation } from "@/app/i18n/client";
 import { useIndividualData } from "./hooks/useIndividualData";
 import { useUserPermissions } from "./hooks/useUserPermissions";

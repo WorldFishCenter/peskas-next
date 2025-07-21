@@ -9,7 +9,7 @@ import { bmusAtom, selectedTimeRangeAtom } from "@/app/components/filter-selecto
 import { useTranslation } from "@/app/i18n/client";
 import { getClientLanguage } from "@/app/i18n/language-link";
 import SimpleBar from "@ui/simplebar";
-import useUserPermissions, { adminReferenceBmuAtom } from "./hooks/useUserPermissions";
+import useUserPermissions from "./hooks/useUserPermissions";
 import { generateFishCategoryColor, updateBmuColorRegistry } from "./charts/utils";
 import { filterDataByTimeRange } from "./utils/timeRangeFilter";
 import cn from "@utils/class-names";

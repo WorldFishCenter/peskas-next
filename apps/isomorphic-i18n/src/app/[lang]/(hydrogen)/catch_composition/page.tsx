@@ -4,7 +4,6 @@ import { useAtom } from "jotai";
 import { useTranslation } from "@/app/i18n/client";
 import type { DefaultSession } from "next-auth";
 import type { TBmu } from "@repo/nosql/schema/bmu";
-import FileStats from "@/app/shared/file/dashboard/file-stats";
 import FishCompositionChart from "@/app/shared/file/dashboard/fish-composition-chart";
 import FishCompositionComparison from "@/app/shared/file/dashboard/fish-composition-comparison";
 import FishCompositionAreaChart from "@/app/shared/file/dashboard/fish-composition-area-chart";

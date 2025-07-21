@@ -1,6 +1,5 @@
 import React, { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import { useAtom } from "jotai";
-import { ActionIcon, Popover } from "rizzui";
 import WidgetCard from "@components/cards/widget-card";
 import SimpleBar from "@ui/simplebar";
 import { useTranslation } from "@/app/i18n/client";
@@ -9,7 +8,6 @@ import { bmusAtom, selectedMetricAtom, selectedTimeRangeAtom } from "@/app/compo
 import cn from "@utils/class-names";
 import { useTheme } from "next-themes";
 import MetricCard from "@components/cards/metric-card";
-import { useSession } from "next-auth/react";
 import { getClientLanguage } from "@/app/i18n/language-link";
 import {
   BarChart,
@@ -20,18 +18,12 @@ import {
   Tooltip,
   Legend,
   ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
-  LabelList,
-  Treemap,
-  ReferenceLine,
+  Treemap
 } from "recharts";
 
 // Import shared MetricSelector component
-import { MetricKey, MetricOption, METRIC_OPTIONS } from "./charts/types";
+import { METRIC_OPTIONS } from "./charts/types";
 import { generateColor, updateBmuColorRegistry } from "./charts/utils";
-import { BASELINE_DATA } from "./charts/siteConfig";
 import useUserPermissions from "./hooks/useUserPermissions";
 // Import time range filtering utilities
 import { getTimeRangeStartDate } from "./utils/timeRangeFilter";
