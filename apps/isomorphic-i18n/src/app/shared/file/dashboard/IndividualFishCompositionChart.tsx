@@ -18,7 +18,8 @@ export default function IndividualFishCompositionChart({
   selectedCategory,
   setSelectedCategory,
   title,
-  description
+  description,
+  bmuName = ""
 }: {
   allData: any[];
   userFisherId: string;
@@ -26,6 +27,7 @@ export default function IndividualFishCompositionChart({
   setSelectedCategory: (cat: string) => void;
   title?: string;
   description?: string;
+  bmuName?: string;
 }) {
   const [selectedTimeRange] = useAtom(selectedTimeRangeAtom);
   // 1. Get time range
@@ -98,7 +100,7 @@ export default function IndividualFishCompositionChart({
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 rounded-full" style={{ backgroundColor: '#8693AB' }} />
                 <p className="text-sm font-medium">
-                  Other BMU fishers (mean) <span className="font-semibold">{data.others.toFixed(2)} kg</span>
+                  {`Other ${bmuName ? bmuName + ' ' : ''}fishers (mean)`} <span className="font-semibold">{data.others.toFixed(2)} kg</span>
                 </p>
               </div>
             )}
@@ -155,7 +157,7 @@ export default function IndividualFishCompositionChart({
             <Bar
               dataKey="others"
               fill="#8693AB"
-              name="Other BMU fishers (mean)"
+              name={`Other ${bmuName ? bmuName + ' ' : ''}fishers (mean)`}
               radius={[4, 4, 0, 0]}
               barSize={18}
             />

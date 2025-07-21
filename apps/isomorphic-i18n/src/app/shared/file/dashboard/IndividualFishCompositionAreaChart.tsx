@@ -6,21 +6,25 @@ import { selectedTimeRangeAtom } from "@/app/components/filter-selector";
 import { FISH_CATEGORIES } from "./fish-composition-chart";
 import { generateFishCategoryColor } from "./charts/utils";
 import cn from "@utils/class-names";
+import { useTranslation } from "@/app/i18n/client";
 
 export default function IndividualFishCompositionAreaChart({
   allData,
   userFisherId,
   title,
-  description
+  description,
+  bmuName = ""
 }: {
   allData: any[];
   userFisherId: string;
   title?: string;
   description?: string;
+  bmuName?: string;
 }) {
   const [selectedTimeRange] = useAtom(selectedTimeRangeAtom);
   const [chartMode, setChartMode] = useState<'absolute' | 'percent'>('absolute');
   const [visibilityState, setVisibilityState] = useState<Record<string, { opacity: number }>>({});
+  const { t } = useTranslation("common");
 
   // Group data by month and aggregate for 'You' and 'Others'
   const chartData = useMemo(() => {
@@ -87,7 +91,7 @@ export default function IndividualFishCompositionAreaChart({
     if (active && payload && payload.length) {
       // Group entries by 'You' and 'Other BMU fishers', only show non-zero values
       const youEntries = payload.filter((entry: any) => entry.name.startsWith('You:') && entry.value > 0);
-      const othersEntries = payload.filter((entry: any) => entry.name.startsWith('Other BMU fishers:') && entry.value > 0);
+      const othersEntries = payload.filter((entry: any) => entry.name.startsWith(`Other ${bmuName ? bmuName + ' ' : ''}fishers`) && entry.value > 0);
       if (youEntries.length === 0 && othersEntries.length === 0) return null;
       return (
         <div className="bg-white p-3 border border-gray-200 rounded-md shadow-md">
@@ -106,11 +110,11 @@ export default function IndividualFishCompositionAreaChart({
             )}
             {othersEntries.length > 0 && (
               <div>
-                <div className="font-semibold text-gray-900 mb-1 mt-2">Other BMU fishers</div>
+                <div className="font-semibold text-gray-900 mb-1 mt-2">{`Other ${bmuName ? bmuName + ' ' : ''}fishers`}</div>
                 {othersEntries.map((entry: any, idx: number) => (
                   <div key={`tooltip-others-${idx}`} className="flex items-center gap-2">
                     <div className="w-3 h-3 rounded-full" style={{ backgroundColor: entry.color }} />
-                    <span className="text-sm text-gray-700">{entry.name.replace('Other BMU fishers: ', '')}: {entry.value.toFixed(2)}{chartMode === 'absolute' ? ' kg' : '%'}</span>
+                    <span className="text-sm text-gray-700">{entry.name.replace(`Other ${bmuName ? bmuName + ' ' : ''}fishers: `, '')}: {entry.value.toFixed(2)}{chartMode === 'absolute' ? ' kg' : '%'}</span>
                   </div>
                 ))}
               </div>
@@ -158,41 +162,31 @@ export default function IndividualFishCompositionAreaChart({
   }, [chartData, chartMode]);
 
   return (
-    <WidgetCard
-      title={
-        <div className="flex flex-col sm:flex-row items-start sm:items-center sm:justify-between w-full gap-3">
-          <div className="w-full sm:w-auto">
-            <div className="text-base font-medium text-gray-800">{title}</div>
-            {description && <div className="text-xs text-gray-500 mt-1">{description}</div>}
-          </div>
-          <div className="flex gap-2 w-full sm:w-auto">
-            <button
-              className={cn(
-                "px-4 py-2 text-sm rounded-md transition duration-200 w-full sm:w-auto",
-                chartMode === 'absolute' 
-                  ? 'bg-blue-500 text-white' 
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              )}
-              onClick={() => setChartMode('absolute')}
-            >
-              Absolute
-            </button>
-            <button
-              className={cn(
-                "px-4 py-2 text-sm rounded-md transition duration-200 w-full sm:w-auto",
-                chartMode === 'percent' 
-                  ? 'bg-blue-500 text-white' 
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              )}
-              onClick={() => setChartMode('percent')}
-            >
-              Percent
-            </button>
-          </div>
-        </div>
-      }
-      headerClassName="pb-2"
-    >
+    <WidgetCard title={title} description={description} headerClassName="pb-2">
+      <div className="flex gap-2 mb-4">
+        <button
+          className={cn(
+            "px-4 py-2 text-sm rounded-md transition duration-200 w-full sm:w-auto",
+            chartMode === 'absolute' 
+              ? 'bg-blue-500 text-white' 
+              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+          )}
+          onClick={() => setChartMode('absolute')}
+        >
+          {t('text-absolute-values')}
+        </button>
+        <button
+          className={cn(
+            "px-4 py-2 text-sm rounded-md transition duration-200 w-full sm:w-auto",
+            chartMode === 'percent' 
+              ? 'bg-blue-500 text-white' 
+              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+          )}
+          onClick={() => setChartMode('percent')}
+        >
+          {t('text-percent-values')}
+        </button>
+      </div>
       <div className="w-full h-[400px]">
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart
@@ -228,7 +222,7 @@ export default function IndividualFishCompositionAreaChart({
                 key={`others_${category.id}`}
                 type="monotone"
                 dataKey={`others_${category.id}`}
-                name={`Other BMU fishers: ${category.name}`}
+                name={`Other ${bmuName ? bmuName + ' ' : ''}fishers: ${category.name}`}
                 stackId="others"
                 stroke={category.color}
                 fill={category.color}

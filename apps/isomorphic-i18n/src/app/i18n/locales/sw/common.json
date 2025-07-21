@@ -916,5 +916,9 @@
   "text-costs": "Gharama",
   "text-profit": "Faida",
   "text-current-month": "Mwezi huu",
-  "text-current-month-desc": "Onyesha data ya mwezi huu"
+  "text-current-month-desc": "Onyesha data ya mwezi huu",
+  "text-fish-composition-comparison": "Ulinganisho wa Muundo wa Samaki",
+  "text-fish-composition-comparison-desc": "Inaonyesha ulinganisho wa muundo wa samaki kwa BMU yako",
+  "text-fish-composition-area-chart-title": "Chati ya Eneo la Muundo wa Samaki",
+  "text-fish-composition-area-chart-desc": "Inaonyesha chati ya eneo la muundo wa samaki kwa BMU yako"
 }

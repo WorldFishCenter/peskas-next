@@ -125,6 +125,7 @@ export default function CatchCompositionPage({ params }: PageProps) {
                       userFisherId={userFisherId || ""}
                       selectedCategory={selectedCategory}
                       setSelectedCategory={setSelectedCategory}
+                      bmuName={bmuName || ""}
                       title={t("text-fish-composition-trends-absolute")}
                       description={t("text-fish-composition-trends-absolute-desc")}
                     />
@@ -146,6 +147,7 @@ export default function CatchCompositionPage({ params }: PageProps) {
                   ? <IndividualFishCompositionComparison
                       allData={allBmuIndividualData}
                       userFisherId={userFisherId || ""}
+                      bmuName={bmuName || ""}
                       title={t("text-fish-composition-comparison")}
                       description={t("text-fish-composition-comparison-desc")}
                     />
@@ -163,6 +165,7 @@ export default function CatchCompositionPage({ params }: PageProps) {
                   ? <IndividualFishCompositionAreaChart
                       allData={allBmuIndividualData}
                       userFisherId={userFisherId || ""}
+                      bmuName={bmuName || ""}
                       title={t("text-fish-composition-area-chart-title")}
                       description={t("text-fish-composition-area-chart-desc")}
                     />

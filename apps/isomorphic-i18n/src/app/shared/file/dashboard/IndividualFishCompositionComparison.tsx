@@ -14,12 +14,14 @@ export default function IndividualFishCompositionComparison({
   allData,
   userFisherId,
   title,
-  description
+  description,
+  bmuName = ""
 }: {
   allData: any[];
   userFisherId: string;
   title?: string;
   description?: string;
+  bmuName?: string;
 }) {
   const [selectedTimeRange] = useAtom(selectedTimeRangeAtom);
   const [visibilityState, setVisibilityState] = useState<Record<string, { opacity: number }>>({});
@@ -87,6 +89,11 @@ export default function IndividualFishCompositionComparison({
     name: cat.label,
     color: generateFishCategoryColor(cat.label),
   }));
+  // Row labels for the chart
+  const rowLabels = [
+    { label: "You" },
+    { label: `Other ${bmuName ? bmuName + ' ' : ''}fishers` }
+  ];
 
   // Interactive legend logic
   React.useEffect(() => {
@@ -114,7 +121,7 @@ export default function IndividualFishCompositionComparison({
     if (active && payload && payload.length) {
       // Group by label ("You" or "Other BMU fishers")
       const youEntries = payload.filter((entry: any) => entry.payload.label === "You" && entry.value > 0);
-      const othersEntries = payload.filter((entry: any) => entry.payload.label === "Other BMU fishers" && entry.value > 0);
+      const othersEntries = payload.filter((entry: any) => entry.payload.label === `Other ${bmuName ? bmuName + ' ' : ''}fishers` && entry.value > 0);
       if (youEntries.length === 0 && othersEntries.length === 0) return null;
       return (
         <div className="bg-white p-3 border border-gray-200 rounded-md shadow-md">
@@ -132,7 +139,7 @@ export default function IndividualFishCompositionComparison({
             )}
             {othersEntries.length > 0 && (
               <div>
-                <div className="font-semibold text-gray-900 mb-1 mt-2">Other BMU fishers</div>
+                <div className="font-semibold text-gray-900 mb-1 mt-2">{`Other ${bmuName ? bmuName + ' ' : ''}fishers`}</div>
                 {othersEntries.map((entry: any, idx: number) => (
                   <div key={`tooltip-others-${idx}`} className="flex items-center gap-2">
                     <div className="w-3 h-3 rounded-full" style={{ backgroundColor: entry.color }} />
@@ -178,7 +185,7 @@ export default function IndividualFishCompositionComparison({
           <div className="w-full" style={{ height: "220px" }}>
             <ResponsiveContainer width="100%" height="100%">
               <BarChart
-                data={chartData}
+                data={chartData.map((row, i) => ({ ...row, label: rowLabels[i]?.label || row.label }))}
                 layout="vertical"
                 margin={{ top: 20, right: 30, left: 60, bottom: 20 }}
                 barCategoryGap={8}
