@@ -49,11 +49,11 @@ export default function IndividualFishCompositionComparison({
     filteredData.forEach(item => {
       const key = normalize(item.fish_category);
       if (item.fisher_id === userFisherId) {
-        youTotals[key] = (youTotals[key] || 0) + (item.total_catch_kg || 0);
-        youSum += item.total_catch_kg || 0;
+        youTotals[key] = (youTotals[key] || 0) + (item.mean_catch_kg || 0);
+        youSum += item.mean_catch_kg || 0;
       } else {
-        othersTotals[key] = (othersTotals[key] || 0) + (item.total_catch_kg || 0);
-        othersSum += item.total_catch_kg || 0;
+        othersTotals[key] = (othersTotals[key] || 0) + (item.mean_catch_kg || 0);
+        othersSum += item.mean_catch_kg || 0;
       }
     });
     const youRow: Record<string, any> = { label: "You" };
@@ -89,7 +89,7 @@ export default function IndividualFishCompositionComparison({
   // Row labels for the chart
   const rowLabels = [
     { label: "You" },
-    { label: `Other ${bmuName ? bmuName + ' ' : ''}fishers` }
+    { label: `Other ${bmuName ? bmuName + ' ' : ''}fishers (mean, avg. per month)` }
   ];
 
   // Interactive legend logic
@@ -116,9 +116,10 @@ export default function IndividualFishCompositionComparison({
   // Group entries by 'You' and 'Other BMU fishers', only show non-zero values
   const CustomTooltip = ({ active, payload }: any) => {
     if (active && payload && payload.length) {
-      // Group by label ("You" or "Other BMU fishers")
+      // Group by label ("You" or full others label)
+      const othersLabel = `Other ${bmuName ? bmuName + ' ' : ''}fishers (mean, avg. per month)`;
       const youEntries = payload.filter((entry: any) => entry.payload.label === "You" && entry.value > 0);
-      const othersEntries = payload.filter((entry: any) => entry.payload.label === `Other ${bmuName ? bmuName + ' ' : ''}fishers` && entry.value > 0);
+      const othersEntries = payload.filter((entry: any) => entry.payload.label === othersLabel && entry.value > 0);
       if (youEntries.length === 0 && othersEntries.length === 0) return null;
       return (
         <div className="bg-white p-3 border border-gray-200 rounded-md shadow-md">
@@ -129,18 +130,18 @@ export default function IndividualFishCompositionComparison({
                 {youEntries.map((entry: any, idx: number) => (
                   <div key={`tooltip-you-${idx}`} className="flex items-center gap-2">
                     <div className="w-3 h-3 rounded-full" style={{ backgroundColor: entry.color }} />
-                    <span className="text-sm text-gray-700">{entry.name}: {entry.value.toFixed(2)}%</span>
+                    <span className="text-sm text-gray-700">{entry.name}: {entry.value.toFixed(2)}% <span className="text-xs text-gray-500">(avg. catch per month)</span></span>
                   </div>
                 ))}
               </div>
             )}
             {othersEntries.length > 0 && (
               <div>
-                <div className="font-semibold text-gray-900 mb-1 mt-2">{`Other ${bmuName ? bmuName + ' ' : ''}fishers`}</div>
+                <div className="font-semibold text-gray-900 mb-1 mt-2">{othersLabel}</div>
                 {othersEntries.map((entry: any, idx: number) => (
                   <div key={`tooltip-others-${idx}`} className="flex items-center gap-2">
                     <div className="w-3 h-3 rounded-full" style={{ backgroundColor: entry.color }} />
-                    <span className="text-sm text-gray-700">{entry.name}: {entry.value.toFixed(2)}%</span>
+                    <span className="text-sm text-gray-700">{entry.name}: {entry.value.toFixed(2)}% <span className="text-xs text-gray-500">(avg. catch per month)</span></span>
                   </div>
                 ))}
               </div>
@@ -188,7 +189,14 @@ export default function IndividualFishCompositionComparison({
                 barCategoryGap={8}
               >
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis type="number" tick={{ fontSize: 12 }} domain={[0, 100]} unit="%" />
+                <XAxis type="number" tick={{ fontSize: 12 }} domain={[0, 100]} unit="%" 
+                 label={{
+                   value: 'Avg. catch composition (% per month)',
+                   position: 'insideBottom',
+                   offset: -10,
+                   style: { textAnchor: 'middle', fontSize: 12, fill: '#666' }
+                 }}
+                />
                 <YAxis type="category" dataKey="label" tick={{ fontSize: 12 }} width={180} />
                 <Tooltip content={<CustomTooltip />} />
                 {categoryDisplays.map(category => (

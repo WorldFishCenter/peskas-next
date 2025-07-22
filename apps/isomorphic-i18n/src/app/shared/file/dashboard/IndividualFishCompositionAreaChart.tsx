@@ -38,11 +38,11 @@ export default function IndividualFishCompositionAreaChart({
       if (!grouped[monthKey]) grouped[monthKey] = { youTotals: {}, othersTotals: {}, youSum: 0, othersSum: 0 };
       const key = normalize(item.fish_category);
       if (item.fisher_id === userFisherId) {
-        grouped[monthKey].youTotals[key] = (grouped[monthKey].youTotals[key] || 0) + (item.total_catch_kg || 0);
-        grouped[monthKey].youSum += item.total_catch_kg || 0;
+        grouped[monthKey].youTotals[key] = (grouped[monthKey].youTotals[key] || 0) + (item.mean_catch_kg || 0);
+        grouped[monthKey].youSum += item.mean_catch_kg || 0;
       } else {
-        grouped[monthKey].othersTotals[key] = (grouped[monthKey].othersTotals[key] || 0) + (item.total_catch_kg || 0);
-        grouped[monthKey].othersSum += item.total_catch_kg || 0;
+        grouped[monthKey].othersTotals[key] = (grouped[monthKey].othersTotals[key] || 0) + (item.mean_catch_kg || 0);
+        grouped[monthKey].othersSum += item.mean_catch_kg || 0;
       }
     });
     // Build chart data: for each month, two rows (You, Others)
@@ -103,7 +103,7 @@ export default function IndividualFishCompositionAreaChart({
                 {youEntries.map((entry: any, idx: number) => (
                   <div key={`tooltip-you-${idx}`} className="flex items-center gap-2">
                     <div className="w-3 h-3 rounded-full" style={{ backgroundColor: entry.color }} />
-                    <span className="text-sm text-gray-700">{entry.name.replace('You: ', '')}: {entry.value.toFixed(2)}{chartMode === 'absolute' ? ' kg' : '%'}</span>
+                    <span className="text-sm text-gray-700">{entry.name.replace('You: ', '')}: {entry.value.toFixed(2)}{chartMode === 'absolute' ? ' kg (avg. per month)' : '%'}</span>
                   </div>
                 ))}
               </div>
@@ -114,7 +114,7 @@ export default function IndividualFishCompositionAreaChart({
                 {othersEntries.map((entry: any, idx: number) => (
                   <div key={`tooltip-others-${idx}`} className="flex items-center gap-2">
                     <div className="w-3 h-3 rounded-full" style={{ backgroundColor: entry.color }} />
-                    <span className="text-sm text-gray-700">{entry.name.replace(`Other ${bmuName ? bmuName + ' ' : ''}fishers: `, '')}: {entry.value.toFixed(2)}{chartMode === 'absolute' ? ' kg' : '%'}</span>
+                    <span className="text-sm text-gray-700">{entry.name.replace(`Other ${bmuName ? bmuName + ' ' : ''}fishers: `, '')}: {entry.value.toFixed(2)}{chartMode === 'absolute' ? ' kg (avg. per month)' : '%'}</span>
                   </div>
                 ))}
               </div>
@@ -199,6 +199,12 @@ export default function IndividualFishCompositionAreaChart({
               tick={{ fontSize: 12 }} 
               unit={chartMode === 'percent' ? '%' : ' kg'}
               domain={chartMode === 'percent' ? [0, 100] : ['auto', 'auto']}
+              label={chartMode === 'absolute' ? {
+                value: 'Avg. catch (kg/fisher/month)',
+                angle: -90,
+                position: 'insideLeft',
+                style: { textAnchor: 'middle', fontSize: 12, fill: '#666' }
+              } : undefined}
             />
             <Tooltip content={<CustomTooltip />} />
             {/* You areas */}

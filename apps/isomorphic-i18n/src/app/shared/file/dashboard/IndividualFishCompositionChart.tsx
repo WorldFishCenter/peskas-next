@@ -52,9 +52,9 @@ export default function IndividualFishCompositionChart({
       if (!othersCount[monthKey]) othersCount[monthKey] = new Set();
       if (!othersSum[monthKey]) othersSum[monthKey] = 0;
       if (item.fisher_id === userFisherId) {
-        grouped[monthKey].you += item.total_catch_kg || 0;
+        grouped[monthKey].you += item.mean_catch_kg || 0;
       } else {
-        othersSum[monthKey] += item.total_catch_kg || 0;
+        othersSum[monthKey] += item.mean_catch_kg || 0;
         othersCount[monthKey].add(item.fisher_id);
       }
     });
@@ -90,7 +90,7 @@ export default function IndividualFishCompositionChart({
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 rounded-full" style={{ backgroundColor: '#F79F79' }} />
                 <p className="text-sm font-medium">
-                  You <span className="font-semibold">{data.you.toFixed(2)} kg</span>
+                  You <span className="font-semibold">{data.you.toFixed(2)} kg</span> <span className="text-xs text-gray-500">(avg. per month)</span>
                 </p>
               </div>
             )}
@@ -99,7 +99,7 @@ export default function IndividualFishCompositionChart({
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 rounded-full" style={{ backgroundColor: '#8693AB' }} />
                 <p className="text-sm font-medium">
-                  {`Other ${bmuName ? bmuName + ' ' : ''}fishers (mean)`} <span className="font-semibold">{data.others.toFixed(2)} kg</span>
+                  {`Other ${bmuName ? bmuName + ' ' : ''}fishers (mean)`} <span className="font-semibold">{data.others.toFixed(2)} kg</span> <span className="text-xs text-gray-500">(avg. per month)</span>
                 </p>
               </div>
             )}
@@ -143,6 +143,12 @@ export default function IndividualFishCompositionChart({
               axisLine={false}
               tick={{ fontSize: 12 }}
               width={50}
+              label={{
+                value: 'Avg. catch (kg/fisher/month)',
+                angle: -90,
+                position: 'insideLeft',
+                style: { textAnchor: 'middle', fontSize: 12, fill: '#666' }
+              }}
             />
             <CartesianGrid strokeDasharray="3 3" vertical={false} />
             <Tooltip content={<CustomTooltip />} />

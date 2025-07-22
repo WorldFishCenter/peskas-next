@@ -86,7 +86,7 @@ export default function CatchCompositionPage({ params }: PageProps) {
       if (!grouped[monthKey]) grouped[monthKey] = {};
       const cat = item.fish_category || 'Unknown';
       if (!grouped[monthKey][cat]) grouped[monthKey][cat] = 0;
-      grouped[monthKey][cat] += item.total_catch_kg || 0;
+      grouped[monthKey][cat] += item.mean_catch_kg || 0;
     });
     // Convert to array for charting
     return Object.entries(grouped).map(([monthKey, cats]) => {

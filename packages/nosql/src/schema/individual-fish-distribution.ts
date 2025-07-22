@@ -7,7 +7,7 @@ export type TIndividualFishDistribution = {
   date: Date;
   fisher_id: string;
   fish_category: string;
-  total_catch_kg: number;
+  mean_catch_kg: number;
 };
 
 const individualFishDistributionSchema = new Schema<TIndividualFishDistribution>(
@@ -16,7 +16,7 @@ const individualFishDistributionSchema = new Schema<TIndividualFishDistribution>
     date: { type: Date, required: true },
     fisher_id: { type: String, required: true },
     fish_category: { type: String, required: true },
-    total_catch_kg: { type: Number, required: true, default: 0 },
+    mean_catch_kg: { type: Number, required: true, default: 0 },
   },
   {
     collection: "individual_fish_distribution",
