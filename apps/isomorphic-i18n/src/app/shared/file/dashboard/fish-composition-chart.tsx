@@ -252,7 +252,9 @@ export default function FishCompositionChart({
   bmu,
   activeTab = 'trends',
   onTabChange,
-}: FishCompositionChartProps) {
+  chartData: externalChartData,
+  isIiaUser,
+}: FishCompositionChartProps & { chartData?: any[]; isIiaUser?: boolean }) {
   const [chartData, setChartData] = useState<ChartDataPoint[]>([]);
   const [loading, setLoading] = useState(true);
   const [fiveYearMarks, setFiveYearMarks] = useState<number[]>([]);
@@ -354,6 +356,9 @@ export default function FishCompositionChart({
       enabled: effectiveBmus.length > 0 && selectedCategory.length > 0,
     }
   );
+
+  // Use external chart data if in IIA mode
+  const useChartData = isIiaUser && externalChartData ? externalChartData : chartData;
 
   // Track selectedCategory changes and force data reprocessing
   useEffect(() => {
@@ -739,24 +744,24 @@ export default function FishCompositionChart({
 
   // Calculate derived data when chartData changes
   useEffect(() => {
-    if (chartData.length === 0) return;
+    if (useChartData.length === 0) return;
     
     // Skip if already calculated
     if (recentData.length > 0 && annualData.length > 0) return;
     
     // For non-CIA users, use standard comparison
     if (canCompareWithOthers) {
-      setRecentData(getRecentData(chartData, false) as ChartDataPoint[]);
+      setRecentData(getRecentData(useChartData, false) as ChartDataPoint[]);
     } 
     // For CIA users, create comparison against historical average if they have a BMU
     else if (isCiaUser && effectiveBMU) {
-      setCiaComparisonData(prepareDataForCiaComparison(chartData, effectiveBMU));
+      setCiaComparisonData(prepareDataForCiaComparison(useChartData, effectiveBMU));
     }
       
     // Annual data is the same for all users
-    setAnnualData(getAnnualData(chartData, !canCompareWithOthers, siteColors));
+    setAnnualData(getAnnualData(useChartData, !canCompareWithOthers, siteColors));
     
-  }, [chartData, canCompareWithOthers, isCiaUser, effectiveBMU, siteColors, recentData.length, annualData.length, loading, visibilityState]);
+  }, [useChartData, canCompareWithOthers, isCiaUser, effectiveBMU, siteColors, recentData.length, annualData.length, loading, visibilityState]);
 
   // Find the selected category option
   const selectedCategoryOption = FISH_CATEGORIES.find(
@@ -861,7 +866,7 @@ export default function FishCompositionChart({
   };
 
   if (loading) return <LoadingState />;
-  if (!chartData || chartData.length === 0) {
+  if (!useChartData || useChartData.length === 0) {
     return (
       <WidgetCard title={t("text-fish-distribution") + " (kg)"}>
         <div className="h-96 w-full flex items-center justify-center">
@@ -935,7 +940,7 @@ export default function FishCompositionChart({
         {(localActiveTab === 'trends' || localActiveTab === 'standard') && (
           <SimpleBar>
             <TrendsChart
-              chartData={chartData.map(point => {
+              chartData={useChartData.map(point => {
                 // Create a new object without the historical_average property for non-CIA users
                 if (!isCiaUser) {
                   const { historical_average, ...rest } = point;

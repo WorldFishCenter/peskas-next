@@ -1,11 +1,11 @@
 import type { Types } from "mongoose";
 import mongoose, { Schema } from "mongoose";
 
-/* eslint-disable @typescript-eslint/consistent-type-definitions */
-export type TIndividualStats = {
+export type TIndividualGearStats = {
   _id: Types.ObjectId;
   BMU: string;
   date: Date;
+  gear: string;
   fisher_id: string;
   mean_cpue: number;
   mean_rpue: number;
@@ -14,13 +14,11 @@ export type TIndividualStats = {
   mean_profit: number;
 };
 
-/**
- * Schema
- */
-const individualStatsSchema = new Schema<TIndividualStats>(
+const individualGearStatsSchema = new Schema<TIndividualGearStats>(
   {
     BMU: { type: String, required: true },
     date: { type: Date, required: true },
+    gear: { type: String, required: true },
     fisher_id: { type: String, required: true },
     mean_cpue: { type: Number, required: true },
     mean_rpue: { type: Number, required: true },
@@ -28,14 +26,8 @@ const individualStatsSchema = new Schema<TIndividualStats>(
     mean_costs: { type: Number, required: true },
     mean_profit: { type: Number, required: true },
   },
-  {
-    collection: "individual_stats",
-  }
+  { collection: "individual_gear_stats" }
 );
 
-/**
- * Model
- */
-export const IndividualStatsModel =
-  (mongoose.models.IndividualStats as mongoose.Model<TIndividualStats>) ??
-  mongoose.model<TIndividualStats>("IndividualStats", individualStatsSchema); 
+export const IndividualGearStatsModel =
+  mongoose.models.IndividualGearStats || mongoose.model<TIndividualGearStats>("IndividualGearStats", individualGearStatsSchema); 

@@ -241,21 +241,21 @@ export default function AnnualChart({
                   stroke="#ef4444"
                   strokeDasharray="3 3"
                   strokeWidth={1.5}
-                  label={{ value: "Poverty Line", position: "left", fill: "#ef4444", fontSize: 11 }}
+                  label={{ value: t("text-poverty-line"), position: "left", fill: "#ef4444", fontSize: 11 }}
                 />
                 <ReferenceLine
                   y={BASELINE_DATA.INCOME.NATIONAL_MINIMUM_WAGE}
                   stroke="#f59e0b"
                   strokeDasharray="3 3"
                   strokeWidth={1.5}
-                  label={{ value: "Minimum Wage", position: "left", fill: "#f59e0b", fontSize: 11 }}
+                  label={{ value: t("text-minimum-wage"), position: "left", fill: "#f59e0b", fontSize: 11 }}
                 />
                 <ReferenceLine
                   y={BASELINE_DATA.INCOME.LIVING_WAGE}
                   stroke="#22c55e"
                   strokeDasharray="3 3"
                   strokeWidth={1.5}
-                  label={{ value: "Living Wage", position: "left", fill: "#22c55e", fontSize: 11 }}
+                  label={{ value: t("text-living-wage"), position: "left", fill: "#22c55e", fontSize: 11 }}
                 />
               </>
             )}

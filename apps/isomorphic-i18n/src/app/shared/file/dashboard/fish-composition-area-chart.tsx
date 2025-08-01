@@ -54,8 +54,10 @@ const LoadingState = () => {
 export default function FishCompositionAreaChart({ 
   className, 
   lang, 
-  bmu
-}: FishCompositionAreaChartProps) {
+  bmu,
+  chartData: externalChartData,
+  isIiaUser,
+}: FishCompositionAreaChartProps & { chartData?: any[]; isIiaUser?: boolean }) {
   // Use client language instead of lang prop
   const clientLang = getClientLanguage();
   const { t, i18n } = useTranslation(clientLang, "common");
@@ -109,6 +111,9 @@ export default function FishCompositionAreaChart({
   const fishDistributionData = fishDistributionQuery.data;
   const isLoadingData = fishDistributionQuery.isLoading;
   const apiError = fishDistributionQuery.error;
+
+  // Use external chart data if in IIA mode
+  const useChartData = isIiaUser && externalChartData ? externalChartData : chartData;
 
   // Track selectedTimeRange changes and force data reprocessing
   useEffect(() => {
@@ -310,7 +315,7 @@ export default function FishCompositionAreaChart({
                } else {
                  // For percent mode, we need to get the raw data and calculate percentages manually
                  // because stackOffset="expand" doesn't provide the correct percentages in tooltip
-                 const dataPoint = chartData.find(d => d.displayMonth === label);
+                 const dataPoint = useChartData.find(d => d.displayMonth === label);
                  if (dataPoint) {
                    // Get the raw value for this category
                    const categoryId = entry.dataKey.replace('_percent', '');
@@ -479,7 +484,7 @@ export default function FishCompositionAreaChart({
              <div className="w-full h-[400px]">
                <ResponsiveContainer width="100%" height="100%">
                  <AreaChart
-                   data={chartData}
+                   data={useChartData}
                    margin={{ top: 20, right: 30, left: 60, bottom: 60 }}
                    stackOffset={chartMode === 'percent' ? 'expand' : 'none'}
                  >

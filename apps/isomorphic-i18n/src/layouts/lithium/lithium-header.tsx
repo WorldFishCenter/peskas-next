@@ -28,6 +28,7 @@ import { changeAppLanguage } from '@/app/i18n/language-switcher';
 import { USFlag } from "@components/icons/language/USFlag";
 import { SWFlag } from "@components/icons/language/SWFlag";
 import { useTranslation } from "@/app/i18n/client";
+import useUserPermissions from "@/app/shared/file/dashboard/hooks/useUserPermissions";
 
 type SerializedBmu = {
   _id: string;
@@ -184,6 +185,7 @@ function TimeRangeSelector({ lang }: { lang?: string }) {
   }, [i18n]);
 
   const timeRangeOptions: { value: TimeRangeOption; label: string; description: string }[] = [
+    { value: 'currentMonth', label: t('text-current-month'), description: t('text-current-month-desc') || 'Show data for the current month' },
     { value: '3months', label: t('text-last-3-months'), description: t('text-last-3-months-desc') || 'Show data from the last 3 months' },
     { value: '6months', label: t('text-last-6-months'), description: t('text-last-6-months-desc') || 'Show data from the last 6 months' },
     { value: '1year', label: t('text-last-year'), description: t('text-last-year-desc') || 'Show data from the last 12 months' },
@@ -396,14 +398,16 @@ function HeaderMenuRight({ lang }: { lang?: string }) {
     );
   };
 
+  const { isIiaUser } = useUserPermissions();
+
   return (
     <div className="ms-auto flex shrink-0 items-center gap-1 text-gray-700 xs:gap-1 md:gap-2 xl:gap-3">
       {/* <ReferenceBMU /> */}
-      <HeaderMetricSelector />
+      {/* Only show HeaderMetricSelector if not IIA user */}
+      {!isIiaUser && <HeaderMetricSelector />}
       <TimeRangeSelector lang={lang} />
-      <div className="hidden sm:block">
-        <FilterSelector />
-      </div>
+      {/* Only show FilterSelector if not IIA user */}
+      {!isIiaUser && <FilterSelector />}
       <CompactLanguageSwitcher />
       {/* <ThemeToggle /> */}
       <ProfileMenu
@@ -424,10 +428,10 @@ export default function Header({ lang }: { lang?: string }) {
         <LanguageLink
           aria-label="Site Logo"
           href="/"
-          className="me-4 hidden w-[155px] shrink-0 text-gray-800 hover:text-gray-900 lg:me-5 xl:block"
+          className="me-4 hidden w-[200px] shrink-0 text-gray-800 hover:text-gray-900 lg:me-5 xl:block"
         >
           <div className="flex items-center gap-2">
-            <Logo className="max-w-[155px]" />
+            <Logo className="max-w-[200px]" />
             <KenyaFlag className="h-6 w-auto" />
           </div>
         </LanguageLink>
@@ -442,7 +446,7 @@ export default function Header({ lang }: { lang?: string }) {
           <LanguageLink
             aria-label="Site Logo"
             href="/"
-            className="me-2 w-8 sm:me-3 sm:w-9 shrink-0 text-gray-800 hover:text-gray-900 lg:me-5 xl:hidden"
+            className="me-2 w-12 sm:me-3 sm:w-12 shrink-0 text-gray-800 hover:text-gray-900 lg:me-5 xl:hidden"
           >
             <Logo iconOnly={true} />
           </LanguageLink>

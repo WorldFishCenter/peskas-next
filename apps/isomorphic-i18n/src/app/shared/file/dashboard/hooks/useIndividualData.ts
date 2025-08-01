@@ -31,16 +31,6 @@ export const useIndividualData = (options?: UseIndividualDataOptions) => {
     { enabled: accessibleBMUs.length > 0 }
   );
 
-  // Fetch gear summary
-  const {
-    data: gearData,
-    isLoading: isLoadingGear,
-    error: errorGear,
-  } = api.individualData.gearSummary.useQuery(
-    { bmus: accessibleBMUs },
-    { enabled: accessibleBMUs.length > 0 }
-  );
-
   // Fetch performance metrics
   const {
     data: performanceData,
@@ -62,7 +52,7 @@ export const useIndividualData = (options?: UseIndividualDataOptions) => {
   } = api.individualData.monthlyTrends.useQuery(
     { 
       bmus: accessibleBMUs,
-      metric: 'fisher_cpue'
+      metric: 'mean_cpue'
     },
     { enabled: accessibleBMUs.length > 0 }
   );
@@ -88,7 +78,7 @@ export const useIndividualData = (options?: UseIndividualDataOptions) => {
   } = api.individualData.fisherMonthlyTrends.useQuery(
     { 
       fisherId: userFisherId || '',
-      metric: 'fisher_cpue'
+      metric: 'mean_cpue'
     },
     { enabled: isIiaUser && !!userFisherId }
   );
@@ -106,35 +96,49 @@ export const useIndividualData = (options?: UseIndividualDataOptions) => {
     { enabled: isIiaUser && !!userFisherId }
   );
 
+  // Fetch individual fish distribution for the current fisher (for IIA users)
+  const {
+    data: individualFishDistribution,
+    isLoading: isLoadingIndividualFishDistribution,
+    error: errorIndividualFishDistribution,
+  } = api.individualData.individualFishDistributionByFisher.useQuery(
+    {
+      fisherId: userFisherId || '',
+      startDate: startDate?.toISOString(),
+      endDate: endDate?.toISOString(),
+    },
+    { enabled: isIiaUser && !!userFisherId }
+  );
+
   return {
     // Data
     individualData,
-    gearData,
     performanceData,
     monthlyTrendsData,
     fisherData,
     fisherMonthlyTrends,
     fisherPerformanceSummary,
+    individualFishDistribution,
     
     // Loading states
     isLoadingAll,
-    isLoadingGear,
     isLoadingPerformance,
     isLoadingTrends,
     isLoadingFisherData,
     isLoadingFisherTrends,
     isLoadingFisherSummary,
-    isLoading: isLoadingAll || isLoadingGear || isLoadingPerformance || isLoadingTrends || isLoadingFisherData || isLoadingFisherTrends || isLoadingFisherSummary,
+    isLoadingIndividualFishDistribution,
+    isLoading: isLoadingAll || isLoadingPerformance || isLoadingTrends || isLoadingFisherData || isLoadingFisherTrends || isLoadingFisherSummary || isLoadingIndividualFishDistribution,
     
     // Error states
     errorAll,
-    errorGear,
     errorPerformance,
     errorTrends,
     errorFisherData,
     errorFisherTrends,
     errorFisherSummary,
-    hasError: !!(errorAll || errorGear || errorPerformance || errorTrends || errorFisherData || errorFisherTrends || errorFisherSummary),
+    errorIndividualFishDistribution,
+    hasError: !!(errorAll || errorPerformance || errorTrends || errorFisherData || errorFisherTrends || errorFisherSummary || errorIndividualFishDistribution),
     
     // Utility
     accessibleBMUs,

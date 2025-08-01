@@ -9,7 +9,7 @@ import { bmusAtom, selectedTimeRangeAtom } from "@/app/components/filter-selecto
 import { useTranslation } from "@/app/i18n/client";
 import { getClientLanguage } from "@/app/i18n/language-link";
 import SimpleBar from "@ui/simplebar";
-import useUserPermissions, { adminReferenceBmuAtom } from "./hooks/useUserPermissions";
+import useUserPermissions from "./hooks/useUserPermissions";
 import { generateFishCategoryColor, updateBmuColorRegistry } from "./charts/utils";
 import { filterDataByTimeRange } from "./utils/timeRangeFilter";
 import cn from "@utils/class-names";
@@ -52,8 +52,10 @@ const LoadingState = () => {
 export default function FishCompositionComparison({ 
   className, 
   lang, 
-  bmu
-}: FishCompositionComparisonProps) {
+  bmu,
+  chartData: externalChartData,
+  isIiaUser,
+}: FishCompositionComparisonProps & { chartData?: any[]; isIiaUser?: boolean }) {
   // Use client language instead of lang prop
   const clientLang = getClientLanguage();
   const { t, i18n } = useTranslation(clientLang, "common");
@@ -106,6 +108,9 @@ export default function FishCompositionComparison({
   const fishDistributionData = fishDistributionQuery.data;
   const isLoadingData = fishDistributionQuery.isLoading;
   const apiError = fishDistributionQuery.error;
+
+  // Use external chart data if in IIA mode
+  const useChartData = isIiaUser && externalChartData ? externalChartData : chartData;
 
   // Track selectedTimeRange changes and force data reprocessing
   useEffect(() => {
@@ -448,25 +453,25 @@ const CustomYAxisTick = ({ x = 0, y = 0, payload = { value: '' }, userBMU }: any
           <div className="p-4 md:p-6 h-full">
             {/* Main Chart */}
             <div 
-              className={`w-full ${chartData.length === 1 ? 'flex items-center justify-center' : ''}`}
+              className={`w-full ${useChartData.length === 1 ? 'flex items-center justify-center' : ''}`}
               style={{ 
-                height: chartData.length === 1 
+                height: useChartData.length === 1 
                   ? '160px' // Much smaller fixed height for single BMU
-                  : `${Math.max(300, Math.min(450, chartData.length * 75 + 100))}px` 
+                  : `${Math.max(300, Math.min(450, useChartData.length * 75 + 100))}px` 
               }}
             >
               <ResponsiveContainer 
-                width={chartData.length === 1 ? "75%" : "100%"} 
+                width={useChartData.length === 1 ? "75%" : "100%"} 
                 height="100%"
               >
                 <BarChart
-                  data={chartData}
+                  data={useChartData}
                   layout="vertical"
-                  margin={chartData.length === 1 
+                  margin={useChartData.length === 1 
                     ? { top: 15, right: 30, left: 20, bottom: 15 } 
                     : { top: 5, right: 30, left: 20, bottom: 5 }
                   }
-                  barSize={chartData.length === 1 ? 90 : 75} 
+                  barSize={useChartData.length === 1 ? 90 : 75} 
                   barGap={1}
                 >
                   <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} />
@@ -481,7 +486,7 @@ const CustomYAxisTick = ({ x = 0, y = 0, payload = { value: '' }, userBMU }: any
                   <YAxis 
                     dataKey="bmuName" 
                     type="category" 
-                    width={chartData.length === 1 ? 80 : 100}
+                    width={useChartData.length === 1 ? 80 : 100}
                     tick={<CustomYAxisTick userBMU={userBMU} />}
                     tickLine={false}
                     axisLine={false}
@@ -500,7 +505,7 @@ const CustomYAxisTick = ({ x = 0, y = 0, payload = { value: '' }, userBMU }: any
                         name={category.name}
                         stackId="a"
                         fill={categoryColor}
-                        radius={chartData.length === 1 ? [2, 2, 0, 0] : [0, 0, 0, 0]}
+                        radius={useChartData.length === 1 ? [2, 2, 0, 0] : [0, 0, 0, 0]}
                         fillOpacity={visibilityState[category.id]?.opacity ?? 1}
                         hide={visibilityState[category.id]?.opacity === 0}
                         isAnimationActive={false}
