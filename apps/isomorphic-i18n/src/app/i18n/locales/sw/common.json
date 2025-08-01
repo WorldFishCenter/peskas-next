@@ -705,7 +705,6 @@
   "text-subscribe-newsletter-details": "Pokea makala na rasilimali mpya moja kwa moja kwenye sanduku lako la barua pepe. Jaza barua pepe yako hapa chini ili kujiunga na jarida letu la barua pepe leo.",
   "text-subscribe-newsletter-details-two": "Kuwa wa kwanza kupokea ofa za kipekee na habari za hivi karibuni",
   "text-subscribe-newsletter-details-three": "Ofa maalum zinakusubiri!",
-
   "text-step": "Hatua",
   "text-of": "ya",
   "text-questions": "Maswali",
@@ -890,6 +889,9 @@
   "text-last-year": "Mwaka uliopita",
   "text-last-year-desc": "Onyesha data ya miezi 12 iliyopita",
   "text-all-time": "Wakati wote",
+  "text-poverty-line": "Kiwango cha Umaskini",
+  "text-minimum-wage": "Mshahara wa Chini",
+  "text-living-wage": "Mshahara wa Maisha",
   "text-all-time-desc": "Onyesha data yote iliyopo",
   "text-performance-vs-msy": "Utendaji Dhidi ya MSY",
   "text-cia-msy-comparison-explanation": "Inaonyesha thamani ikilinganishwa na msingi wa Mavuno ya Endelevu Zaidi",
