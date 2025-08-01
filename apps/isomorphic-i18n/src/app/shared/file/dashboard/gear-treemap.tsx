@@ -377,22 +377,7 @@ export default function GearHeatmap({
   );
   
   // Debug logging for query parameters and data
-  useEffect(() => {
-    if (process.env.NODE_ENV === 'development') {
-      console.log('Gear query params:', queryParams);
-      console.log('Gear raw data length:', rawData?.length);
-      console.log('Gear raw data sample:', rawData?.slice(0, 3));
-      if (queryParams.startDate) {
-        console.log('Time range filtering enabled:', {
-          startDate: queryParams.startDate,
-          endDate: queryParams.endDate,
-          selectedTimeRange
-        });
-      } else {
-        console.log('No time range filtering (showing all data)');
-      }
-    }
-  }, [queryParams, rawData, selectedTimeRange]);
+
   
   // Log query state only if there are issues
   if (isQueryError) {
@@ -411,9 +396,7 @@ export default function GearHeatmap({
   // Track selectedTimeRange changes and force data reprocessing
   useEffect(() => {
     if (previousTimeRangeRef.current !== selectedTimeRange) {
-      if (process.env.NODE_ENV === 'development') {
-        console.log('Time range changed from', previousTimeRangeRef.current, 'to', selectedTimeRange);
-      }
+
       previousTimeRangeRef.current = selectedTimeRange;
       setBarData([]);
       setRankingData([]);
@@ -509,10 +492,7 @@ export default function GearHeatmap({
       
       const mappedMetricField = mapMetricField(selectedMetric);
       
-      if (process.env.NODE_ENV === 'development') {
-        console.log('Selected metric:', selectedMetric);
-        console.log('Mapped metric field:', mappedMetricField);
-      }
+
       
       // Check if the selected metric is available
       if (!mappedMetricField) {

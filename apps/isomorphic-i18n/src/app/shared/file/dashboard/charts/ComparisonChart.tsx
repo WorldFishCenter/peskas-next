@@ -14,7 +14,7 @@ import { format } from "date-fns";
 import { ChartDataPoint, MetricOption, VisibilityState } from "./types";
 import { CustomYAxisTick } from "./components";
 import { useTranslation } from "@/app/i18n/client";
-import React, { useCallback, useEffect, useRef } from "react";
+import React, { useCallback, useEffect, useRef, useMemo } from "react";
 import { BASELINE_DATA } from "./siteConfig";
 import { TimeRangeOption } from "@/app/components/filter-selector";
 
@@ -29,6 +29,8 @@ interface ComparisonChartProps {
   CustomLegend: (props: any) => React.ReactElement;
   selectedMetric?: string;
   selectedTimeRange?: TimeRangeOption;
+  individualFisherData?: any[];
+  userFisherId?: string;
 }
 
 export default function ComparisonChart({
@@ -42,6 +44,8 @@ export default function ComparisonChart({
   CustomLegend,
   selectedMetric,
   selectedTimeRange = 'all',
+  individualFisherData,
+  userFisherId,
 }: ComparisonChartProps) {
   const contextLang = document.documentElement.getAttribute('data-language');
   const isLangReady = document.documentElement.getAttribute('data-language-ready') === 'true';
@@ -103,6 +107,80 @@ export default function ComparisonChart({
     return translationsRef.current[key] || t(key);
   }, [t]);
   
+  // Process individual fisher data for overlay
+  const individualFisherChartData = useMemo(() => {
+    if (!individualFisherData || !userFisherId || individualFisherData.length === 0) return [];
+    
+    // Convert daily fisher data to monthly aggregates to match BMU data structure
+    const monthlyAggregates: Record<string, { 
+      sum: number; 
+      count: number; 
+      date: number;
+    }> = {};
+    
+    individualFisherData.forEach(record => {
+      const date = new Date(record.date);
+      const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+      
+      if (!monthlyAggregates[monthKey]) {
+        // Use first day of month for consistency with BMU data
+        const monthStart = new Date(date.getFullYear(), date.getMonth(), 1);
+        monthlyAggregates[monthKey] = {
+          sum: 0,
+          count: 0,
+          date: monthStart.getTime()
+        };
+      }
+      
+      // Get the appropriate metric value - map BMU metrics to individual fisher metrics
+      let value: number | null = null;
+      if (selectedMetric === "mean_cpue" && record.mean_cpue != null) {
+        // Individual fisher CPUE maps directly to BMU CPUE
+        value = record.mean_cpue;
+      } else if (selectedMetric === "mean_rpue" && record.mean_rpue != null) {
+        // Individual fisher RPUE maps directly to BMU RPUE
+        value = record.mean_rpue;
+      } else if (selectedMetric === "mean_cpua" && record.mean_cpue != null) {
+        // For BMU catch density, show individual fisher CPUE as approximation
+        value = record.mean_cpue;
+      } else if (selectedMetric === "mean_rpua" && record.mean_rpue != null) {
+        // For BMU area revenue, show individual fisher RPUE as approximation
+        value = record.mean_rpue;
+      }
+      // Note: mean_effort has no individual fisher equivalent, so we skip it
+      
+      if (value !== null) {
+        monthlyAggregates[monthKey].sum += value;
+        monthlyAggregates[monthKey].count++;
+      }
+    });
+    
+    // Convert to array format matching BMU data structure
+    return Object.values(monthlyAggregates)
+      .filter(agg => agg.count > 0)
+      .map(agg => ({
+        date: agg.date,
+        individualFisher: agg.sum / agg.count
+      }))
+      .sort((a, b) => a.date - b.date);
+  }, [individualFisherData, userFisherId, selectedMetric]);
+  
+  // Merge BMU data with individual fisher data
+  const mergedChartData = useMemo(() => {
+    if (!individualFisherChartData.length) return chartData;
+    
+    // Create a map of individual fisher data by date
+    const fisherDataMap = new Map(
+      individualFisherChartData.map(item => [item.date, item.individualFisher])
+    );
+    
+    // Merge with BMU data
+    return chartData.map(bmuPoint => ({
+      ...bmuPoint,
+      individualFisher: fisherDataMap.get(bmuPoint.date) || undefined
+    }));
+  }, [chartData, individualFisherChartData]);
+  
   // Format date for X-axis ticks
   const formatDate = (timestamp: number) => {
     const date = new Date(timestamp);
@@ -133,7 +211,9 @@ export default function ComparisonChart({
                   style={{ backgroundColor: entry.color }}
                 />
                 <p className="text-sm">
-                  <span className="font-medium">{entry.name}:</span>{" "}
+                  <span className="font-medium">
+                    {entry.dataKey === "individualFisher" ? (t("text-your-performance") || "Your Performance") : entry.name}:
+                  </span>{" "}
                   <span className="font-semibold">
                     {entry.value !== undefined ? entry.value.toFixed(1) : "N/A"}
                   </span>
@@ -285,8 +365,7 @@ export default function ComparisonChart({
   }
 
   // Log data for debugging
-  console.log("Chart Data Format:", hasNewDataFormat ? "New" : "Legacy");
-  console.log("Sample Data:", chartData.slice(0, 2));
+
 
   // Calculate Y-axis domain with a proper range for negative values
   const calculateYDomain = () => {
@@ -340,7 +419,7 @@ export default function ComparisonChart({
     <div className="h-96 w-full pt-9">
       <ResponsiveContainer width="100%" height="100%">
         <BarChart
-          data={chartData}
+          data={mergedChartData}
           margin={{ top: 10, right: 30, left: 10, bottom: 0 }}
           barCategoryGap="30%"
           barSize={20}
@@ -487,7 +566,7 @@ export default function ComparisonChart({
           {/* Month delimiters - ensure all months are shown */}
           {(() => {
             // Get all dates in sorted order
-            const dates = chartData.map(item => item.date).sort((a, b) => a - b);
+            const dates = mergedChartData.map(item => item.date).sort((a, b) => a - b);
             if (dates.length === 0) return null;
             
             // Only show every other month's delimiter to avoid overcrowding
@@ -502,6 +581,20 @@ export default function ComparisonChart({
               />
             ));
           })()}
+          
+          {/* Add individual fisher bar if data is available and not in CIA historical mode */}
+          {!isCiaHistoricalMode && individualFisherData && userFisherId && (
+            <Bar
+              dataKey="individualFisher"
+              name={t("text-your-performance") || "Your Performance"}
+              fill="#F79F79"
+              stroke="#F79F79"
+              strokeWidth={1}
+              maxBarSize={40}
+              radius={[2, 2, 0, 0]}
+              isAnimationActive={false}
+            />
+          )}
           
           {/* CIA mode with difference data */}
           {isCiaHistoricalMode && hasNewDataFormat ? (

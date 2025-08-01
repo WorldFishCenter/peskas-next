@@ -3,7 +3,7 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { useTranslation } from "@/app/i18n/client";
 import { useIndividualData } from "./hooks/useIndividualData";
-import { useUserPermissions } from "./hooks/useUserPermissions";
+import useUserPermissions from "./hooks/useUserPermissions";
 import WidgetCard from "@components/cards/widget-card";
 import { api } from "@/trpc/react";
 import { getClientLanguage } from "@/app/i18n/language-link";
@@ -82,7 +82,7 @@ export default function IndividualFisherGearPerformance({
     };
   }, [i18n]);
   
-  const { userFisherId, isIiaUser } = useUserPermissions();
+  const { userFisherId, isIiaUser, shouldShowIndividualData } = useUserPermissions();
   const [selectedTimeRange] = useAtom(selectedTimeRangeAtom);
   
   // Calculate date range based on selected time range
@@ -195,8 +195,8 @@ export default function IndividualFisherGearPerformance({
     });
   }, [aggregatedGearPerformanceData, aggregatedBmuGearPerformance, selectedMetric]);
 
-  // Only render for IIA users
-  if (!isIiaUser || !userFisherId) {
+  // Only render for users who should see individual data (IIA users or admin-fishers)
+  if (!shouldShowIndividualData || !userFisherId) {
     return null;
   }
 

@@ -14,8 +14,11 @@ import IndividualFisherStats from "@/app/shared/file/dashboard/individual-fisher
 import IndividualFisherTrends from "@/app/shared/file/dashboard/individual-fisher-trends";
 import IndividualFisherGearPerformance from "@/app/shared/file/dashboard/individual-fisher-gear-performance";
 import { selectedMetricAtom } from "@/app/components/filter-selector";
-import { useUserPermissions } from "./hooks/useUserPermissions";
+import useUserPermissions from "./hooks/useUserPermissions";
 import PageHeader from '@/app/shared/page-header';
+import { PiUser, PiCaretDownBold } from "react-icons/pi";
+import { Text, Collapse } from "rizzui";
+import cn from "@utils/class-names";
 
 type SerializedBmu = {
   _id: string;
@@ -34,16 +37,10 @@ export default function FileDashboard({ lang }: { lang?: string }) {
   const [selectedMetric, setSelectedMetric] = useAtom(selectedMetricAtom);
   const [activeTab, setActiveTab] = useState("trends");
   const { t } = useTranslation("common");
-  const { referenceBMU, isIiaUser, userFisherId, isWbciaUser } = useUserPermissions();
+  const { referenceBMU, isIiaUser, userFisherId, isWbciaUser, shouldShowUnifiedDashboard, isAdminFisher } = useUserPermissions();
 
   // Use reference BMU if available or fall back to user's BMU
   const effectiveBMU = referenceBMU || undefined;
-
-  // Add this at the top of the IIA dashboard section, before the return:
-  const dashboardHeader = {
-    title: t('text-your-performance'),
-    description: t('text-performance-description'),
-  };
 
   // If user is IIA, show individual fisher dashboard
   if (isIiaUser && userFisherId) {
@@ -79,8 +76,53 @@ export default function FileDashboard({ lang }: { lang?: string }) {
         {isWbciaUser ? (
           <FileStatsWBCIA lang={lang} />
         ) : (
-        <FileStats lang={lang} bmu={effectiveBMU} />
+          <FileStats lang={lang} bmu={effectiveBMU} />
         )}
+
+        {/* Individual Fisher Performance Integration for Administrator-Fishers */}
+        {shouldShowUnifiedDashboard && (
+          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-100 shadow-sm">
+            <Collapse
+              defaultOpen={true}
+              className="px-6 py-6"
+              header={({ open, toggle }) => (
+                <button
+                  type="button"
+                  onClick={toggle}
+                  className="flex w-full cursor-pointer items-center justify-between"
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="flex items-center justify-center w-12 h-12 bg-blue-500 rounded-xl shadow-sm">
+                      <PiUser className="w-6 h-6 text-white" />
+                    </div>
+                    <div className="text-left">
+                      <Text className="text-xl font-bold text-gray-900">
+                        {t('text-your-fishing-performance')}
+                      </Text>
+                      <Text className="text-sm text-gray-600">
+                        {t('text-personal-fishing-insights-alongside-management')}
+                      </Text>
+                    </div>
+                  </div>
+                  <PiCaretDownBold
+                    className={cn(
+                      "h-5 w-5 -rotate-90 transform transition-transform duration-300 text-gray-500 rtl:rotate-90",
+                      open && "rotate-0 rtl:rotate-0"
+                    )}
+                  />
+                </button>
+              )}
+            >
+              <div className="space-y-6 pt-6">
+                {/* Individual Fisher Performance Statistics */}
+                <IndividualFisherStats lang={lang} />
+                {/* Individual Fisher Performance Trends */}
+                <IndividualFisherTrends lang={lang} />
+              </div>
+            </Collapse>
+          </div>
+        )}
+
         <div className="grid grid-cols-12 gap-5 xl:gap-6">
           <div className="col-span-12 md:col-span-9">
             <CatchMetricsChart
@@ -92,15 +134,14 @@ export default function FileDashboard({ lang }: { lang?: string }) {
             />
           </div>
           <div className="col-span-12 md:col-span-3">
-            <CatchRadarChart 
-              lang={lang} 
+            <CatchRadarChart
+              lang={lang}
               bmu={effectiveBMU}
             />
           </div>
         </div>
         <GearTreemap lang={lang} bmu={effectiveBMU} />
         <BMURanking lang={lang} bmu={effectiveBMU} />
-        {/* <PerformanceTable lang={lang} /> */}
       </div>
     </div>
   );

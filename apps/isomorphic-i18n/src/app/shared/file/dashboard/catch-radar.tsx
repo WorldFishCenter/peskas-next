@@ -257,7 +257,6 @@ export default function CatchRadarChart({
     const tabChanged = previousActiveTab.current !== activeTab;
     
     if (bmusChanged || metricChanged || timeRangeChanged) {
-      console.log('BMUs, metric, or time range changed, refetching data');
       setData([]);
       setIsInitialLoad(true);
       previousBmus.current = [...bmus];

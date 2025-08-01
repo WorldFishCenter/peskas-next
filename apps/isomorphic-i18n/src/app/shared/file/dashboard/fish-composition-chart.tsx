@@ -363,7 +363,6 @@ export default function FishCompositionChart({
   // Track selectedCategory changes and force data reprocessing
   useEffect(() => {
     if (previousCategoryRef.current !== selectedCategory) {
-      console.log('Category changed from', previousCategoryRef.current, 'to', selectedCategory);
       previousCategoryRef.current = selectedCategory;
       setChartData([]);
       setRecentData([]);
@@ -376,7 +375,6 @@ export default function FishCompositionChart({
   // Track selectedTimeRange changes and force data reprocessing
   useEffect(() => {
     if (previousTimeRangeRef.current !== selectedTimeRange) {
-      console.log('Time range changed from', previousTimeRangeRef.current, 'to', selectedTimeRange);
       previousTimeRangeRef.current = selectedTimeRange;
       setChartData([]);
       setRecentData([]);
@@ -393,7 +391,6 @@ export default function FishCompositionChart({
   useEffect(() => {
     // Check if bmus array has changed
     if (JSON.stringify(previousBmus.current) !== JSON.stringify(effectiveBmus)) {
-      console.log('BMUs changed, refetching data');
       setChartData([]);
       setRecentData([]);
       setAnnualData([]);
@@ -552,8 +549,6 @@ export default function FishCompositionChart({
         previousTimeRangeRef.current === selectedTimeRange) return;
 
     try {
-      console.log("Processing fish distribution data:", monthlyData);
-      
       // Apply time range filter
       const filteredMonthlyData = filterDataByTimeRange(monthlyData, selectedTimeRange);
       

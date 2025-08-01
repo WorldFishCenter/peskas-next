@@ -13,7 +13,7 @@ import { format } from "date-fns";
 import { ChartDataPoint, MetricOption, VisibilityState } from "./types";
 import { CustomYAxisTick } from "./components";
 import { useTranslation } from "@/app/i18n/client";
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useMemo } from "react";
 import { BASELINE_DATA } from "./siteConfig";
 
 interface AnnualChartProps {
@@ -25,6 +25,8 @@ interface AnnualChartProps {
   isTablet: boolean;
   CustomLegend?: React.ComponentType<any>;
   selectedMetric?: string;
+  individualFisherData?: any[];
+  userFisherId?: string;
 }
 
 export default function AnnualChart({
@@ -36,6 +38,8 @@ export default function AnnualChart({
   isTablet,
   CustomLegend,
   selectedMetric,
+  individualFisherData,
+  userFisherId,
 }: AnnualChartProps) {
   // Check if there's a parent language context we should use
   const contextLang = document.documentElement.getAttribute('data-language');
@@ -68,6 +72,83 @@ export default function AnnualChart({
   const getTranslation = useCallback((key: string) => {
     return translationsRef.current[key] || t(key);
   }, [t]);
+  
+  // Process individual fisher data for overlay  
+  const individualFisherChartData = useMemo(() => {
+    if (!individualFisherData || !userFisherId || individualFisherData.length === 0) return [];
+    
+    // Convert daily fisher data to yearly aggregates to match BMU data structure
+    const yearlyAggregates: Record<string, { 
+      sum: number; 
+      count: number; 
+      date: number;
+    }> = {};
+    
+    individualFisherData.forEach(record => {
+      const date = new Date(record.date);
+      const year = date.getFullYear();
+      const yearKey = year.toString();
+      
+      if (!yearlyAggregates[yearKey]) {
+        // Use first day of year for consistency with BMU data
+        const yearStart = new Date(year, 0, 1);
+        yearlyAggregates[yearKey] = {
+          sum: 0,
+          count: 0,
+          date: yearStart.getTime()
+        };
+      }
+      
+      // Get the appropriate metric value - map BMU metrics to individual fisher metrics
+      let value: number | null = null;
+      if (selectedMetric === "mean_cpue" && record.mean_cpue != null) {
+        // Individual fisher CPUE maps directly to BMU CPUE
+        value = record.mean_cpue;
+      } else if (selectedMetric === "mean_rpue" && record.mean_rpue != null) {
+        // Individual fisher RPUE maps directly to BMU RPUE
+        value = record.mean_rpue;
+      } else if (selectedMetric === "mean_cpua" && record.mean_cpue != null) {
+        // For BMU catch density, show individual fisher CPUE as approximation
+        value = record.mean_cpue;
+      } else if (selectedMetric === "mean_rpua" && record.mean_rpue != null) {
+        // For BMU area revenue, show individual fisher RPUE as approximation
+        value = record.mean_rpue;
+      }
+      // Note: mean_effort has no individual fisher equivalent, so we skip it
+      
+      if (value !== null) {
+        yearlyAggregates[yearKey].sum += value;
+        yearlyAggregates[yearKey].count++;
+      }
+    });
+    
+    // Convert to array format matching BMU data structure
+    return Object.values(yearlyAggregates)
+      .filter(agg => agg.count > 0)
+      .map(agg => ({
+        date: agg.date,
+        individualFisher: agg.sum / agg.count
+      }))
+      .sort((a, b) => a.date - b.date);
+  }, [individualFisherData, userFisherId, selectedMetric]);
+  
+  // Merge BMU data with individual fisher data
+  const mergedChartData = useMemo(() => {
+    if (!individualFisherChartData.length) return chartData;
+    
+    // Create a map of individual fisher data by date
+    const fisherDataMap = new Map(
+      individualFisherChartData.map(item => [item.date, item.individualFisher])
+    );
+    
+    // Merge with BMU data
+    const merged = chartData.map(bmuPoint => ({
+      ...bmuPoint,
+      individualFisher: fisherDataMap.get(bmuPoint.date) || undefined
+    }));
+    
+    return merged;
+  }, [chartData, individualFisherChartData]);
 
   // Format date for X-axis ticks (year only)
   const formatDate = (timestamp: number) => {
@@ -110,6 +191,8 @@ export default function AnnualChart({
                         ? getTranslation("text-average-of-all-bmus") 
                         : entry.dataKey === "historical_average"
                         ? t("text-historical-average") || "Historical Average"
+                        : entry.dataKey === "individualFisher"
+                        ? t("text-your-performance") || "Your Performance"
                         : entry.dataKey}
                     </span>{" "}
                     {entry.value?.toFixed(1)}
@@ -151,7 +234,7 @@ export default function AnnualChart({
     <div className="h-96 w-full pt-9">
       <ResponsiveContainer width="100%" height="100%">
         <BarChart
-          data={chartData}
+          data={mergedChartData}
           margin={{ top: 10, right: 30, left: 10, bottom: 0 }}
           barGap={2}
           barCategoryGap="30%"
@@ -184,6 +267,20 @@ export default function AnnualChart({
           <Tooltip content={<CustomTooltip />} wrapperStyle={{ outline: 'none' }} />
           
           {renderBars()}
+          
+          {/* Add individual fisher bar if data is available */}
+          {individualFisherData && userFisherId && (
+            <Bar
+              dataKey="individualFisher"
+              name={t("text-your-performance") || "Your Performance"}
+              fill="#F79F79"
+              stroke="#F79F79"
+              strokeWidth={1}
+              maxBarSize={40}
+              radius={[2, 2, 0, 0]}
+              isAnimationActive={false}
+            />
+          )}
           
           {/* Add average bar for non-CIA users */}
           {!isCiaUser && (

@@ -1,3 +1,4 @@
+
 import { api } from "@/trpc/react";
 import { useUserPermissions } from "./useUserPermissions";
 import { useSession } from "next-auth/react";
@@ -15,7 +16,7 @@ interface UseIndividualDataOptions {
  */
 export const useIndividualData = (options?: UseIndividualDataOptions) => {
   const { startDate, endDate } = options || {};
-  const { getAccessibleBMUs, isIiaUser, userFisherId } = useUserPermissions();
+  const { getAccessibleBMUs, isIiaUser, userFisherId, shouldShowIndividualData } = useUserPermissions();
   const { data: session } = useSession();
   
   // For now, we'll use a basic set of BMUs - this should be replaced with actual BMU data
@@ -57,7 +58,7 @@ export const useIndividualData = (options?: UseIndividualDataOptions) => {
     { enabled: accessibleBMUs.length > 0 }
   );
 
-  // IIA-specific queries - only enabled for IIA users with a valid fisherId
+  // Individual fisher queries - enabled for users who should see individual data (IIA users and admin-fishers)
   const {
     data: fisherData,
     isLoading: isLoadingFisherData,
@@ -68,7 +69,7 @@ export const useIndividualData = (options?: UseIndividualDataOptions) => {
       startDate: startDate?.toISOString(),
       endDate: endDate?.toISOString(),
     },
-    { enabled: isIiaUser && !!userFisherId }
+    { enabled: shouldShowIndividualData && !!userFisherId }
   );
 
   const {
@@ -80,7 +81,7 @@ export const useIndividualData = (options?: UseIndividualDataOptions) => {
       fisherId: userFisherId || '',
       metric: 'mean_cpue'
     },
-    { enabled: isIiaUser && !!userFisherId }
+    { enabled: shouldShowIndividualData && !!userFisherId }
   );
 
   const {
@@ -93,10 +94,10 @@ export const useIndividualData = (options?: UseIndividualDataOptions) => {
       startDate: startDate?.toISOString(),
       endDate: endDate?.toISOString(),
     },
-    { enabled: isIiaUser && !!userFisherId }
+    { enabled: shouldShowIndividualData && !!userFisherId }
   );
 
-  // Fetch individual fish distribution for the current fisher (for IIA users)
+  // Fetch individual fish distribution for the current fisher
   const {
     data: individualFishDistribution,
     isLoading: isLoadingIndividualFishDistribution,
@@ -107,7 +108,7 @@ export const useIndividualData = (options?: UseIndividualDataOptions) => {
       startDate: startDate?.toISOString(),
       endDate: endDate?.toISOString(),
     },
-    { enabled: isIiaUser && !!userFisherId }
+    { enabled: shouldShowIndividualData && !!userFisherId }
   );
 
   return {

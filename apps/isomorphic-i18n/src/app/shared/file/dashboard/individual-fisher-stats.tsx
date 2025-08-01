@@ -3,7 +3,7 @@
 import { Text } from "rizzui";
 import { useTranslation } from "@/app/i18n/client";
 import { useIndividualData } from "./hooks/useIndividualData";
-import { useUserPermissions } from "./hooks/useUserPermissions";
+import useUserPermissions from "./hooks/useUserPermissions";
 import cn from "@utils/class-names";
 import { PiTrendUp, PiTrendDown, PiEquals } from "react-icons/pi";
 import { api } from "@/trpc/react";
@@ -23,7 +23,9 @@ export default function IndividualFisherStats({
   startDate?: Date | null;
   endDate?: Date;
 }) {
-  const { t } = useTranslation("common");
+  // Use client language instead of lang prop
+  const clientLang = getClientLanguage();
+  const { t, i18n } = useTranslation(clientLang);
   const [selectedTimeRange] = useAtom(selectedTimeRangeAtom);
   
   // Calculate date range based on selected time range
@@ -34,10 +36,6 @@ export default function IndividualFisherStats({
   }, [selectedTimeRange]);
   
   const { fisherPerformanceSummary, isLoadingFisherSummary, fisherData } = useIndividualData(dateRange);
-
-  // Use client language instead of lang prop
-  const clientLang = getClientLanguage();
-  const { i18n } = useTranslation(clientLang);
   
   // Track current language with state
   const [currentLang, setCurrentLang] = useState(clientLang);
@@ -59,7 +57,7 @@ export default function IndividualFisherStats({
     };
   }, [i18n]);
   
-  const { userFisherId, isIiaUser } = useUserPermissions();
+  const { userFisherId, isIiaUser, shouldShowIndividualData } = useUserPermissions();
 
   // Get fisher's BMU from their data
   const fisherBMU = useMemo(() => {
@@ -149,8 +147,8 @@ export default function IndividualFisherStats({
     return 'neutral';
   };
 
-  // Only render for IIA users
-  if (!isIiaUser || !userFisherId) {
+  // Only render for users who should see individual data (IIA users or admin-fishers)
+  if (!shouldShowIndividualData || !userFisherId) {
     return null;
   }
 

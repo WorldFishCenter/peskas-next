@@ -227,7 +227,6 @@ export default function BMURanking({
   // Track selectedTimeRange changes and force data reprocessing
   useEffect(() => {
     if (previousTimeRangeRef.current !== selectedTimeRange) {
-      console.log('Time range changed from', previousTimeRangeRef.current, 'to', selectedTimeRange);
       previousTimeRangeRef.current = selectedTimeRange;
       setRankingData([]);
       dataProcessed.current = false;
@@ -238,7 +237,6 @@ export default function BMURanking({
   // Force refetch when bmus changes
   useEffect(() => {
     if (JSON.stringify(previousBmus.current) !== JSON.stringify(safeBmus)) {
-      console.log('BMUs changed, refetching BMU ranking data');
       dataProcessed.current = false;
       previousBmus.current = [...safeBmus];
       refetch();

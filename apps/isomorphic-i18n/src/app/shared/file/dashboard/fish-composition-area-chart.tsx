@@ -118,7 +118,6 @@ export default function FishCompositionAreaChart({
   // Track selectedTimeRange changes and force data reprocessing
   useEffect(() => {
     if (previousTimeRangeRef.current !== selectedTimeRange) {
-      console.log('Fish composition area chart: Time range changed from', previousTimeRangeRef.current, 'to', selectedTimeRange);
       previousTimeRangeRef.current = selectedTimeRange;
       setChartData([]);
       setCategoryDisplays([]);

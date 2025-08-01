@@ -115,7 +115,6 @@ export default function FishCompositionComparison({
   // Track selectedTimeRange changes and force data reprocessing
   useEffect(() => {
     if (previousTimeRangeRef.current !== selectedTimeRange) {
-      console.log('Fish composition comparison: Time range changed from', previousTimeRangeRef.current, 'to', selectedTimeRange);
       previousTimeRangeRef.current = selectedTimeRange;
       setChartData([]);
       setCategoryDisplays([]);
@@ -239,7 +238,6 @@ export default function FishCompositionComparison({
       
       // Convert to array of category objects with colors
       const categoryArray = Array.from(categories).map((category) => {
-        console.log(`Fish category: "${category}" → color: ${generateFishCategoryColor(category)}`);
         return {
           id: category.toLowerCase().replace(/\s+/g, '_'),
           name: category,

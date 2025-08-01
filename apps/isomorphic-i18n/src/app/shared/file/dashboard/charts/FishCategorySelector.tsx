@@ -74,7 +74,7 @@ export default function FishCategorySelector({
           <div className="max-h-60 overflow-y-auto">
             {allCategories.map((option) => {
               // Add console log to verify the actual category label and color
-              console.log(`Fish selector: "${option.label}" → color: ${generateFishCategoryColor(option.label)}`);
+
               
               return (
                 <button

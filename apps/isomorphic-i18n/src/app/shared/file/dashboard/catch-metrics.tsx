@@ -27,6 +27,7 @@ import { getClientLanguage } from "@/app/i18n/language-link";
 // Import shared permissions hook
 import useUserPermissions from "./hooks/useUserPermissions";
 import { filterDataByTimeRange } from "./utils/timeRangeFilter";
+import { useIndividualData } from "./hooks/useIndividualData";
 
 // Create a more robust language context that includes both the language code and translations
 const LanguageContext = createContext<{
@@ -123,41 +124,9 @@ const prepareDataForCiaComparison = (chartData: ChartDataPoint[], bmuName: strin
     baselineLabel = '24-month average';
   }
   
-  console.log(`Using ${baselineLabel}: ${baseline.toFixed(2)} for metric ${selectedMetric}`);
+
   
-  // For testing purposes, ensure we have some negative values
-  const ensureNegativeValues = (data: ChartDataPoint[]): ChartDataPoint[] => {
-    // Clone the data to avoid modifying the original
-    const modifiedData = JSON.parse(JSON.stringify(data));
-    
-    // Make sure at least one data point has a negative difference
-    if (modifiedData.length > 0) {
-      // Choose a random point to make negative if none exist
-      const hasNegative = modifiedData.some((point: ChartDataPoint) => 
-        point.difference !== undefined && point.difference < 0
-      );
-      
-      if (!hasNegative) {
-        // Find a point with a positive difference and make it negative
-        const positiveIndex = modifiedData.findIndex((point: ChartDataPoint) => 
-          point.difference !== undefined && point.difference > 0
-        );
-        
-        if (positiveIndex >= 0) {
-          // Make this difference negative
-          modifiedData[positiveIndex].difference = 
-            -Math.abs(modifiedData[positiveIndex].difference as number);
-          
-          // Update isAboveAverage flag
-          modifiedData[positiveIndex].isAboveAverage = 0;
-          
-          console.log('Added negative test value:', modifiedData[positiveIndex]);
-        }
-      }
-    }
-    
-    return modifiedData;
-  };
+
   
   // Create result array with the fixed baseline
   let result: ChartDataPoint[] = [];
@@ -184,8 +153,7 @@ const prepareDataForCiaComparison = (chartData: ChartDataPoint[], bmuName: strin
       // Also store the actual BMU value for reference
       currentPoint['actualValue'] = actualValue;
       
-      // Log for debugging
-      console.log(`Date: ${new Date(currentPoint.date).toISOString().split('T')[0]}, ${baselineLabel}: ${baseline.toFixed(2)}, Value: ${actualValue}, Diff: ${difference > 0 ? '+' : ''}${difference.toFixed(2)}`);
+
       
       result.push(currentPoint);
     }
@@ -194,11 +162,9 @@ const prepareDataForCiaComparison = (chartData: ChartDataPoint[], bmuName: strin
   // Sort the result by date for chronological display
   result = result.sort((a, b) => a.date - b.date);
   
-  // For testing: ensure we have negative values to test chart rendering
-  const modifiedResult = ensureNegativeValues(result);
-  
-  return modifiedResult;
+  return result;
 };
+
 
 // Function to prepare baseline comparison data for multiple BMUs (WBCIA users)
 const prepareMultiBMUBaselineComparison = (chartData: ChartDataPoint[], selectedMetric: string) => {
@@ -323,7 +289,9 @@ export default function CatchMetricsChart({
     getAccessibleBMUs,
     hasRestrictedAccess,
     shouldShowAggregated,
-    canCompareWithOthers
+    canCompareWithOthers,
+    shouldShowIndividualData,
+    userFisherId
   } = useUserPermissions();
 
   // Determine which BMU to use for filtering - prefer passed prop, then user's BMU
@@ -343,10 +311,47 @@ export default function CatchMetricsChart({
     }
   );
 
+  // Fetch individual fisher data for admin-fishers
+  const dateRange = useMemo(() => {
+    const endDate = new Date();
+    let startDate: Date;
+    
+    switch (selectedTimeRange) {
+      case '3months':
+        startDate = new Date();
+        startDate.setMonth(startDate.getMonth() - 3);
+        break;
+      case '6months':
+        startDate = new Date();
+        startDate.setMonth(startDate.getMonth() - 6);
+        break;
+      case '1year':
+        startDate = new Date();
+        startDate.setFullYear(startDate.getFullYear() - 1);
+        break;
+      default:
+        startDate = new Date('2020-01-01'); // All time - start from reasonable date
+        break;
+    }
+    
+    return { startDate, endDate };
+  }, [selectedTimeRange]);
+
+  const { fisherData, isLoadingFisherData } = useIndividualData(
+    shouldShowIndividualData ? dateRange : undefined
+  );
+
+  // Helper function to check if current metric is compatible with individual fisher data
+  const isMetricCompatibleWithIndividualData = useMemo(() => {
+    // Individual fishers only have direct data for CPUE and RPUE
+    const compatibleMetrics = ['mean_cpue', 'mean_rpue', 'mean_cpua', 'mean_rpua'];
+    return compatibleMetrics.includes(selectedMetric);
+  }, [selectedMetric]);
+
+
   // Track selectedMetric changes and force data reprocessing
   useEffect(() => {
     if (previousMetricRef.current !== selectedMetric) {
-      console.log('Metric changed from', previousMetricRef.current, 'to', selectedMetric);
       previousMetricRef.current = selectedMetric;
       setChartData([]);
       setRecentData([]);
@@ -360,7 +365,6 @@ export default function CatchMetricsChart({
   // Track selectedTimeRange changes and force data reprocessing
   useEffect(() => {
     if (previousTimeRangeRef.current !== selectedTimeRange) {
-      console.log('Time range changed from', previousTimeRangeRef.current, 'to', selectedTimeRange);
       previousTimeRangeRef.current = selectedTimeRange;
       setChartData([]);
       setRecentData([]);
@@ -375,7 +379,6 @@ export default function CatchMetricsChart({
   useEffect(() => {
     // Check if bmus array has changed
     if (JSON.stringify(previousBmus.current) !== JSON.stringify(safeBmus)) {
-      console.log('BMUs changed, refetching data');
       dataProcessed.current = false;
       previousBmus.current = [...safeBmus];
       refetch();
@@ -559,6 +562,7 @@ export default function CatchMetricsChart({
       initialVisibility["historical_average"] = { opacity: 1 };
       }
       
+      
       // Only set visibility state if it's the initial load
       if (Object.keys(visibilityState).length === 0) {
       setVisibilityState(initialVisibility);
@@ -657,6 +661,7 @@ export default function CatchMetricsChart({
 
       setFiveYearMarks(marks);
       setChartData(processedData);
+      
       previousBmus.current = [...safeBmus];
       previousMetricRef.current = selectedMetric;
     } catch (error) {
@@ -890,6 +895,8 @@ export default function CatchMetricsChart({
               isTablet={isTablet}
               fiveYearMarks={fiveYearMarks}
               selectedMetric={selectedMetric}
+              individualFisherData={shouldShowIndividualData && isMetricCompatibleWithIndividualData ? fisherData : undefined}
+              userFisherId={userFisherId}
               CustomLegend={(props) => (
                 <CustomLegend 
                   {...props} 
@@ -927,6 +934,8 @@ export default function CatchMetricsChart({
               selectedMetric={selectedMetric}
               selectedTimeRange={selectedTimeRange}
               isCiaHistoricalMode={isWbciaUser && (selectedMetric === 'mean_cpua' || selectedMetric === 'mean_rpue')}
+              individualFisherData={shouldShowIndividualData && isMetricCompatibleWithIndividualData ? fisherData : undefined}
+              userFisherId={userFisherId}
               CustomLegend={(props) => (
                 <CustomLegend 
                   {...props} 
@@ -950,6 +959,8 @@ export default function CatchMetricsChart({
                 historicalBmuName={effectiveBMU}
                 selectedMetric={selectedMetric}
                 selectedTimeRange={selectedTimeRange}
+                individualFisherData={shouldShowIndividualData && isMetricCompatibleWithIndividualData ? fisherData : undefined}
+                userFisherId={userFisherId}
                 CustomLegend={(props) => (
                   <CustomLegend 
                     {...props} 
@@ -991,6 +1002,8 @@ export default function CatchMetricsChart({
               isCiaUser={!!isCiaUser}
               isTablet={isTablet}
               selectedMetric={selectedMetric}
+              individualFisherData={shouldShowIndividualData && isMetricCompatibleWithIndividualData ? fisherData : undefined}
+              userFisherId={userFisherId}
               CustomLegend={(props) => (
                 <CustomLegend 
                   {...props} 
