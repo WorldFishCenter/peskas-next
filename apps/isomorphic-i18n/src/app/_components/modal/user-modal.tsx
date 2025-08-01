@@ -647,8 +647,8 @@ export default function UserModal({
                 )}
               />
 
-              {/* Fisher ID field - only for IIA users */}
-              {form.watch('role') === 'IIA' && (
+              {/* Fisher ID field - for IIA, CIA, and WBCIA users */}
+              {(form.watch('role') === 'IIA' || form.watch('role') === 'CIA' || form.watch('role') === 'WBCIA') && (
                 <FormField
                   control={form.control}
                   name="fisherId"
