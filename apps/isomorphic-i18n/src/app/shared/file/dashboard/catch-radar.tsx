@@ -26,6 +26,7 @@ import { MetricKey, MetricOption } from "./charts/types";
 // Import site configuration
 // Import time range filtering utilities
 import { getTimeRangeStartDate } from "./utils/timeRangeFilter";
+import { useIndividualData } from "./hooks/useIndividualData";
 
 
 interface RadarData {
@@ -130,28 +131,42 @@ const CustomLegend = ({ payload, visibilityState, handleLegendClick, siteColors,
     return entry.dataKey || entry.value || entry.name || '';
   };
   
-  // Helper function to safely get opacity
+  // Helper function to safely get opacity - make legend more readable
   const getOpacity = (entry: any): number => {
     const key = getSiteKey(entry);
-    return visibilityState[key]?.opacity ?? 1;
+    const chartOpacity = visibilityState[key]?.opacity ?? 1;
+    // For legend readability, use higher minimum opacity (0.4 instead of 0.05)
+    return chartOpacity === 1 ? 1 : 0.4;
   };
 
   return (
     <div className="flex flex-wrap gap-2 justify-center mt-2">
       {payload?.map((entry: any) => {
         const siteKey = getSiteKey(entry);
+        const chartOpacity = visibilityState[siteKey]?.opacity ?? 1;
+        const legendOpacity = getOpacity(entry);
+        
         return (
           <div
             key={siteKey || entry.value || Math.random().toString()}
             className="flex items-center gap-2 cursor-pointer select-none transition-all duration-200"
             onClick={() => handleLegendClick(siteKey)}
-            style={{ opacity: getOpacity(entry) }}
+            style={{ opacity: legendOpacity }}
           >
             <div
               className="w-3 h-3 rounded-full transition-all duration-200"
-              style={{ backgroundColor: entry.color }}
+              style={{ 
+                backgroundColor: entry.color,
+                opacity: chartOpacity === 1 ? 1 : 0.6, // Make color indicator more visible than text
+              }}
             />
-            <span className="text-sm font-medium">{entry.value}</span>
+            <span 
+              className={`text-sm font-medium transition-all duration-200 ${
+                chartOpacity === 1 ? 'text-gray-900' : 'text-gray-500'
+              }`}
+            >
+              {entry.value}
+            </span>
           </div>
         );
       })}
@@ -186,7 +201,9 @@ export default function CatchRadarChart({
     getAccessibleBMUs,
     hasRestrictedAccess,
     shouldShowAggregated,
-    canCompareWithOthers
+    canCompareWithOthers,
+    shouldShowIndividualData,
+    userFisherId
   } = useUserPermissions();
   
   // Determine which BMU to use for filtering - prefer passed prop, then user's BMU
@@ -210,6 +227,44 @@ export default function CatchRadarChart({
   
   // Use the selected metric directly for API calls
   const apiMetric = selectedMetric;
+  
+  // Calculate time range dates for individual fisher data
+  const dateRange = useMemo(() => {
+    const endDate = new Date();
+    let startDate: Date;
+    
+    switch (selectedTimeRange) {
+      case '3months':
+        startDate = new Date();
+        startDate.setMonth(startDate.getMonth() - 3);
+        break;
+      case '6months':
+        startDate = new Date();
+        startDate.setMonth(startDate.getMonth() - 6);
+        break;
+      case '1year':
+        startDate = new Date();
+        startDate.setFullYear(startDate.getFullYear() - 1);
+        break;
+      default:
+        startDate = new Date('2020-01-01'); // All time - start from reasonable date
+        break;
+    }
+    
+    return { startDate, endDate };
+  }, [selectedTimeRange]);
+
+  // Fetch individual fisher data for admin-fishers
+  const { fisherData, isLoadingFisherData } = useIndividualData(
+    shouldShowIndividualData ? dateRange : undefined
+  );
+
+  // Helper function to check if current metric is compatible with individual fisher data
+  const isMetricCompatibleWithIndividualData = useMemo(() => {
+    // Individual fishers only have direct data for CPUE and RPUE
+    const compatibleMetrics = ['mean_cpue', 'mean_rpue', 'mean_cpua', 'mean_rpua'];
+    return compatibleMetrics.includes(selectedMetric);
+  }, [selectedMetric]);
   
   // Calculate time range dates for API call
   const queryParams = useMemo(() => {
@@ -327,18 +382,34 @@ export default function CatchRadarChart({
         {}
       );
 
+      // Add individual fisher color if data is available
+      if (shouldShowIndividualData && isMetricCompatibleWithIndividualData && fisherData && fisherData.length > 0) {
+        const yourPerformanceLabel = t("text-your-performance") || "Your Performance";
+        newSiteColors[yourPerformanceLabel] = "#F79F79"; // Same color as in other charts
+      }
+
+
+
       const newVisibilityState: VisibilityState =
         uniqueSites.reduce<VisibilityState>(
           (acc: VisibilityState, site: string) => ({
             ...acc,
             [site]: { 
               opacity: hasRestrictedAccess
-                ? accessibleSites.includes(site) ? 1 : 0.2
-                : site === effectiveBMU ? 1 : 0.2 
+                ? accessibleSites.includes(site) ? 1 : 0.05
+                : site === effectiveBMU ? 1 : 0.05 
             },
           }),
           {}
         );
+
+      // Add individual fisher visibility if data is available
+      if (shouldShowIndividualData && isMetricCompatibleWithIndividualData && fisherData && fisherData.length > 0) {
+        const yourPerformanceLabel = t("text-your-performance") || "Your Performance";
+        newVisibilityState[yourPerformanceLabel] = { opacity: 1 };
+      }
+
+
 
       // Use the data as-is since the API call already applied the time range filter
       const filteredMeanCatch = meanCatch;
@@ -377,6 +448,37 @@ export default function CatchRadarChart({
               ? dataMap[month][site] 
               : undefined; // Use undefined instead of 0 to show gaps
           });
+          
+          // Add individual fisher data if available
+          if (shouldShowIndividualData && isMetricCompatibleWithIndividualData && fisherData && fisherData.length > 0) {
+            // Find matching month in fisher data
+            const fisherMonthData = fisherData.find(record => {
+              const recordDate = new Date(record.date);
+              const monthName = recordDate.toLocaleDateString('en-US', { month: 'short' });
+              return monthName === month;
+            });
+            
+            if (fisherMonthData) {
+              // Map BMU metrics to individual fisher metrics
+              let fisherValue: number | undefined;
+              if (selectedMetric === "mean_cpue" && fisherMonthData.mean_cpue != null) {
+                fisherValue = fisherMonthData.mean_cpue;
+              } else if (selectedMetric === "mean_rpue" && fisherMonthData.mean_rpue != null) {
+                fisherValue = fisherMonthData.mean_rpue;
+              } else if (selectedMetric === "mean_cpua" && fisherMonthData.mean_cpue != null) {
+                // For BMU catch density, show individual fisher CPUE as approximation
+                fisherValue = fisherMonthData.mean_cpue;
+              } else if (selectedMetric === "mean_rpua" && fisherMonthData.mean_rpue != null) {
+                // For BMU area revenue, show individual fisher RPUE as approximation
+                fisherValue = fisherMonthData.mean_rpue;
+              }
+              
+              if (fisherValue !== undefined) {
+                const yourPerformanceLabel = t("text-your-performance") || "Your Performance";
+                completeItem[yourPerformanceLabel] = fisherValue;
+              }
+            }
+          }
           
           return completeItem;
         });
@@ -473,7 +575,7 @@ export default function CatchRadarChart({
     setVisibilityState((prev) => ({
       ...prev,
       [site]: {
-        opacity: prev[site]?.opacity === 1 ? 0.2 : 1,
+        opacity: prev[site]?.opacity === 1 ? 0.05 : 1,
       },
     }));
     
@@ -584,6 +686,8 @@ export default function CatchRadarChart({
                 />
               );
             })}
+            
+
             <Tooltip content={MemoizedCustomTooltip} wrapperStyle={{ outline: 'none' }} />
             {activeTab !== 'differenced' && (
               <Legend

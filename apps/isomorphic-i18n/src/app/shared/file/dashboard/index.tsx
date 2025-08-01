@@ -83,7 +83,7 @@ export default function FileDashboard({ lang }: { lang?: string }) {
         {shouldShowUnifiedDashboard && (
           <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-100 shadow-sm">
             <Collapse
-              defaultOpen={true}
+              defaultOpen={false}
               className="px-6 py-6"
               header={({ open, toggle }) => (
                 <button

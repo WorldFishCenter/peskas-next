@@ -405,7 +405,7 @@ export default function CatchMetricsChart({
       
       // Toggle the clicked site
       newState[site] = {
-        opacity: prev[site]?.opacity === 1 ? 0.2 : 1,
+        opacity: prev[site]?.opacity === 1 ? 0.05 : 1,
       };
       
       // For Comparison tab, we need to handle the Positive/Negative variants too
@@ -469,7 +469,7 @@ export default function CatchMetricsChart({
       
       Object.keys(siteColors).forEach(site => {
         if (site !== 'average' && site !== 'historical_average' && !newState[site]) {
-          newState[site] = { opacity: site === effectiveBMU ? 1 : 0.2 };
+          newState[site] = { opacity: site === effectiveBMU ? 1 : 0.05 };
           
           // Also set positive/negative variants for comparison view
           const positiveKey = `${site}Positive`;
@@ -539,8 +539,8 @@ export default function CatchMetricsChart({
           ...acc,
           [site as string]: { 
             opacity: hasRestrictedAccess
-              ? (accessibleSites.includes(site as string) ? 1 : 0.2)
-              : (site === effectiveBMU ? 1 : 0.2) 
+              ? (accessibleSites.includes(site as string) ? 1 : 0.05)
+              : (site === effectiveBMU ? 1 : 0.05) 
           },
         }),
         {}
