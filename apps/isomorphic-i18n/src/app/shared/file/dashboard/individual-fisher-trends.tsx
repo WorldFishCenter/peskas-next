@@ -3,7 +3,7 @@
 import React, { useState, useMemo } from "react";
 import { useTranslation } from "@/app/i18n/client";
 import { useIndividualData } from "./hooks/useIndividualData";
-import { useUserPermissions } from "./hooks/useUserPermissions";
+import useUserPermissions from "./hooks/useUserPermissions";
 import WidgetCard from "@components/cards/widget-card";
 import {
   BarChart,
@@ -76,7 +76,7 @@ export default function IndividualFisherTrends({
 }) {
   const { t, i18n } = useTranslation(lang || 'en');
   const [selectedTimeRange] = useAtom(selectedTimeRangeAtom);
-  const { userFisherId, isIiaUser } = useUserPermissions();
+  const { userFisherId, isIiaUser, shouldShowIndividualData } = useUserPermissions();
   const [selectedMetric, setSelectedMetric] = useState<string>('mean_cpue');
 
   // Calculate date range based on selected time range
@@ -238,8 +238,8 @@ export default function IndividualFisherTrends({
     };
   }, [fisherData]);
 
-  // Only render for IIA users
-  if (!isIiaUser || !userFisherId) {
+  // Only render for users who should see individual data (IIA users or admin-fishers)
+  if (!shouldShowIndividualData || !userFisherId) {
     return null;
   }
 

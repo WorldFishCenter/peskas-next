@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, useMemo } from "react";
 import { useAtom } from "jotai";
 import WidgetCard from "@components/cards/widget-card";
 import SimpleBar from "@ui/simplebar";
@@ -25,9 +25,10 @@ import {
 import { MetricOption } from "./charts/types";
 import useUserPermissions from "./hooks/useUserPermissions";
 import { generateColor, updateBmuColorRegistry } from "./charts/utils";
+import { useIndividualFisherDataOnly } from "./hooks/useIndividualData";
 
 // Import time range filtering utilities
-import { filterDataByTimeRange } from "./utils/timeRangeFilter";
+import { filterDataByTimeRange, getTimeRangeStartDate } from "./utils/timeRangeFilter";
 
 // Define METRIC_OPTIONS consistent with other components
 const METRIC_OPTIONS: MetricOption[] = [
@@ -77,6 +78,7 @@ interface BMURankingData {
   value: number;
   fill: string;
   rank: number;
+  isIndividualFisher?: boolean;
 }
 
 const LoadingState = () => {
@@ -136,9 +138,10 @@ const CustomTooltip = ({ active, payload, selectedMetricOption }: any) => {
   return null;
 };
 
-// Custom Y-axis tick to highlight user's BMU
-const CustomYAxisTick = ({ x = 0, y = 0, payload = { value: '' }, userBMU }: any) => {
+// Custom Y-axis tick to highlight user's BMU and individual fisher data
+const CustomYAxisTick = ({ x = 0, y = 0, payload = { value: '' }, userBMU, isIndividualFisher }: any) => {
   const isUserBMU = payload.value === userBMU;
+  const isYourPerformance = isIndividualFisher;
 
   return (
     <g transform={`translate(${x},${y})`}>
@@ -149,12 +152,13 @@ const CustomYAxisTick = ({ x = 0, y = 0, payload = { value: '' }, userBMU }: any
         textAnchor="end"
         className={cn(
           "text-xs",
+          isYourPerformance ? "fill-blue-600 font-bold" : 
           isUserBMU ? "fill-blue-600 font-semibold" : "fill-gray-500"
         )}
       >
         {payload.value}
       </text>
-      {isUserBMU && (
+      {isUserBMU && !isYourPerformance && (
         <text
           x={-5}
           y={0}
@@ -163,6 +167,17 @@ const CustomYAxisTick = ({ x = 0, y = 0, payload = { value: '' }, userBMU }: any
           className="text-[10px] fill-blue-500"
         >
           (Your BMU)
+        </text>
+      )}
+      {isYourPerformance && (
+        <text
+          x={-5}
+          y={0}
+          dy={16}
+          textAnchor="end"
+          className="text-[10px] fill-blue-600 font-medium"
+        >
+          (You)
         </text>
       )}
     </g>
@@ -205,6 +220,8 @@ export default function BMURanking({
     isAdmin,
     getAccessibleBMUs,
     hasRestrictedAccess,
+    shouldShowIndividualData,
+    userFisherId,
   } = useUserPermissions();
 
   // Determine which BMU to use for highlighting - prefer passed prop, then user's BMU
@@ -212,6 +229,25 @@ export default function BMURanking({
 
   // Ensure bmus is always an array
   const safeBmus = bmus || [];
+
+  // Calculate date range based on selected time range for individual data
+  const dateRange = useMemo(() => {
+    const endDate = new Date();
+    const startDate = getTimeRangeStartDate(selectedTimeRange, endDate);
+    return { startDate, endDate };
+  }, [selectedTimeRange]);
+
+  // Fetch individual fisher data
+  const { fisherData, isLoadingFisherData } = useIndividualFisherDataOnly(
+    shouldShowIndividualData ? dateRange : undefined
+  );
+
+  // Helper function to check if current metric is compatible with individual fisher data
+  const isMetricCompatibleWithIndividualData = useMemo(() => {
+    // Individual fishers only have direct data for CPUE and RPUE
+    const compatibleMetrics = ['mean_cpue', 'mean_rpue'];
+    return compatibleMetrics.includes(selectedMetric);
+  }, [selectedMetric]);
 
   // Fetch aggregated monthly data for BMU ranking
   const { data: rawData, refetch } = api.aggregatedCatch.monthly.useQuery(
@@ -227,7 +263,6 @@ export default function BMURanking({
   // Track selectedTimeRange changes and force data reprocessing
   useEffect(() => {
     if (previousTimeRangeRef.current !== selectedTimeRange) {
-      console.log('Time range changed from', previousTimeRangeRef.current, 'to', selectedTimeRange);
       previousTimeRangeRef.current = selectedTimeRange;
       setRankingData([]);
       dataProcessed.current = false;
@@ -238,7 +273,6 @@ export default function BMURanking({
   // Force refetch when bmus changes
   useEffect(() => {
     if (JSON.stringify(previousBmus.current) !== JSON.stringify(safeBmus)) {
-      console.log('BMUs changed, refetching BMU ranking data');
       dataProcessed.current = false;
       previousBmus.current = [...safeBmus];
       refetch();
@@ -278,6 +312,12 @@ export default function BMURanking({
     // Skip processing if already done and not changing key dependencies
     if (dataProcessed.current) return;
 
+    // Wait for individual data to load if it should be shown and is loading
+    if (shouldShowIndividualData && isMetricCompatibleWithIndividualData && isLoadingFisherData) {
+      setLoading(true); // Ensure loading state is maintained
+      return;
+    }
+
     try {
       setLoading(true);
       setError(null);
@@ -312,7 +352,48 @@ export default function BMURanking({
           value: Number((data.total / data.count).toFixed(2)),
           fill: generateColor(0, bmuName, effectiveBMU),
           rank: 0, // Will be set after sorting
-        }))
+          isIndividualFisher: false,
+        }));
+
+      // Add individual fisher data if available and compatible
+      if (shouldShowIndividualData && isMetricCompatibleWithIndividualData && fisherData && fisherData.length > 0 && userFisherId) {
+        // Filter individual data by the same time range used for BMU data
+        const filteredFisherData = filterDataByTimeRange(fisherData, selectedTimeRange, 'date');
+        
+        // Calculate individual fisher average for the selected metric
+        let individualTotal = 0;
+        let individualCount = 0;
+        
+        filteredFisherData.forEach((record: any) => {
+          let value: number | null = null;
+          if (selectedMetric === "mean_cpue" && record.mean_cpue != null) {
+            value = record.mean_cpue;
+          } else if (selectedMetric === "mean_rpue" && record.mean_rpue != null) {
+            value = record.mean_rpue;
+          }
+          
+          if (value !== null) {
+            individualTotal += value;
+            individualCount++;
+          }
+        });
+        
+        if (individualCount > 0) {
+          const individualAverage = Number((individualTotal / individualCount).toFixed(2));
+          
+          // Add individual fisher data to ranking
+          newRankingData.push({
+            name: t("text-your-performance") || "Your Performance",
+            value: individualAverage,
+            fill: "#F79F79", // Coral color consistent with other individual data components
+            rank: 0, // Will be set after sorting
+            isIndividualFisher: true,
+          });
+        }
+      }
+
+      // Sort all data (BMUs + individual) and assign ranks
+      const sortedRankingData = newRankingData
         .sort((a, b) => b.value - a.value)
         .map((item, index) => ({
           ...item,
@@ -321,11 +402,11 @@ export default function BMURanking({
 
       // Filter based on user permissions
       const accessibleBMUs = hasRestrictedAccess
-        ? getAccessibleBMUs(newRankingData.map(item => item.name))
-        : newRankingData.map(item => item.name);
+        ? getAccessibleBMUs(sortedRankingData.map(item => item.name))
+        : sortedRankingData.map(item => item.name);
 
-      const filteredRankingData = newRankingData.filter(item =>
-        accessibleBMUs.includes(item.name)
+      const filteredRankingData = sortedRankingData.filter(item =>
+        item.isIndividualFisher || accessibleBMUs.includes(item.name)
       );
 
       setRankingData(filteredRankingData);
@@ -337,7 +418,7 @@ export default function BMURanking({
     } finally {
       setLoading(false);
     }
-  }, [rawData, selectedMetric, selectedTimeRange, effectiveBMU, hasRestrictedAccess, getAccessibleBMUs]);
+  }, [rawData, selectedMetric, selectedTimeRange, effectiveBMU, hasRestrictedAccess, getAccessibleBMUs, shouldShowIndividualData, isMetricCompatibleWithIndividualData, fisherData, userFisherId, t, isLoadingFisherData]);
 
   // If in CIA mode, don't render the ranking as it doesn't make sense to show a comparison
   // ranking with just one BMU
@@ -425,7 +506,11 @@ export default function BMURanking({
               <YAxis
                 dataKey="name"
                 type="category"
-                tick={<CustomYAxisTick userBMU={userBMU} />}
+                tick={(props) => <CustomYAxisTick 
+                  {...props} 
+                  userBMU={userBMU} 
+                  isIndividualFisher={rankingData.find(item => item.name === props.payload?.value)?.isIndividualFisher || false}
+                />}
                 axisLine={false}
                 tickLine={false}
                 width={100}

@@ -26,6 +26,8 @@ interface TrendsChartProps {
   fiveYearMarks?: number[];
   CustomLegend?: React.ComponentType<any>;
   selectedMetric?: string;
+  individualFisherData?: any[];
+  userFisherId?: string;
 }
 
 export default function TrendsChart({
@@ -38,6 +40,8 @@ export default function TrendsChart({
   fiveYearMarks,
   CustomLegend,
   selectedMetric,
+  individualFisherData,
+  userFisherId,
 }: TrendsChartProps) {
   // Check if there's a parent language context we should use
   const contextLang = document.documentElement.getAttribute('data-language');
@@ -55,6 +59,80 @@ export default function TrendsChart({
     // The time range filtering is handled by the global time range selector
     return [...chartData].sort((a, b) => a.date - b.date);
   }, [chartData]);
+  
+  // Process individual fisher data for overlay
+  const individualFisherChartData = useMemo(() => {
+    if (!individualFisherData || !userFisherId || individualFisherData.length === 0) return [];
+    
+    // Convert daily fisher data to monthly aggregates to match BMU data structure
+    const monthlyAggregates: Record<string, { 
+      sum: number; 
+      count: number; 
+      date: number;
+    }> = {};
+    
+    individualFisherData.forEach(record => {
+      const date = new Date(record.date);
+      const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+      
+      if (!monthlyAggregates[monthKey]) {
+        // Use first day of month for consistency with BMU data
+        const monthStart = new Date(date.getFullYear(), date.getMonth(), 1);
+        monthlyAggregates[monthKey] = {
+          sum: 0,
+          count: 0,
+          date: monthStart.getTime()
+        };
+      }
+      
+      // Get the appropriate metric value - map BMU metrics to individual fisher metrics
+      let value: number | null = null;
+      if (selectedMetric === "mean_cpue" && record.mean_cpue != null) {
+        // Individual fisher CPUE maps directly to BMU CPUE
+        value = record.mean_cpue;
+      } else if (selectedMetric === "mean_rpue" && record.mean_rpue != null) {
+        // Individual fisher RPUE maps directly to BMU RPUE  
+        value = record.mean_rpue;
+      } else if (selectedMetric === "mean_cpua" && record.mean_cpue != null) {
+        // For BMU catch density, show individual fisher CPUE as approximation
+        value = record.mean_cpue;
+      } else if (selectedMetric === "mean_rpua" && record.mean_rpue != null) {
+        // For BMU area revenue, show individual fisher RPUE as approximation
+        value = record.mean_rpue;
+      }
+      // Note: mean_effort has no individual fisher equivalent, so we skip it
+      
+      if (value !== null) {
+        monthlyAggregates[monthKey].sum += value;
+        monthlyAggregates[monthKey].count++;
+      }
+    });
+    
+    // Convert to array format matching BMU data structure
+    return Object.values(monthlyAggregates)
+      .filter(agg => agg.count > 0)
+      .map(agg => ({
+        date: agg.date,
+        individualFisher: agg.sum / agg.count
+      }))
+      .sort((a, b) => a.date - b.date);
+  }, [individualFisherData, userFisherId, selectedMetric]);
+  
+  // Merge BMU data with individual fisher data
+  const mergedChartData = useMemo(() => {
+    if (!individualFisherChartData.length) return filteredChartData;
+    
+    // Create a map of individual fisher data by date
+    const fisherDataMap = new Map(
+      individualFisherChartData.map(item => [item.date, item.individualFisher])
+    );
+    
+    // Merge with BMU data
+    return filteredChartData.map(bmuPoint => ({
+      ...bmuPoint,
+      individualFisher: fisherDataMap.get(bmuPoint.date) || undefined
+    }));
+  }, [filteredChartData, individualFisherChartData]);
   
   // Pre-load critical translations to avoid flicker
   useEffect(() => {
@@ -123,11 +201,14 @@ export default function TrendsChart({
           <div className="space-y-1.5">
             {payload
               .filter((entry: any) => 
-                visibilityState[entry.dataKey]?.opacity !== 0 && 
+                (entry.dataKey === "individualFisher" || visibilityState[entry.dataKey]?.opacity !== 0) && 
                 entry.value !== undefined && 
                 entry.value !== null
               )
               .sort((a: any, b: any) => {
+                // Put individual fisher data at the top
+                if (a.dataKey === "individualFisher") return -1;
+                if (b.dataKey === "individualFisher") return 1;
                 // Always put average at the bottom
                 if (a.dataKey === "average") return 1;
                 if (b.dataKey === "average") return -1;
@@ -140,7 +221,11 @@ export default function TrendsChart({
                     style={{ backgroundColor: entry.color }}
                   />
                   <p className="text-sm">
-                    <span className="font-medium">{entry.dataKey === "average" ? getTranslation("text-average-of-all-bmus") : entry.dataKey}:</span>{" "}
+                    <span className="font-medium">
+                      {entry.dataKey === "average" ? getTranslation("text-average-of-all-bmus") : 
+                       entry.dataKey === "individualFisher" ? (t("text-your-performance") || "Your Performance") :
+                       entry.dataKey}:
+                    </span>{" "}
                     {entry.value?.toFixed(1)}
                   </p>
                 </div>
@@ -156,7 +241,7 @@ export default function TrendsChart({
     <div className="h-96 w-full pt-9">
       <ResponsiveContainer width="100%" height="100%">
         <LineChart
-          data={filteredChartData}
+          data={mergedChartData}
           margin={{ top: 10, right: 30, left: 10, bottom: 0 }}
         >
           <XAxis
@@ -188,7 +273,7 @@ export default function TrendsChart({
           <Tooltip content={<CustomTooltip />} />
           
           {/* Add vertical reference lines at the beginning of each year */}
-          {filteredChartData
+          {mergedChartData
             .reduce((yearMarkers, item) => {
               const year = new Date(item.date).getFullYear();
               // Check if we already have a marker for this year
@@ -210,6 +295,26 @@ export default function TrendsChart({
           }
           
           {renderAreas()}
+          
+          {/* Add individual fisher line if data is available */}
+          {individualFisherData && userFisherId && (
+            <Line
+              dataKey="individualFisher"
+              stroke="#F79F79"
+              strokeWidth={3}
+              strokeOpacity={visibilityState["individualFisher"]?.opacity || 1}
+              dot={{ 
+                fill: "#F79F79", 
+                strokeWidth: 0, 
+                r: 4,
+                fillOpacity: visibilityState["individualFisher"]?.opacity || 1
+              }}
+              activeDot={{ r: 7, strokeWidth: 0 }}
+              name={t("text-your-performance") || "Your Performance"}
+              isAnimationActive={false}
+              connectNulls={false}
+            />
+          )}
           
           {/* Add average line for non-CIA users only */}
           {!isCiaUser && (

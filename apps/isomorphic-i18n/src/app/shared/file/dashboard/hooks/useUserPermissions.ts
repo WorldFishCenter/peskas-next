@@ -101,6 +101,9 @@ export const useUserPermissions = () => {
     return result;
   };
   
+  // Detect if user is an administrator who is also an active fisher
+  const isAdminFisher = (isWbciaUser || isCiaUser || isAdmin) && !!userFisherId;
+  
   return {
     // User information
     userBMU,
@@ -117,6 +120,9 @@ export const useUserPermissions = () => {
     isAdmin,
     isIiaUser,
     
+    // New integrated user type
+    isAdminFisher,
+    
     // Helper functions
     getAccessibleBMUs,
     getLimitedBMUs,
@@ -124,9 +130,13 @@ export const useUserPermissions = () => {
     // Useful flags for components
     hasRestrictedAccess: (isCiaUser && !!userBMU) || (isIiaUser && !!userFisherId),
     shouldShowAggregated: isAdmin || isWbciaUser || isCiaUser,
-    shouldShowIndividualData: isIiaUser,
+    shouldShowIndividualData: isIiaUser || isAdminFisher,
     canCompareWithOthers: (!isCiaUser && !isIiaUser) || isAdmin || isWbciaUser,
     canSeeBMUData: !isIiaUser,
+    
+    // New unified dashboard flags
+    shouldShowUnifiedDashboard: isAdminFisher,
+    shouldShowPersonalPerformance: isIiaUser || isAdminFisher,
   };
 };
 

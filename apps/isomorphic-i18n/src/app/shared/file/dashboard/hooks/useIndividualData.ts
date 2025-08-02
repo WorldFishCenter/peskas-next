@@ -1,6 +1,7 @@
+
 import { api } from "@/trpc/react";
-import { useUserPermissions } from "./useUserPermissions";
 import { useSession } from "next-auth/react";
+import useUserPermissions from './useUserPermissions';
 
 interface UseIndividualDataOptions {
   startDate?: Date | null;
@@ -15,7 +16,7 @@ interface UseIndividualDataOptions {
  */
 export const useIndividualData = (options?: UseIndividualDataOptions) => {
   const { startDate, endDate } = options || {};
-  const { getAccessibleBMUs, isIiaUser, userFisherId } = useUserPermissions();
+  const { getAccessibleBMUs, isIiaUser, userFisherId, shouldShowIndividualData } = useUserPermissions();
   const { data: session } = useSession();
   
   // For now, we'll use a basic set of BMUs - this should be replaced with actual BMU data
@@ -57,7 +58,7 @@ export const useIndividualData = (options?: UseIndividualDataOptions) => {
     { enabled: accessibleBMUs.length > 0 }
   );
 
-  // IIA-specific queries - only enabled for IIA users with a valid fisherId
+  // Individual fisher queries - enabled for users who should see individual data (IIA users and admin-fishers)
   const {
     data: fisherData,
     isLoading: isLoadingFisherData,
@@ -68,7 +69,7 @@ export const useIndividualData = (options?: UseIndividualDataOptions) => {
       startDate: startDate?.toISOString(),
       endDate: endDate?.toISOString(),
     },
-    { enabled: isIiaUser && !!userFisherId }
+    { enabled: shouldShowIndividualData && !!userFisherId }
   );
 
   const {
@@ -80,7 +81,7 @@ export const useIndividualData = (options?: UseIndividualDataOptions) => {
       fisherId: userFisherId || '',
       metric: 'mean_cpue'
     },
-    { enabled: isIiaUser && !!userFisherId }
+    { enabled: shouldShowIndividualData && !!userFisherId }
   );
 
   const {
@@ -93,10 +94,10 @@ export const useIndividualData = (options?: UseIndividualDataOptions) => {
       startDate: startDate?.toISOString(),
       endDate: endDate?.toISOString(),
     },
-    { enabled: isIiaUser && !!userFisherId }
+    { enabled: shouldShowIndividualData && !!userFisherId }
   );
 
-  // Fetch individual fish distribution for the current fisher (for IIA users)
+  // Fetch individual fish distribution for the current fisher
   const {
     data: individualFishDistribution,
     isLoading: isLoadingIndividualFishDistribution,
@@ -107,7 +108,7 @@ export const useIndividualData = (options?: UseIndividualDataOptions) => {
       startDate: startDate?.toISOString(),
       endDate: endDate?.toISOString(),
     },
-    { enabled: isIiaUser && !!userFisherId }
+    { enabled: shouldShowIndividualData && !!userFisherId }
   );
 
   return {
@@ -145,4 +146,62 @@ export const useIndividualData = (options?: UseIndividualDataOptions) => {
   };
 };
 
-export default useIndividualData; 
+/**
+ * Optimized hook for annual charts that fetches pre-aggregated yearly data
+ * This significantly improves performance by doing aggregation on the server
+ */
+export const useIndividualYearlyData = (options?: UseIndividualDataOptions) => {
+  const { startDate, endDate } = options || {};
+  const { shouldShowIndividualData, userFisherId } = useUserPermissions();
+  
+  // Fetch pre-aggregated yearly data
+  const {
+    data: yearlyData,
+    isLoading: isLoadingYearlyData,
+    error: errorYearlyData,
+  } = api.individualData.yearlyByFisherId.useQuery(
+    { 
+      fisherId: userFisherId || '',
+      startDate: startDate?.toISOString(),
+      endDate: endDate?.toISOString(),
+    },
+    { enabled: shouldShowIndividualData && !!userFisherId }
+  );
+
+  return {
+    yearlyData,
+    isLoadingYearlyData,
+    errorYearlyData,
+  };
+};
+
+export default useIndividualData;
+
+/**
+ * Optimized hook that only fetches fisher data for charts
+ * This avoids making unnecessary API calls and speeds up rendering
+ */
+export const useIndividualFisherDataOnly = (options?: UseIndividualDataOptions) => {
+  const { startDate, endDate } = options || {};
+  const { shouldShowIndividualData, userFisherId } = useUserPermissions();
+  
+  // Only fetch individual fisher data - skip all other queries
+  const {
+    data: fisherData,
+    isLoading: isLoadingFisherData,
+    error: errorFisherData,
+  } = api.individualData.byFisherId.useQuery(
+    { 
+      fisherId: userFisherId || '',
+      startDate: startDate?.toISOString(),
+      endDate: endDate?.toISOString(),
+    },
+    { enabled: shouldShowIndividualData && !!userFisherId }
+  );
+
+  return {
+    fisherData,
+    isLoadingFisherData,
+    errorFisherData,
+  };
+}; 

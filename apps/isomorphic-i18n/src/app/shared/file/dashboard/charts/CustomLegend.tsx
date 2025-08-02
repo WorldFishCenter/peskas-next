@@ -28,10 +28,12 @@ export default function CustomLegend({
     return entry.dataKey || entry.value || entry.name || '';
   };
   
-  // Helper function to safely get opacity
+  // Helper function to safely get opacity - make legend more readable
   const getOpacity = (entry: any): number => {
     const key = getSiteKey(entry);
-    return visibilityState[key]?.opacity ?? 1;
+    const chartOpacity = visibilityState[key]?.opacity ?? 1;
+    // For legend readability, use higher minimum opacity (0.4 instead of 0.05)
+    return chartOpacity === 1 ? 1 : 0.4;
   };
   
   return (
@@ -55,20 +57,30 @@ export default function CustomLegend({
       {/* Other BMUs */}
       {customPayload?.map((entry: any) => {
         const siteKey = getSiteKey(entry);
+        const chartOpacity = visibilityState[siteKey]?.opacity ?? 1;
+        const legendOpacity = getOpacity(entry);
+        
         return (
           <div
             key={siteKey || entry.value || Math.random().toString()}
             className="flex items-center gap-2 cursor-pointer select-none transition-all duration-200"
             onClick={() => handleLegendClick(siteKey)}
-            style={{ opacity: getOpacity(entry) }}
+            style={{ opacity: legendOpacity }}
           >
             <div
               className="w-3 h-3 rounded-full transition-all duration-200"
               style={{
                 backgroundColor: entry.color,
+                opacity: chartOpacity === 1 ? 1 : 0.6, // Make color indicator more visible than text
               }}
             />
-            <span className="text-sm font-medium">{entry.value}</span>
+            <span 
+              className={`text-sm font-medium transition-all duration-200 ${
+                chartOpacity === 1 ? 'text-gray-900' : 'text-gray-500'
+              }`}
+            >
+              {entry.value}
+            </span>
           </div>
         );
       })}

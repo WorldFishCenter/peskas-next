@@ -344,7 +344,7 @@ export default function FishCompositionChart({
   }, [isAdmin, bmus, getLimitedBMUs]);
 
   // Force refetch when bmus changes by adding bmus to the query key
-  const { data: monthlyData, refetch } = api.fishDistribution.monthlyTrends.useQuery(
+  const { data: monthlyData, refetch, isLoading: isLoadingMonthlyData, error: monthlyDataError } = api.fishDistribution.monthlyTrends.useQuery(
     { 
       bmus: effectiveBmus,
       categories: [selectedCategory]
@@ -357,13 +357,16 @@ export default function FishCompositionChart({
     }
   );
 
+
+
+
+
   // Use external chart data if in IIA mode
   const useChartData = isIiaUser && externalChartData ? externalChartData : chartData;
 
   // Track selectedCategory changes and force data reprocessing
   useEffect(() => {
     if (previousCategoryRef.current !== selectedCategory) {
-      console.log('Category changed from', previousCategoryRef.current, 'to', selectedCategory);
       previousCategoryRef.current = selectedCategory;
       setChartData([]);
       setRecentData([]);
@@ -376,7 +379,6 @@ export default function FishCompositionChart({
   // Track selectedTimeRange changes and force data reprocessing
   useEffect(() => {
     if (previousTimeRangeRef.current !== selectedTimeRange) {
-      console.log('Time range changed from', previousTimeRangeRef.current, 'to', selectedTimeRange);
       previousTimeRangeRef.current = selectedTimeRange;
       setChartData([]);
       setRecentData([]);
@@ -393,7 +395,6 @@ export default function FishCompositionChart({
   useEffect(() => {
     // Check if bmus array has changed
     if (JSON.stringify(previousBmus.current) !== JSON.stringify(effectiveBmus)) {
-      console.log('BMUs changed, refetching data');
       setChartData([]);
       setRecentData([]);
       setAnnualData([]);
@@ -499,7 +500,8 @@ export default function FishCompositionChart({
     if (
       !Object.keys(siteColors).length ||
       !(localActiveTab === 'comparison' || localActiveTab === 'recent') ||
-      !canCompareWithOthers
+      !canCompareWithOthers ||
+      visibilityInitialized.current
     ) {
       return;
     }
@@ -532,7 +534,7 @@ export default function FishCompositionChart({
     });
     
     visibilityInitialized.current = true;
-  }, [localActiveTab, canCompareWithOthers, siteColors, effectiveBMU, visibilityState]);
+  }, [localActiveTab, canCompareWithOthers, siteColors, effectiveBMU]);
 
   // Process main data when monthlyData changes
   useEffect(() => {
@@ -552,8 +554,6 @@ export default function FishCompositionChart({
         previousTimeRangeRef.current === selectedTimeRange) return;
 
     try {
-      console.log("Processing fish distribution data:", monthlyData);
-      
       // Apply time range filter
       const filteredMonthlyData = filterDataByTimeRange(monthlyData, selectedTimeRange);
       
@@ -740,7 +740,7 @@ export default function FishCompositionChart({
     } finally {
       setLoading(false);
     }
-  }, [monthlyData, selectedCategory, effectiveBMU, hasRestrictedAccess, getAccessibleBMUs, effectiveBmus, isCiaUser, localActiveTab, selectedTimeRange]);
+  }, [monthlyData, selectedCategory, effectiveBMU, hasRestrictedAccess, effectiveBmus, isCiaUser, localActiveTab, selectedTimeRange]);
 
   // Calculate derived data when chartData changes
   useEffect(() => {
@@ -761,7 +761,7 @@ export default function FishCompositionChart({
     // Annual data is the same for all users
     setAnnualData(getAnnualData(useChartData, !canCompareWithOthers, siteColors));
     
-  }, [useChartData, canCompareWithOthers, isCiaUser, effectiveBMU, siteColors, recentData.length, annualData.length, loading, visibilityState]);
+  }, [useChartData, canCompareWithOthers, isCiaUser, effectiveBMU, siteColors, recentData.length, annualData.length, loading]);
 
   // Find the selected category option
   const selectedCategoryOption = FISH_CATEGORIES.find(
@@ -939,7 +939,8 @@ export default function FishCompositionChart({
         {/* Trends Chart */}
         {(localActiveTab === 'trends' || localActiveTab === 'standard') && (
           <SimpleBar>
-            <TrendsChart
+            <div className="h-96 w-full">
+              <TrendsChart
               chartData={useChartData.map(point => {
                 // Create a new object without the historical_average property for non-CIA users
                 if (!isCiaUser) {
@@ -967,12 +968,14 @@ export default function FishCompositionChart({
                 />
               )}
             />
+            </div>
           </SimpleBar>
         )}
         
         {/* Comparison Chart */}
         {(localActiveTab === 'comparison' || localActiveTab === 'recent') && (
           <SimpleBar>
+            <div className="h-96 w-full">
             {canCompareWithOthers ? (
               // Standard comparison chart for users who can see multiple BMUs
               <ComparisonChart
@@ -1026,12 +1029,14 @@ export default function FishCompositionChart({
                 )}
               />
             )}
+            </div>
           </SimpleBar>
         )}
         
         {/* Annual Chart */}
         {localActiveTab === 'annual' && (
           <SimpleBar>
+            <div className="h-96 w-full">
             <AnnualChart
               chartData={annualData.map(point => {
                 // Always filter out historical_average for annual chart
@@ -1056,6 +1061,7 @@ export default function FishCompositionChart({
                 />
               )}
             />
+            </div>
           </SimpleBar>
         )}
       </LanguageProvider>

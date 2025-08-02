@@ -151,20 +151,31 @@ const CustomLegend = ({ payload, visibilityState, handleLegendClick }: any) => {
     <div className="flex flex-wrap gap-2 justify-center mt-2">
       {payload?.map((entry: any) => {
         const key = entry.dataKey || entry.value;
-        const opacity = visibilityState[key]?.opacity ?? 1;
+        const chartOpacity = visibilityState[key]?.opacity ?? 1;
+        // For legend readability, use higher minimum opacity (0.4 instead of 0.05)
+        const legendOpacity = chartOpacity === 1 ? 1 : 0.4;
         
         return (
           <div
             key={key}
             className="flex items-center gap-2 cursor-pointer select-none transition-all duration-200"
             onClick={() => handleLegendClick(key)}
-            style={{ opacity }}
+            style={{ opacity: legendOpacity }}
           >
             <div
               className="w-3 h-3 rounded-full transition-all duration-200"
-              style={{ backgroundColor: entry.color }}
+              style={{ 
+                backgroundColor: entry.color,
+                opacity: chartOpacity === 1 ? 1 : 0.6, // Make color indicator more visible than text
+              }}
             />
-            <span className="text-sm font-medium">{entry.value}</span>
+            <span 
+              className={`text-sm font-medium transition-all duration-200 ${
+                chartOpacity === 1 ? 'text-gray-900' : 'text-gray-500'
+              }`}
+            >
+              {entry.value}
+            </span>
           </div>
         );
       })}
@@ -376,44 +387,16 @@ export default function GearHeatmap({
     }
   );
   
-  // Debug logging for query parameters and data
-  useEffect(() => {
-    if (process.env.NODE_ENV === 'development') {
-      console.log('Gear query params:', queryParams);
-      console.log('Gear raw data length:', rawData?.length);
-      console.log('Gear raw data sample:', rawData?.slice(0, 3));
-      if (queryParams.startDate) {
-        console.log('Time range filtering enabled:', {
-          startDate: queryParams.startDate,
-          endDate: queryParams.endDate,
-          selectedTimeRange
-        });
-      } else {
-        console.log('No time range filtering (showing all data)');
-      }
-    }
-  }, [queryParams, rawData, selectedTimeRange]);
-  
-  // Log query state only if there are issues
+  // Handle query errors
   if (isQueryError) {
-    console.error('Gear query error:', { 
-      isQueryLoading, 
-      isQueryError, 
-      hasData: !!rawData, 
-      dataLength: rawData?.length,
-      queryError: queryError?.message,
-      safeBmusLength: safeBmus.length,
-      queryParams
-    });
+    console.error('Gear query error:', queryError?.message);
   }
 
 
   // Track selectedTimeRange changes and force data reprocessing
   useEffect(() => {
     if (previousTimeRangeRef.current !== selectedTimeRange) {
-      if (process.env.NODE_ENV === 'development') {
-        console.log('Time range changed from', previousTimeRangeRef.current, 'to', selectedTimeRange);
-      }
+
       previousTimeRangeRef.current = selectedTimeRange;
       setBarData([]);
       setRankingData([]);
@@ -446,7 +429,7 @@ export default function GearHeatmap({
     setVisibilityState((prev) => ({
       ...prev,
       [site]: {
-        opacity: prev[site]?.opacity === 1 ? 0.2 : 1,
+        opacity: prev[site]?.opacity === 1 ? 0.05 : 1,
       },
     }));
   }, []);
@@ -509,10 +492,7 @@ export default function GearHeatmap({
       
       const mappedMetricField = mapMetricField(selectedMetric);
       
-      if (process.env.NODE_ENV === 'development') {
-        console.log('Selected metric:', selectedMetric);
-        console.log('Mapped metric field:', mappedMetricField);
-      }
+
       
       // Check if the selected metric is available
       if (!mappedMetricField) {
@@ -557,8 +537,8 @@ export default function GearHeatmap({
             ...acc,
             [site]: { 
               opacity: hasRestrictedAccess 
-                ? (accessibleBMUs.includes(site) ? 1 : 0.2) 
-                : (site === effectiveBMU ? 1 : 0.2) 
+                ? (accessibleBMUs.includes(site) ? 1 : 0.05) 
+                : (site === effectiveBMU ? 1 : 0.05) 
             },
           }),
           {}
@@ -1071,7 +1051,7 @@ export default function GearHeatmap({
           <div className="w-full h-[600px] pt-4">
             <ResponsiveContainer width="100%" height="100%">
               <Treemap
-                data={rankingData.filter(item => (visibilityState[item.name]?.opacity || 1) > 0.2)}
+                data={rankingData.filter(item => (visibilityState[item.name]?.opacity || 1) > 0.05)}
                 dataKey="value"
                 aspectRatio={1.6}
                 stroke="#ffffff"

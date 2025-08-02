@@ -103,6 +103,8 @@ export default function FishCompositionComparison({
     staleTime: 1000 * 60 * 5,
     enabled: queryBmus.length > 0,
   });
+
+
   
   // Extract data from the query
   const fishDistributionData = fishDistributionQuery.data;
@@ -115,7 +117,6 @@ export default function FishCompositionComparison({
   // Track selectedTimeRange changes and force data reprocessing
   useEffect(() => {
     if (previousTimeRangeRef.current !== selectedTimeRange) {
-      console.log('Fish composition comparison: Time range changed from', previousTimeRangeRef.current, 'to', selectedTimeRange);
       previousTimeRangeRef.current = selectedTimeRange;
       setChartData([]);
       setCategoryDisplays([]);
@@ -239,7 +240,6 @@ export default function FishCompositionComparison({
       
       // Convert to array of category objects with colors
       const categoryArray = Array.from(categories).map((category) => {
-        console.log(`Fish category: "${category}" → color: ${generateFishCategoryColor(category)}`);
         return {
           id: category.toLowerCase().replace(/\s+/g, '_'),
           name: category,
@@ -315,7 +315,7 @@ export default function FishCompositionComparison({
       setError("Error processing data");
       setLoading(false);
     }
-  }, [fishDistributionData, isLoadingData, apiError, queryBmus.join(','), selectedTimeRange]);
+  }, [fishDistributionData, isLoadingData, apiError, queryBmus, selectedTimeRange]);
   
   // Custom tooltip for the chart
   const CustomTooltip = ({ active, payload, label }: any) => {
@@ -450,7 +450,7 @@ const CustomYAxisTick = ({ x = 0, y = 0, payload = { value: '' }, userBMU }: any
         </div>
       ) : (
         <SimpleBar className="h-full">
-          <div className="p-4 md:p-6 h-full">
+          <div className="p-4 md:p-6 h-full min-h-96">
             {/* Main Chart */}
             <div 
               className={`w-full ${useChartData.length === 1 ? 'flex items-center justify-center' : ''}`}

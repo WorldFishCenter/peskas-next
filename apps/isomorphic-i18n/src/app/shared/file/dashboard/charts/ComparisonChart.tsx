@@ -14,12 +14,13 @@ import { format } from "date-fns";
 import { ChartDataPoint, MetricOption, VisibilityState } from "./types";
 import { CustomYAxisTick } from "./components";
 import { useTranslation } from "@/app/i18n/client";
-import React, { useCallback, useEffect, useRef } from "react";
+import React, { useCallback, useEffect, useRef, useMemo } from "react";
 import { BASELINE_DATA } from "./siteConfig";
 import { TimeRangeOption } from "@/app/components/filter-selector";
 
 interface ComparisonChartProps {
   chartData: ChartDataPoint[];
+  originalChartData?: ChartDataPoint[];
   selectedMetricOption?: MetricOption;
   siteColors: Record<string, string>;
   visibilityState: VisibilityState;
@@ -29,10 +30,13 @@ interface ComparisonChartProps {
   CustomLegend: (props: any) => React.ReactElement;
   selectedMetric?: string;
   selectedTimeRange?: TimeRangeOption;
+  individualFisherData?: any[];
+  userFisherId?: string;
 }
 
 export default function ComparisonChart({
   chartData,
+  originalChartData,
   selectedMetricOption,
   siteColors,
   visibilityState,
@@ -42,6 +46,8 @@ export default function ComparisonChart({
   CustomLegend,
   selectedMetric,
   selectedTimeRange = 'all',
+  individualFisherData,
+  userFisherId,
 }: ComparisonChartProps) {
   const contextLang = document.documentElement.getAttribute('data-language');
   const isLangReady = document.documentElement.getAttribute('data-language-ready') === 'true';
@@ -103,6 +109,105 @@ export default function ComparisonChart({
     return translationsRef.current[key] || t(key);
   }, [t]);
   
+  // Process individual fisher data for overlay
+  const individualFisherChartData = useMemo(() => {
+    if (!individualFisherData || !userFisherId || individualFisherData.length === 0) return [];
+    
+    // Import required utilities
+    const { filterDataByTimeRange } = require('../utils/timeRangeFilter');
+    
+    // Apply time range filtering
+    const filteredIndividualData = filterDataByTimeRange(individualFisherData, selectedTimeRange);
+    
+    // Convert daily fisher data to monthly aggregates
+    const monthlyAggregates: Record<string, { 
+      sum: number; 
+      count: number; 
+      date: number;
+    }> = {};
+    
+    filteredIndividualData.forEach((record: any) => {
+      const date = new Date(record.date);
+      const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+      
+      if (!monthlyAggregates[monthKey]) {
+        const monthStart = new Date(date.getFullYear(), date.getMonth(), 1);
+        monthlyAggregates[monthKey] = {
+          sum: 0,
+          count: 0,
+          date: monthStart.getTime()
+        };
+      }
+      
+      // Map BMU metrics to individual fisher metrics
+      let value: number | null = null;
+      if (selectedMetric === "mean_cpue" && record.mean_cpue != null) {
+        value = record.mean_cpue;
+      } else if (selectedMetric === "mean_rpue" && record.mean_rpue != null) {
+        value = record.mean_rpue;
+      } else if (selectedMetric === "mean_cpua" && record.mean_cpue != null) {
+        // For BMU catch density, use individual fisher CPUE as approximation
+        value = record.mean_cpue;
+      } else if (selectedMetric === "mean_rpua" && record.mean_rpue != null) {
+        // For BMU area revenue, use individual fisher RPUE as approximation
+        value = record.mean_rpue;
+      }
+      
+      if (value !== null) {
+        monthlyAggregates[monthKey].sum += value;
+        monthlyAggregates[monthKey].count++;
+      }
+    });
+    
+    // Convert to array format with absolute values
+    const absoluteValues = Object.values(monthlyAggregates)
+      .filter(agg => agg.count > 0)
+      .map(agg => ({
+        date: agg.date,
+        absoluteValue: agg.sum / agg.count
+      }))
+      .sort((a, b) => a.date - b.date);
+
+    // Calculate baseline for comparison
+    let baseline: number;
+    
+    if (selectedMetric === 'mean_cpua') {
+      // Use MSY baseline for catch density
+      baseline = BASELINE_DATA.CPUA.MSY.FRINGING;
+    } else if (selectedMetric === 'mean_rpue') {
+      // Use minimum wage baseline for fisher revenue
+      baseline = BASELINE_DATA.INCOME.NATIONAL_MINIMUM_WAGE;
+    } else {
+      // For other metrics, compare against individual fisher's own average
+      if (absoluteValues.length === 0) return [];
+      
+      const sum = absoluteValues.reduce((acc, item) => acc + item.absoluteValue, 0);
+      baseline = sum / absoluteValues.length;
+    }
+
+    // Convert to relative values (difference from baseline)
+    return absoluteValues.map(item => ({
+      date: item.date,
+      individualFisher: parseFloat((item.absoluteValue - baseline).toFixed(2))
+    }));
+  }, [individualFisherData, userFisherId, selectedMetric, selectedTimeRange]);
+  
+  // Merge BMU data with individual fisher data
+  const mergedChartData = useMemo(() => {
+    if (!individualFisherChartData.length) return chartData;
+    
+    // Create a map of individual fisher data by date
+    const fisherDataMap = new Map(
+      individualFisherChartData.map(item => [item.date, item.individualFisher])
+    );
+    
+    // Merge with BMU data
+    return chartData.map(bmuPoint => ({
+      ...bmuPoint,
+      individualFisher: fisherDataMap.get(bmuPoint.date) || undefined
+    }));
+  }, [chartData, individualFisherChartData]);
+  
   // Format date for X-axis ticks
   const formatDate = (timestamp: number) => {
     const date = new Date(timestamp);
@@ -133,7 +238,9 @@ export default function ComparisonChart({
                   style={{ backgroundColor: entry.color }}
                 />
                 <p className="text-sm">
-                  <span className="font-medium">{entry.name}:</span>{" "}
+                  <span className="font-medium">
+                    {entry.dataKey === "individualFisher" ? (t("text-your-performance") || "Your Performance") : entry.name}:
+                  </span>{" "}
                   <span className="font-semibold">
                     {entry.value !== undefined ? entry.value.toFixed(1) : "N/A"}
                   </span>
@@ -169,11 +276,9 @@ export default function ComparisonChart({
             name={site}
             fill={siteColors[site]}
             stroke={siteColors[site]}
-            strokeWidth={1}
-            maxBarSize={40}
-            radius={[2, 2, 0, 0]}
-            hide={false}
-            fillOpacity={visibilityState[site]?.opacity}
+            fillOpacity={(visibilityState[site]?.opacity || 1) * 0.85}
+            strokeOpacity={visibilityState[site]?.opacity || 1}
+            radius={[4, 4, 0, 0]}
             isAnimationActive={false}
           />
         );
@@ -187,12 +292,10 @@ export default function ComparisonChart({
         name={site}
         fill={siteColors[site]}
         stroke={siteColors[site]}
-        strokeWidth={1}
-        maxBarSize={40}
-        radius={[2, 2, 0, 0]}
+        fillOpacity={(visibilityState[site]?.opacity || 1) * 0.85}
+        strokeOpacity={visibilityState[site]?.opacity || 1}
+        radius={[4, 4, 0, 0]}
         stackId={site}
-        hide={false}
-        fillOpacity={visibilityState[site]?.opacity}
         isAnimationActive={false}
       />
       );
@@ -284,10 +387,6 @@ export default function ComparisonChart({
     );
   }
 
-  // Log data for debugging
-  console.log("Chart Data Format:", hasNewDataFormat ? "New" : "Legacy");
-  console.log("Sample Data:", chartData.slice(0, 2));
-
   // Calculate Y-axis domain with a proper range for negative values
   const calculateYDomain = () => {
     let minValue = 0;
@@ -295,8 +394,8 @@ export default function ComparisonChart({
     
     if (isCiaHistoricalMode && hasNewDataFormat) {
       // Extract all difference values, which can be positive or negative
-      const values = chartData
-        .map(item => item.difference)
+      const values = mergedChartData
+        .map(item => (item as any).difference)
         .filter(value => value !== undefined) as number[];
       
       if (values.length > 0) {
@@ -306,10 +405,10 @@ export default function ComparisonChart({
         return [-10, 10]; // Default domain if no values
       }
     } else {
-      // For non-CIA users or legacy format
+      // For non-CIA users or legacy format - use merged data to include individual fisher data
       const allValues: number[] = [];
       
-      chartData.forEach(item => {
+      mergedChartData.forEach(item => {
         Object.entries(item).forEach(([key, value]) => {
           if (key !== 'date' && value !== undefined && typeof value === 'number') {
             allValues.push(value);
@@ -340,7 +439,7 @@ export default function ComparisonChart({
     <div className="h-96 w-full pt-9">
       <ResponsiveContainer width="100%" height="100%">
         <BarChart
-          data={chartData}
+          data={mergedChartData}
           margin={{ top: 10, right: 30, left: 10, bottom: 0 }}
           barCategoryGap="30%"
           barSize={20}
@@ -487,7 +586,7 @@ export default function ComparisonChart({
           {/* Month delimiters - ensure all months are shown */}
           {(() => {
             // Get all dates in sorted order
-            const dates = chartData.map(item => item.date).sort((a, b) => a - b);
+            const dates = mergedChartData.map(item => item.date).sort((a, b) => a - b);
             if (dates.length === 0) return null;
             
             // Only show every other month's delimiter to avoid overcrowding
@@ -509,8 +608,9 @@ export default function ComparisonChart({
               dataKey="difference"
               name={t('text-difference-from-average') || 'Difference from Average'}
               fill="#16a34a" // Default color
-              maxBarSize={40}
-              radius={4}
+              fillOpacity={0.85}
+              strokeOpacity={1}
+              radius={[4, 4, 0, 0]}
               isAnimationActive={false}
             >
               {chartData.map((entry, index) => (
@@ -524,6 +624,21 @@ export default function ComparisonChart({
           ) : (
             // Regular rendering for non-CIA mode
             renderBars()
+          )}
+          
+          {/* Add individual fisher bar if data is available - after BMU bars for consistent legend order */}
+          {individualFisherData && userFisherId && (
+            <Bar
+              dataKey="individualFisher"
+              name={t("text-your-performance") || "Your Performance"}
+              fill="#F79F79"
+              stroke="#F79F79"
+              fillOpacity={(visibilityState["individualFisher"]?.opacity || 1) * 0.85}
+              strokeOpacity={visibilityState["individualFisher"]?.opacity || 1}
+              radius={[4, 4, 0, 0]}
+              stackId="individualFisher"
+              isAnimationActive={false}
+            />
           )}
           
           {/* Use custom legend implementation to show both colors */}

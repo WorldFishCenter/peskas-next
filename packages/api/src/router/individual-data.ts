@@ -88,6 +88,66 @@ export const individualDataRouter = createTRPCRouter({
       }
     }),
 
+  // Get yearly aggregated data by fisher_id (optimized for annual charts)
+  yearlyByFisherId: protectedProcedure
+    .input(z.object({ 
+      fisherId: z.string(),
+      startDate: z.string().optional(),
+      endDate: z.string().optional(),
+    }))
+    .query(async ({ input }) => {
+      try {
+        await getDb();
+        
+        // Prepare match stage with optional date filtering
+        const matchStage: any = {
+          fisher_id: input.fisherId,
+        };
+        
+        if (input.startDate || input.endDate) {
+          matchStage.date = {};
+          if (input.startDate) {
+            matchStage.date.$gte = new Date(input.startDate);
+          }
+          if (input.endDate) {
+            matchStage.date.$lte = new Date(input.endDate);
+          }
+        }
+        
+        // Aggregate by year
+        const yearlyData = await IndividualStatsModel.aggregate([
+          { $match: matchStage },
+          {
+            $group: {
+              _id: { $year: "$date" },
+              mean_cpue: { $avg: "$mean_cpue" },
+              mean_rpue: { $avg: "$mean_rpue" },
+              count: { $sum: 1 }
+            }
+          },
+          {
+            $project: {
+              year: "$_id",
+              mean_cpue: { $round: ["$mean_cpue", 2] },
+              mean_rpue: { $round: ["$mean_rpue", 2] },
+              count: 1,
+              _id: 0
+            }
+          },
+          { $sort: { year: 1 } }
+        ]);
+        
+        return yearlyData;
+      } catch (error) {
+        console.error('Error in individual data yearlyByFisherId query:', error);
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: 'Failed to fetch yearly individual fisher data',
+          cause: error,
+        });
+      }
+    }),
+
   // Get aggregated individual data by gear type
   gearSummary: protectedProcedure
     .input(z.object({ 
