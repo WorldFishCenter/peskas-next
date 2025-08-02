@@ -360,9 +360,6 @@ export default function ComparisonChart({
     );
   }
 
-  // Log data for debugging
-
-
   // Calculate Y-axis domain with a proper range for negative values
   const calculateYDomain = () => {
     let minValue = 0;
@@ -370,8 +367,8 @@ export default function ComparisonChart({
     
     if (isCiaHistoricalMode && hasNewDataFormat) {
       // Extract all difference values, which can be positive or negative
-      const values = chartData
-        .map(item => item.difference)
+      const values = mergedChartData
+        .map(item => (item as any).difference)
         .filter(value => value !== undefined) as number[];
       
       if (values.length > 0) {
@@ -381,10 +378,10 @@ export default function ComparisonChart({
         return [-10, 10]; // Default domain if no values
       }
     } else {
-      // For non-CIA users or legacy format
+      // For non-CIA users or legacy format - use merged data to include individual fisher data
       const allValues: number[] = [];
       
-      chartData.forEach(item => {
+      mergedChartData.forEach(item => {
         Object.entries(item).forEach(([key, value]) => {
           if (key !== 'date' && value !== undefined && typeof value === 'number') {
             allValues.push(value);
@@ -578,20 +575,6 @@ export default function ComparisonChart({
             ));
           })()}
           
-          {/* Add individual fisher bar if data is available and not in CIA historical mode */}
-          {!isCiaHistoricalMode && individualFisherData && userFisherId && (
-            <Bar
-              dataKey="individualFisher"
-              name={t("text-your-performance") || "Your Performance"}
-              fill="#F79F79"
-              stroke="#F79F79"
-              strokeWidth={1}
-              maxBarSize={40}
-              radius={[2, 2, 0, 0]}
-              isAnimationActive={false}
-            />
-          )}
-          
           {/* CIA mode with difference data */}
           {isCiaHistoricalMode && hasNewDataFormat ? (
             <Bar
@@ -614,6 +597,21 @@ export default function ComparisonChart({
           ) : (
             // Regular rendering for non-CIA mode
             renderBars()
+          )}
+          
+          {/* Add individual fisher bar if data is available - after BMU bars for consistent legend order */}
+          {individualFisherData && userFisherId && (
+            <Bar
+              dataKey="individualFisher"
+              name={t("text-your-performance") || "Your Performance"}
+              fill="#F79F79"
+              stroke="#F79F79"
+              fillOpacity={(visibilityState["individualFisher"]?.opacity || 1) * 0.85}
+              strokeOpacity={visibilityState["individualFisher"]?.opacity || 1}
+              radius={[4, 4, 0, 0]}
+              stackId="individualFisher"
+              isAnimationActive={false}
+            />
           )}
           
           {/* Use custom legend implementation to show both colors */}

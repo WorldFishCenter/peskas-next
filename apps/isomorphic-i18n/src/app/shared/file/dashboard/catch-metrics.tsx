@@ -562,6 +562,11 @@ export default function CatchMetricsChart({
       initialVisibility["historical_average"] = { opacity: 1 };
       }
       
+      // Add individual fisher data to visibility state if applicable
+      if (shouldShowIndividualData && isMetricCompatibleWithIndividualData) {
+        initialVisibility["individualFisher"] = { opacity: 1 };
+      }
+      
       
       // Only set visibility state if it's the initial load
       if (Object.keys(visibilityState).length === 0) {

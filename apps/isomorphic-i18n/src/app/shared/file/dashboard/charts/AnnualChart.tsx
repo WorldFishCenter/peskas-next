@@ -90,12 +90,12 @@ export default function AnnualChart({
       const yearKey = year.toString();
       
       if (!yearlyAggregates[yearKey]) {
-        // Use first day of year for consistency with BMU data
-        const yearStart = new Date(year, 0, 1);
+        // Use same date creation logic as BMU annual data (UTC-based)
+        const yearTimestamp = new Date(`${year}-01-01`).getTime();
         yearlyAggregates[yearKey] = {
           sum: 0,
           count: 0,
-          date: yearStart.getTime()
+          date: yearTimestamp
         };
       }
       
@@ -107,14 +107,8 @@ export default function AnnualChart({
       } else if (selectedMetric === "mean_rpue" && record.mean_rpue != null) {
         // Individual fisher RPUE maps directly to BMU RPUE
         value = record.mean_rpue;
-      } else if (selectedMetric === "mean_cpua" && record.mean_cpue != null) {
-        // For BMU catch density, show individual fisher CPUE as approximation
-        value = record.mean_cpue;
-      } else if (selectedMetric === "mean_rpua" && record.mean_rpue != null) {
-        // For BMU area revenue, show individual fisher RPUE as approximation
-        value = record.mean_rpue;
       }
-      // Note: mean_effort has no individual fisher equivalent, so we skip it
+      // Note: Individual fishers only have CPUE and RPUE data, not area-based metrics or effort
       
       if (value !== null) {
         yearlyAggregates[yearKey].sum += value;
@@ -273,8 +267,8 @@ export default function AnnualChart({
               name={t("text-your-performance") || "Your Performance"}
               fill="#F79F79"
               stroke="#F79F79"
-              fillOpacity={0.85}
-              strokeOpacity={1}
+              fillOpacity={(visibilityState["individualFisher"]?.opacity || 1) * 0.85}
+              strokeOpacity={visibilityState["individualFisher"]?.opacity || 1}
               radius={[4, 4, 0, 0]}
               isAnimationActive={false}
             />

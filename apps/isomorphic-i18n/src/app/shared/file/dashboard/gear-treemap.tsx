@@ -387,20 +387,9 @@ export default function GearHeatmap({
     }
   );
   
-  // Debug logging for query parameters and data
-
-  
-  // Log query state only if there are issues
+  // Handle query errors
   if (isQueryError) {
-    console.error('Gear query error:', { 
-      isQueryLoading, 
-      isQueryError, 
-      hasData: !!rawData, 
-      dataLength: rawData?.length,
-      queryError: queryError?.message,
-      safeBmusLength: safeBmus.length,
-      queryParams
-    });
+    console.error('Gear query error:', queryError?.message);
   }
 
 

@@ -302,7 +302,13 @@ export default function TrendsChart({
               dataKey="individualFisher"
               stroke="#F79F79"
               strokeWidth={3}
-              dot={{ fill: "#F79F79", strokeWidth: 0, r: 4 }}
+              strokeOpacity={visibilityState["individualFisher"]?.opacity || 1}
+              dot={{ 
+                fill: "#F79F79", 
+                strokeWidth: 0, 
+                r: 4,
+                fillOpacity: visibilityState["individualFisher"]?.opacity || 1
+              }}
               activeDot={{ r: 7, strokeWidth: 0 }}
               name={t("text-your-performance") || "Your Performance"}
               isAnimationActive={false}

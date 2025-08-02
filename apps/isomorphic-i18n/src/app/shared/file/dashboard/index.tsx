@@ -81,7 +81,7 @@ export default function FileDashboard({ lang }: { lang?: string }) {
 
         {/* Individual Fisher Performance Integration for Administrator-Fishers */}
         {shouldShowUnifiedDashboard && (
-          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-100 shadow-sm">
+          <div className="bg-gradient-to-r from-blue-100 to-indigo-50 rounded-xl border border-blue-100 shadow-sm">
             <Collapse
               defaultOpen={false}
               className="px-6 py-6"
