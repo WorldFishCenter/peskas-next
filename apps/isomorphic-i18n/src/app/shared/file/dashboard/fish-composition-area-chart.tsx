@@ -95,7 +95,7 @@ export default function FishCompositionAreaChart({
     
     // For others, show all selected BMUs
     return bmus;
-  }, [isAdmin, hasRestrictedAccess, effectiveBMU, bmus, getLimitedBMUs]);
+  }, [isAdmin, hasRestrictedAccess, effectiveBMU, bmus]);
   
   // Memoize the API query to prevent re-fetching on every render
   const fishDistributionQuery = api.fishDistribution.monthlyTrends.useQuery({ 
@@ -106,6 +106,8 @@ export default function FishCompositionAreaChart({
     staleTime: 1000 * 60 * 5,
     enabled: queryBmus.length > 0,
   });
+
+
   
   // Extract data from the query
   const fishDistributionData = fishDistributionQuery.data;
@@ -294,7 +296,7 @@ export default function FishCompositionAreaChart({
       setError("Error processing data");
       setLoading(false);
     }
-  }, [fishDistributionData, isLoadingData, apiError, queryBmus.join(','), selectedTimeRange, clientLang]);
+  }, [fishDistributionData, isLoadingData, apiError, queryBmus, selectedTimeRange, clientLang]);
   
      // Custom tooltip for the chart
    const CustomTooltip = ({ active, payload, label }: any) => {
@@ -478,9 +480,9 @@ export default function FishCompositionAreaChart({
         </div>
       ) : (
                  <SimpleBar className="h-full">
-           <div className="p-4 md:p-6 h-full">
+           <div className="p-4 md:p-6 h-full min-h-96">
              {/* Main Chart */}
-             <div className="w-full h-[400px]">
+             <div className="w-full h-[400px] min-h-96">
                <ResponsiveContainer width="100%" height="100%">
                  <AreaChart
                    data={useChartData}
