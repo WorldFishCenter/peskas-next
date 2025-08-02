@@ -930,6 +930,7 @@ export default function CatchMetricsChart({
                 }
                 return point;
               })}
+              originalChartData={chartData}
               selectedMetricOption={selectedMetricOption}
               siteColors={isCiaUser ? siteColors : Object.fromEntries(
                 Object.entries(siteColors).filter(([key]) => key !== 'historical_average')
@@ -956,6 +957,7 @@ export default function CatchMetricsChart({
               // CIA users see comparison against their historical average
               <ComparisonChart
                 chartData={ciaComparisonData}
+                originalChartData={chartData}
                 selectedMetricOption={selectedMetricOption}
                 siteColors={siteColors}
                 visibilityState={visibilityState}

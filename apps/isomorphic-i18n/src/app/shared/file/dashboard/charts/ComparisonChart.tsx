@@ -20,6 +20,7 @@ import { TimeRangeOption } from "@/app/components/filter-selector";
 
 interface ComparisonChartProps {
   chartData: ChartDataPoint[];
+  originalChartData?: ChartDataPoint[];
   selectedMetricOption?: MetricOption;
   siteColors: Record<string, string>;
   visibilityState: VisibilityState;
@@ -35,6 +36,7 @@ interface ComparisonChartProps {
 
 export default function ComparisonChart({
   chartData,
+  originalChartData,
   selectedMetricOption,
   siteColors,
   visibilityState,
@@ -111,19 +113,24 @@ export default function ComparisonChart({
   const individualFisherChartData = useMemo(() => {
     if (!individualFisherData || !userFisherId || individualFisherData.length === 0) return [];
     
-    // Convert daily fisher data to monthly aggregates to match BMU data structure
+    // Import required utilities
+    const { filterDataByTimeRange } = require('../utils/timeRangeFilter');
+    
+    // Apply time range filtering
+    const filteredIndividualData = filterDataByTimeRange(individualFisherData, selectedTimeRange);
+    
+    // Convert daily fisher data to monthly aggregates
     const monthlyAggregates: Record<string, { 
       sum: number; 
       count: number; 
       date: number;
     }> = {};
     
-    individualFisherData.forEach(record => {
+    filteredIndividualData.forEach((record: any) => {
       const date = new Date(record.date);
       const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
       
       if (!monthlyAggregates[monthKey]) {
-        // Use first day of month for consistency with BMU data
         const monthStart = new Date(date.getFullYear(), date.getMonth(), 1);
         monthlyAggregates[monthKey] = {
           sum: 0,
@@ -132,22 +139,19 @@ export default function ComparisonChart({
         };
       }
       
-      // Get the appropriate metric value - map BMU metrics to individual fisher metrics
+      // Map BMU metrics to individual fisher metrics
       let value: number | null = null;
       if (selectedMetric === "mean_cpue" && record.mean_cpue != null) {
-        // Individual fisher CPUE maps directly to BMU CPUE
         value = record.mean_cpue;
       } else if (selectedMetric === "mean_rpue" && record.mean_rpue != null) {
-        // Individual fisher RPUE maps directly to BMU RPUE
         value = record.mean_rpue;
       } else if (selectedMetric === "mean_cpua" && record.mean_cpue != null) {
-        // For BMU catch density, show individual fisher CPUE as approximation
+        // For BMU catch density, use individual fisher CPUE as approximation
         value = record.mean_cpue;
       } else if (selectedMetric === "mean_rpua" && record.mean_rpue != null) {
-        // For BMU area revenue, show individual fisher RPUE as approximation
+        // For BMU area revenue, use individual fisher RPUE as approximation
         value = record.mean_rpue;
       }
-      // Note: mean_effort has no individual fisher equivalent, so we skip it
       
       if (value !== null) {
         monthlyAggregates[monthKey].sum += value;
@@ -155,15 +159,38 @@ export default function ComparisonChart({
       }
     });
     
-    // Convert to array format matching BMU data structure
-    return Object.values(monthlyAggregates)
+    // Convert to array format with absolute values
+    const absoluteValues = Object.values(monthlyAggregates)
       .filter(agg => agg.count > 0)
       .map(agg => ({
         date: agg.date,
-        individualFisher: agg.sum / agg.count
+        absoluteValue: agg.sum / agg.count
       }))
       .sort((a, b) => a.date - b.date);
-  }, [individualFisherData, userFisherId, selectedMetric]);
+
+    // Calculate baseline for comparison
+    let baseline: number;
+    
+    if (selectedMetric === 'mean_cpua') {
+      // Use MSY baseline for catch density
+      baseline = BASELINE_DATA.CPUA.MSY.FRINGING;
+    } else if (selectedMetric === 'mean_rpue') {
+      // Use minimum wage baseline for fisher revenue
+      baseline = BASELINE_DATA.INCOME.NATIONAL_MINIMUM_WAGE;
+    } else {
+      // For other metrics, compare against individual fisher's own average
+      if (absoluteValues.length === 0) return [];
+      
+      const sum = absoluteValues.reduce((acc, item) => acc + item.absoluteValue, 0);
+      baseline = sum / absoluteValues.length;
+    }
+
+    // Convert to relative values (difference from baseline)
+    return absoluteValues.map(item => ({
+      date: item.date,
+      individualFisher: parseFloat((item.absoluteValue - baseline).toFixed(2))
+    }));
+  }, [individualFisherData, userFisherId, selectedMetric, selectedTimeRange]);
   
   // Merge BMU data with individual fisher data
   const mergedChartData = useMemo(() => {
