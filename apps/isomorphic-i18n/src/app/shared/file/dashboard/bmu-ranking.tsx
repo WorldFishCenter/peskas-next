@@ -25,7 +25,7 @@ import {
 import { MetricOption } from "./charts/types";
 import useUserPermissions from "./hooks/useUserPermissions";
 import { generateColor, updateBmuColorRegistry } from "./charts/utils";
-import { useIndividualData } from "./hooks/useIndividualData";
+import { useIndividualFisherDataOnly } from "./hooks/useIndividualData";
 
 // Import time range filtering utilities
 import { filterDataByTimeRange, getTimeRangeStartDate } from "./utils/timeRangeFilter";
@@ -238,7 +238,7 @@ export default function BMURanking({
   }, [selectedTimeRange]);
 
   // Fetch individual fisher data
-  const { fisherData, isLoadingFisherData } = useIndividualData(
+  const { fisherData, isLoadingFisherData } = useIndividualFisherDataOnly(
     shouldShowIndividualData ? dateRange : undefined
   );
 

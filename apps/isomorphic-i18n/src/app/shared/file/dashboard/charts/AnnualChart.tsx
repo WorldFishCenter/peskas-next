@@ -18,14 +18,15 @@ import { BASELINE_DATA } from "./siteConfig";
 
 interface AnnualChartProps {
   chartData: ChartDataPoint[];
-  selectedMetricOption: MetricOption | undefined;
+  selectedMetricOption?: MetricOption;
   siteColors: Record<string, string>;
   visibilityState: VisibilityState;
   isCiaUser: boolean;
   isTablet: boolean;
-  CustomLegend?: React.ComponentType<any>;
+  CustomLegend: (props: any) => React.ReactElement;
   selectedMetric?: string;
   individualFisherData?: any[];
+  individualYearlyData?: any[];
   userFisherId?: string;
 }
 
@@ -39,6 +40,7 @@ export default function AnnualChart({
   CustomLegend,
   selectedMetric,
   individualFisherData,
+  individualYearlyData,
   userFisherId,
 }: AnnualChartProps) {
   // Check if there's a parent language context we should use
@@ -75,7 +77,21 @@ export default function AnnualChart({
   
   // Process individual fisher data for overlay  
   const individualFisherChartData = useMemo(() => {
+    // Use pre-aggregated yearly data if available (much faster)
+    if (individualYearlyData && individualYearlyData.length > 0) {
+      return individualYearlyData.map(yearData => ({
+        date: new Date(`${yearData.year}-01-01`).getTime(),
+        individualFisher: yearData[selectedMetric === "mean_cpue" ? "mean_cpue" : "mean_rpue"] || undefined
+      }));
+    }
+    
+    // Fall back to client-side aggregation if no yearly data
     if (!individualFisherData || !userFisherId || individualFisherData.length === 0) return [];
+    
+    // Early exit for incompatible metrics
+    if (selectedMetric !== "mean_cpue" && selectedMetric !== "mean_rpue") {
+      return [];
+    }
     
     // Convert daily fisher data to yearly aggregates to match BMU data structure
     const yearlyAggregates: Record<string, { 
@@ -84,37 +100,43 @@ export default function AnnualChart({
       date: number;
     }> = {};
     
-    individualFisherData.forEach(record => {
-      const date = new Date(record.date);
-      const year = date.getFullYear();
-      const yearKey = year.toString();
+    // Process in batches for better performance with large datasets
+    const batchSize = 100;
+    for (let i = 0; i < individualFisherData.length; i += batchSize) {
+      const batch = individualFisherData.slice(i, i + batchSize);
       
-      if (!yearlyAggregates[yearKey]) {
-        // Use same date creation logic as BMU annual data (UTC-based)
-        const yearTimestamp = new Date(`${year}-01-01`).getTime();
-        yearlyAggregates[yearKey] = {
-          sum: 0,
-          count: 0,
-          date: yearTimestamp
-        };
-      }
-      
-      // Get the appropriate metric value - map BMU metrics to individual fisher metrics
-      let value: number | null = null;
-      if (selectedMetric === "mean_cpue" && record.mean_cpue != null) {
-        // Individual fisher CPUE maps directly to BMU CPUE
-        value = record.mean_cpue;
-      } else if (selectedMetric === "mean_rpue" && record.mean_rpue != null) {
-        // Individual fisher RPUE maps directly to BMU RPUE
-        value = record.mean_rpue;
-      }
-      // Note: Individual fishers only have CPUE and RPUE data, not area-based metrics or effort
-      
-      if (value !== null) {
-        yearlyAggregates[yearKey].sum += value;
-        yearlyAggregates[yearKey].count++;
-      }
-    });
+      batch.forEach(record => {
+        const date = new Date(record.date);
+        const year = date.getFullYear();
+        const yearKey = year.toString();
+        
+        if (!yearlyAggregates[yearKey]) {
+          // Use same date creation logic as BMU annual data (UTC-based)
+          const yearTimestamp = new Date(`${year}-01-01`).getTime();
+          yearlyAggregates[yearKey] = {
+            sum: 0,
+            count: 0,
+            date: yearTimestamp
+          };
+        }
+        
+        // Get the appropriate metric value - map BMU metrics to individual fisher metrics
+        let value: number | null = null;
+        if (selectedMetric === "mean_cpue" && record.mean_cpue != null) {
+          // Individual fisher CPUE maps directly to BMU CPUE
+          value = record.mean_cpue;
+        } else if (selectedMetric === "mean_rpue" && record.mean_rpue != null) {
+          // Individual fisher RPUE maps directly to BMU RPUE
+          value = record.mean_rpue;
+        }
+        // Note: Individual fishers only have CPUE and RPUE data, not area-based metrics or effort
+        
+        if (value !== null) {
+          yearlyAggregates[yearKey].sum += value;
+          yearlyAggregates[yearKey].count++;
+        }
+      });
+    }
     
     // Convert to array format matching BMU data structure
     return Object.values(yearlyAggregates)
@@ -124,7 +146,7 @@ export default function AnnualChart({
         individualFisher: agg.sum / agg.count
       }))
       .sort((a, b) => a.date - b.date);
-  }, [individualFisherData, userFisherId, selectedMetric]);
+  }, [individualFisherData, individualYearlyData, userFisherId, selectedMetric]);
   
   // Merge BMU data with individual fisher data
   const mergedChartData = useMemo(() => {

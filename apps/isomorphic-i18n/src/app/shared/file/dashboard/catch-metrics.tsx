@@ -2,7 +2,7 @@
 
 import WidgetCard from "@components/cards/widget-card";
 import { useAtom } from "jotai";
-import { useEffect, useState, useCallback, useRef, useMemo, createContext, useContext } from "react";
+import { useEffect, useState, useCallback, useRef, useMemo, createContext } from "react";
 
 import { bmusAtom, selectedTimeRangeAtom } from "@/app/components/filter-selector";
 import { useTranslation } from "@/app/i18n/client";
@@ -27,7 +27,7 @@ import { getClientLanguage } from "@/app/i18n/language-link";
 // Import shared permissions hook
 import useUserPermissions from "./hooks/useUserPermissions";
 import { filterDataByTimeRange } from "./utils/timeRangeFilter";
-import { useIndividualData } from "./hooks/useIndividualData";
+import { useIndividualFisherDataOnly, useIndividualYearlyData } from "./hooks/useIndividualData";
 
 // Create a more robust language context that includes both the language code and translations
 const LanguageContext = createContext<{
@@ -53,8 +53,6 @@ const LanguageProvider = ({ lang, children }: { lang: string | undefined, childr
   );
 };
 
-// Create a hook to access the language
-const useLanguageContext = () => useContext(LanguageContext);
 
 interface CatchMetricsChartProps {
   className?: string;
@@ -92,17 +90,14 @@ const prepareDataForCiaComparison = (chartData: ChartDataPoint[], bmuName: strin
   
   // Determine the baseline to use based on the metric
   let baseline: number;
-  let baselineLabel: string;
   
   if (selectedMetric === 'mean_cpua') {
     // For catch density, use MSY baseline (island or fringing)
     const isIsland = isIslandSite(bmuName);
     baseline = isIsland ? BASELINE_DATA.CPUA.MSY.ISLAND : BASELINE_DATA.CPUA.MSY.FRINGING;
-    baselineLabel = `MSY baseline (${isIsland ? 'Island' : 'Fringing'})`;
   } else if (selectedMetric === 'mean_rpue') {
     // For fisher revenue, use minimum wage
     baseline = BASELINE_DATA.INCOME.NATIONAL_MINIMUM_WAGE;
-    baselineLabel = 'Minimum wage baseline';
   } else {
     // For other metrics, calculate 24-month average
     // Need at least 6 data points to calculate average
@@ -121,12 +116,7 @@ const prepareDataForCiaComparison = (chartData: ChartDataPoint[], bmuName: strin
     }
     
     baseline = count > 0 ? sum / count : 0;
-    baselineLabel = '24-month average';
   }
-  
-
-  
-
   
   // Create result array with the fixed baseline
   let result: ChartDataPoint[] = [];
@@ -153,8 +143,6 @@ const prepareDataForCiaComparison = (chartData: ChartDataPoint[], bmuName: strin
       // Also store the actual BMU value for reference
       currentPoint['actualValue'] = actualValue;
       
-
-      
       result.push(currentPoint);
     }
   }
@@ -164,7 +152,6 @@ const prepareDataForCiaComparison = (chartData: ChartDataPoint[], bmuName: strin
   
   return result;
 };
-
 
 // Function to prepare baseline comparison data for multiple BMUs (WBCIA users)
 const prepareMultiBMUBaselineComparison = (chartData: ChartDataPoint[], selectedMetric: string) => {
@@ -224,7 +211,6 @@ export default function CatchMetricsChart({
   const [siteColors, setSiteColors] = useState<Record<string, string>>({});
   
   // Add refs to track initialization states
-  const visibilityInitialized = useRef<boolean>(false);
   const dataProcessed = useRef<boolean>(false);
   const prevTabRef = useRef<string | null>(null);
   const previousBmus = useRef<string[]>([]);
@@ -297,8 +283,8 @@ export default function CatchMetricsChart({
   // Determine which BMU to use for filtering - prefer passed prop, then user's BMU
   const effectiveBMU = bmu || userBMU;
   
-  // Ensure bmus is always an array
-  const safeBmus = bmus || [];
+  // Ensure bmus is always an array - memoized to prevent unnecessary re-renders
+  const safeBmus = useMemo(() => bmus || [], [bmus]);
   
   // Fetch monthly data
   const { data: monthlyData, refetch } = api.aggregatedCatch.monthly.useQuery(
@@ -330,16 +316,18 @@ export default function CatchMetricsChart({
         startDate.setFullYear(startDate.getFullYear() - 1);
         break;
       default:
-        startDate = new Date('2020-01-01'); // All time - start from reasonable date
+        // For annual view, limit to 3 years instead of all time to improve performance
+        startDate = new Date();
+        if (localActiveTab === 'annual') {
+          startDate.setFullYear(startDate.getFullYear() - 3);
+        } else {
+          startDate = new Date('2020-01-01'); // All time for other views
+        }
         break;
     }
     
     return { startDate, endDate };
-  }, [selectedTimeRange]);
-
-  const { fisherData, isLoadingFisherData } = useIndividualData(
-    shouldShowIndividualData ? dateRange : undefined
-  );
+  }, [selectedTimeRange, localActiveTab]);
 
   // Helper function to check if current metric is compatible with individual fisher data
   const isMetricCompatibleWithIndividualData = useMemo(() => {
@@ -348,6 +336,44 @@ export default function CatchMetricsChart({
     return compatibleMetrics.includes(selectedMetric);
   }, [selectedMetric]);
 
+  // Only fetch individual data when needed and compatible
+  const shouldFetchIndividualData = useMemo(() => 
+    shouldShowIndividualData && isMetricCompatibleWithIndividualData,
+    [shouldShowIndividualData, isMetricCompatibleWithIndividualData]
+  );
+  
+  const shouldFetchYearlyData = useMemo(() => 
+    shouldFetchIndividualData && localActiveTab === 'annual',
+    [shouldFetchIndividualData, localActiveTab]
+  );
+
+  // Only destructure the specific data we need to avoid waiting for all queries
+  const { fisherData, isLoadingFisherData } = useIndividualFisherDataOnly(
+    shouldFetchIndividualData ? dateRange : undefined
+  );
+  
+  // Fetch pre-aggregated yearly data for annual charts
+  const { yearlyData, isLoadingYearlyData } = useIndividualYearlyData(
+    shouldFetchYearlyData ? dateRange : undefined
+  );
+
+  // Memoize fisher data to prevent re-renders while loading
+  const memoizedFisherData = useMemo(() => {
+    // Only pass fisher data if it's loaded and should be fetched
+    if (!isLoadingFisherData && shouldFetchIndividualData) {
+      return fisherData;
+    }
+    return undefined;
+  }, [fisherData, isLoadingFisherData, shouldFetchIndividualData]);
+
+  // Memoize yearly data for annual charts
+  const memoizedYearlyData = useMemo(() => {
+    // Only pass yearly data if it's loaded and should be fetched
+    if (!isLoadingYearlyData && shouldFetchYearlyData) {
+      return yearlyData;
+    }
+    return undefined;
+  }, [yearlyData, isLoadingYearlyData, shouldFetchYearlyData]);
 
   // Track selectedMetric changes and force data reprocessing
   useEffect(() => {
@@ -481,8 +507,6 @@ export default function CatchMetricsChart({
       
       return newState;
     });
-    
-    visibilityInitialized.current = true;
   }, [localActiveTab, canCompareWithOthers, siteColors, effectiveBMU, visibilityState]);
 
   // Process main data when monthlyData changes
@@ -563,14 +587,13 @@ export default function CatchMetricsChart({
       }
       
       // Add individual fisher data to visibility state if applicable
-      if (shouldShowIndividualData && isMetricCompatibleWithIndividualData) {
+      if (shouldFetchIndividualData) {
         initialVisibility["individualFisher"] = { opacity: 1 };
       }
       
-      
       // Only set visibility state if it's the initial load
       if (Object.keys(visibilityState).length === 0) {
-      setVisibilityState(initialVisibility);
+        setVisibilityState(initialVisibility);
       }
 
       // Apply time range filter instead of hardcoded 2023 filter
@@ -674,34 +697,37 @@ export default function CatchMetricsChart({
     } finally {
       setLoading(false);
     }
-  }, [monthlyData, selectedMetric, effectiveBMU, hasRestrictedAccess, getAccessibleBMUs, safeBmus, isCiaUser, localActiveTab, selectedTimeRange]);
+  }, [monthlyData, selectedMetric, effectiveBMU, hasRestrictedAccess, getAccessibleBMUs, safeBmus, isCiaUser, localActiveTab, selectedTimeRange, shouldFetchIndividualData, chartData.length, loading, visibilityState]);
 
   // Calculate derived data when chartData changes
   useEffect(() => {
     if (chartData.length === 0) return;
     
-    // Skip if already calculated, unless metric changed
-    if (recentData.length > 0 && annualData.length > 0 && ciaComparisonData.length > 0 && previousMetricRef.current === selectedMetric) return;
+    // Check if we need to recalculate based on key changes
+    const needsRecalculation = 
+      recentData.length === 0 || 
+      annualData.length === 0 || 
+      (isCiaUser && ciaComparisonData.length === 0) ||
+      previousMetricRef.current !== selectedMetric;
     
+    if (!needsRecalculation) return;
+    
+    // Process data based on user type
+    if (isWbciaUser && (selectedMetric === 'mean_cpua' || selectedMetric === 'mean_rpue')) {
       // For WBCIA users viewing catch density or fisher revenue, use baseline comparison
-      if (isWbciaUser && (selectedMetric === 'mean_cpua' || selectedMetric === 'mean_rpue')) {
-        // Prepare comparison data for all BMUs against the baseline
-        const comparisonData = prepareMultiBMUBaselineComparison(chartData, selectedMetric);
-        setRecentData(comparisonData);
-      }
+      setRecentData(prepareMultiBMUBaselineComparison(chartData, selectedMetric));
+    } else if (canCompareWithOthers) {
       // For other non-CIA users, use standard comparison
-      else if (canCompareWithOthers) {
-        setRecentData(getRecentData(chartData, false) as ChartDataPoint[]);
-      } 
+      setRecentData(getRecentData(chartData, false) as ChartDataPoint[]);
+    } else if (isCiaUser && effectiveBMU) {
       // For CIA users, create comparison against historical average if they have a BMU
-      else if (isCiaUser && effectiveBMU) {
-        setCiaComparisonData(prepareDataForCiaComparison(chartData, effectiveBMU, selectedMetric));
-      }
-      
-      // Annual data is the same for all users
-      setAnnualData(getAnnualData(chartData, !canCompareWithOthers, siteColors));
+      setCiaComparisonData(prepareDataForCiaComparison(chartData, effectiveBMU, selectedMetric));
+    }
     
-  }, [chartData, canCompareWithOthers, isCiaUser, isWbciaUser, effectiveBMU, siteColors, recentData.length, annualData.length, selectedMetric]);
+    // Annual data is the same for all users
+    setAnnualData(getAnnualData(chartData, !canCompareWithOthers, siteColors));
+    
+  }, [chartData, canCompareWithOthers, isCiaUser, isWbciaUser, effectiveBMU, siteColors, selectedMetric, recentData.length, annualData.length, ciaComparisonData.length]);
 
   // Find the selected metric option
   const selectedMetricOption = METRIC_OPTIONS.find(
@@ -819,7 +845,9 @@ export default function CatchMetricsChart({
     }
   };
 
-  if (loading) return <LoadingState />;
+  // Show loading only when main data is loading and individual data isn't expected to load
+  const isWaitingForData = loading || (shouldFetchIndividualData && isLoadingFisherData) || (shouldFetchYearlyData && isLoadingYearlyData);
+  if (isWaitingForData) return <LoadingState />;
   if (!chartData || chartData.length === 0) {
     return (
       <WidgetCard title={t("text-metrics-catch")}>
@@ -900,7 +928,7 @@ export default function CatchMetricsChart({
               isTablet={isTablet}
               fiveYearMarks={fiveYearMarks}
               selectedMetric={selectedMetric}
-              individualFisherData={shouldShowIndividualData && isMetricCompatibleWithIndividualData ? fisherData : undefined}
+              individualFisherData={memoizedFisherData}
               userFisherId={userFisherId}
               CustomLegend={(props) => (
                 <CustomLegend 
@@ -940,7 +968,7 @@ export default function CatchMetricsChart({
               selectedMetric={selectedMetric}
               selectedTimeRange={selectedTimeRange}
               isCiaHistoricalMode={isWbciaUser && (selectedMetric === 'mean_cpua' || selectedMetric === 'mean_rpue')}
-              individualFisherData={shouldShowIndividualData && isMetricCompatibleWithIndividualData ? fisherData : undefined}
+              individualFisherData={memoizedFisherData}
               userFisherId={userFisherId}
               CustomLegend={(props) => (
                 <CustomLegend 
@@ -966,7 +994,7 @@ export default function CatchMetricsChart({
                 historicalBmuName={effectiveBMU}
                 selectedMetric={selectedMetric}
                 selectedTimeRange={selectedTimeRange}
-                individualFisherData={shouldShowIndividualData && isMetricCompatibleWithIndividualData ? fisherData : undefined}
+                individualFisherData={memoizedFisherData}
                 userFisherId={userFisherId}
                 CustomLegend={(props) => (
                   <CustomLegend 
@@ -1009,7 +1037,8 @@ export default function CatchMetricsChart({
               isCiaUser={!!isCiaUser}
               isTablet={isTablet}
               selectedMetric={selectedMetric}
-              individualFisherData={shouldShowIndividualData && isMetricCompatibleWithIndividualData ? fisherData : undefined}
+              individualFisherData={memoizedFisherData}
+              individualYearlyData={memoizedYearlyData}
               userFisherId={userFisherId}
               CustomLegend={(props) => (
                 <CustomLegend 

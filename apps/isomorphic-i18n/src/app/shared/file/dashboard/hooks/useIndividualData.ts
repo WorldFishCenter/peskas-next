@@ -1,7 +1,7 @@
 
 import { api } from "@/trpc/react";
-import { useUserPermissions } from "./useUserPermissions";
 import { useSession } from "next-auth/react";
+import useUserPermissions from './useUserPermissions';
 
 interface UseIndividualDataOptions {
   startDate?: Date | null;
@@ -146,4 +146,62 @@ export const useIndividualData = (options?: UseIndividualDataOptions) => {
   };
 };
 
-export default useIndividualData; 
+/**
+ * Optimized hook for annual charts that fetches pre-aggregated yearly data
+ * This significantly improves performance by doing aggregation on the server
+ */
+export const useIndividualYearlyData = (options?: UseIndividualDataOptions) => {
+  const { startDate, endDate } = options || {};
+  const { shouldShowIndividualData, userFisherId } = useUserPermissions();
+  
+  // Fetch pre-aggregated yearly data
+  const {
+    data: yearlyData,
+    isLoading: isLoadingYearlyData,
+    error: errorYearlyData,
+  } = api.individualData.yearlyByFisherId.useQuery(
+    { 
+      fisherId: userFisherId || '',
+      startDate: startDate?.toISOString(),
+      endDate: endDate?.toISOString(),
+    },
+    { enabled: shouldShowIndividualData && !!userFisherId }
+  );
+
+  return {
+    yearlyData,
+    isLoadingYearlyData,
+    errorYearlyData,
+  };
+};
+
+export default useIndividualData;
+
+/**
+ * Optimized hook that only fetches fisher data for charts
+ * This avoids making unnecessary API calls and speeds up rendering
+ */
+export const useIndividualFisherDataOnly = (options?: UseIndividualDataOptions) => {
+  const { startDate, endDate } = options || {};
+  const { shouldShowIndividualData, userFisherId } = useUserPermissions();
+  
+  // Only fetch individual fisher data - skip all other queries
+  const {
+    data: fisherData,
+    isLoading: isLoadingFisherData,
+    error: errorFisherData,
+  } = api.individualData.byFisherId.useQuery(
+    { 
+      fisherId: userFisherId || '',
+      startDate: startDate?.toISOString(),
+      endDate: endDate?.toISOString(),
+    },
+    { enabled: shouldShowIndividualData && !!userFisherId }
+  );
+
+  return {
+    fisherData,
+    isLoadingFisherData,
+    errorFisherData,
+  };
+}; 
