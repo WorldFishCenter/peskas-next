@@ -343,8 +343,8 @@ export default function CatchMetricsChart({
 
   // Helper function to check if current metric is compatible with individual fisher data
   const isMetricCompatibleWithIndividualData = useMemo(() => {
-    // Individual fishers only have direct data for CPUE and RPUE
-    const compatibleMetrics = ['mean_cpue', 'mean_rpue', 'mean_cpua', 'mean_rpua'];
+    // Individual fishers only have direct data for CPUE and RPUE (not area-based metrics)
+    const compatibleMetrics = ['mean_cpue', 'mean_rpue'];
     return compatibleMetrics.includes(selectedMetric);
   }, [selectedMetric]);
 

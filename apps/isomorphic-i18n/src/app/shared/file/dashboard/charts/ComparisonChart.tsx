@@ -249,11 +249,9 @@ export default function ComparisonChart({
             name={site}
             fill={siteColors[site]}
             stroke={siteColors[site]}
-            strokeWidth={1}
-            maxBarSize={40}
-            radius={[2, 2, 0, 0]}
-            hide={false}
-            fillOpacity={visibilityState[site]?.opacity}
+            fillOpacity={(visibilityState[site]?.opacity || 1) * 0.85}
+            strokeOpacity={visibilityState[site]?.opacity || 1}
+            radius={[4, 4, 0, 0]}
             isAnimationActive={false}
           />
         );
@@ -267,12 +265,10 @@ export default function ComparisonChart({
         name={site}
         fill={siteColors[site]}
         stroke={siteColors[site]}
-        strokeWidth={1}
-        maxBarSize={40}
-        radius={[2, 2, 0, 0]}
+        fillOpacity={(visibilityState[site]?.opacity || 1) * 0.85}
+        strokeOpacity={visibilityState[site]?.opacity || 1}
+        radius={[4, 4, 0, 0]}
         stackId={site}
-        hide={false}
-        fillOpacity={visibilityState[site]?.opacity}
         isAnimationActive={false}
       />
       );
@@ -602,8 +598,9 @@ export default function ComparisonChart({
               dataKey="difference"
               name={t('text-difference-from-average') || 'Difference from Average'}
               fill="#16a34a" // Default color
-              maxBarSize={40}
-              radius={4}
+              fillOpacity={0.85}
+              strokeOpacity={1}
+              radius={[4, 4, 0, 0]}
               isAnimationActive={false}
             >
               {chartData.map((entry, index) => (

@@ -220,11 +220,9 @@ export default function AnnualChart({
         name={site}
         fill={siteColors[site]}
         stroke={siteColors[site]}
-        strokeWidth={1}
-        maxBarSize={40}
-        radius={[2, 2, 0, 0]}
-        hide={visibilityState[site]?.opacity === 0}
-        fillOpacity={visibilityState[site]?.opacity}
+        fillOpacity={(visibilityState[site]?.opacity || 1) * 0.85}
+        strokeOpacity={visibilityState[site]?.opacity || 1}
+        radius={[4, 4, 0, 0]}
         isAnimationActive={false}
       />
     ));
@@ -275,9 +273,9 @@ export default function AnnualChart({
               name={t("text-your-performance") || "Your Performance"}
               fill="#F79F79"
               stroke="#F79F79"
-              strokeWidth={1}
-              maxBarSize={40}
-              radius={[2, 2, 0, 0]}
+              fillOpacity={0.85}
+              strokeOpacity={1}
+              radius={[4, 4, 0, 0]}
               isAnimationActive={false}
             />
           )}
@@ -289,10 +287,9 @@ export default function AnnualChart({
               name={getTranslation("text-average-of-all-bmus")}
               fill="#64748b"
               stroke="#64748b"
-              strokeWidth={1}
-              maxBarSize={40}
-              radius={[2, 2, 0, 0]}
-              fillOpacity={visibilityState["average"]?.opacity}
+              fillOpacity={(visibilityState["average"]?.opacity || 1) * 0.85}
+              strokeOpacity={visibilityState["average"]?.opacity || 1}
+              radius={[4, 4, 0, 0]}
               isAnimationActive={false}
             />
           )}
