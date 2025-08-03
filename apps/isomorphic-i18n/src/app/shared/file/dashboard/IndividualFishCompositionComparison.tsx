@@ -181,7 +181,7 @@ export default function IndividualFishCompositionComparison({
       <SimpleBar className="h-full">
         <div className="p-4 md:p-6 h-full">
           <div className="w-full" style={{ height: "220px" }}>
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer width="100%" height="100%" minHeight={384}>
               <BarChart
                 data={chartData.map((row, i) => ({ ...row, label: rowLabels[i]?.label || row.label }))}
                 layout="vertical"

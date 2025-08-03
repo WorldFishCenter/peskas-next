@@ -29,6 +29,7 @@ import { USFlag } from "@components/icons/language/USFlag";
 import { SWFlag } from "@components/icons/language/SWFlag";
 import { useTranslation } from "@/app/i18n/client";
 import useUserPermissions from "@/app/shared/file/dashboard/hooks/useUserPermissions";
+import { usePathname } from "next/navigation";
 
 type SerializedBmu = {
   _id: string;
@@ -253,7 +254,7 @@ function TimeRangeSelector({ lang }: { lang?: string }) {
   );
 }
 
-function HeaderMenuRight({ lang }: { lang?: string }) {
+function HeaderMenuRight({ lang, isCatchCompositionPage }: { lang?: string; isCatchCompositionPage?: boolean }) {
   const [selectedMetric, setSelectedMetric] = useAtom(selectedMetricAtom);
   const [isMetricOpen, setIsMetricOpen] = useState(false);
   
@@ -403,11 +404,19 @@ function HeaderMenuRight({ lang }: { lang?: string }) {
   return (
     <div className="ms-auto flex shrink-0 items-center gap-1 text-gray-700 xs:gap-1 md:gap-2 xl:gap-3">
       {/* <ReferenceBMU /> */}
-      {/* Only show HeaderMetricSelector if not IIA user */}
-      {!isIiaUser && <HeaderMetricSelector />}
+      {/* Only show HeaderMetricSelector if not IIA user and not on catch composition page - hidden on mobile */}
+      {!isIiaUser && !isCatchCompositionPage && (
+        <div className="hidden sm:block">
+          <HeaderMetricSelector />
+        </div>
+      )}
       <TimeRangeSelector lang={lang} />
-      {/* Only show FilterSelector if not IIA user */}
-      {!isIiaUser && <FilterSelector />}
+      {/* Only show FilterSelector if not IIA user and not on catch composition page - hidden on mobile */}
+      {!isIiaUser && !isCatchCompositionPage && (
+        <div className="hidden sm:block">
+          <FilterSelector />
+        </div>
+      )}
       <CompactLanguageSwitcher />
       {/* <ThemeToggle /> */}
       <ProfileMenu
@@ -420,6 +429,11 @@ function HeaderMenuRight({ lang }: { lang?: string }) {
 }
 
 export default function Header({ lang }: { lang?: string }) {
+  const pathname = usePathname();
+  
+  // Hide metric selector on catch composition page
+  const isCatchCompositionPage = pathname?.includes('/catch_composition');
+
   return (
     <StickyHeader
       className={"z-[990] justify-between 2xl:py-5 2xl:pl-6 3xl:px-8"}
@@ -451,11 +465,13 @@ export default function Header({ lang }: { lang?: string }) {
             <Logo iconOnly={true} />
           </LanguageLink>
           {/* Mobile filter selector */}
-          <div className="sm:hidden">
-            <FilterSelector />
-          </div>
+          {!isCatchCompositionPage && (
+            <div className="sm:hidden">
+              <FilterSelector />
+            </div>
+          )}
         </div>
-        <HeaderMenuRight lang={lang} />
+        <HeaderMenuRight lang={lang} isCatchCompositionPage={isCatchCompositionPage} />
       </div>
     </StickyHeader>
   );

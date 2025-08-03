@@ -470,10 +470,11 @@ export default function ComparisonChart({
                      selectedMetric === "mean_cpua" ? t('text-unit-kg-km2-day') : 
                      selectedMetric === "mean_rpue" ? t('text-unit-kes-fisher-day') : 
                      selectedMetric === "mean_rpua" ? t('text-unit-kes-km2-day') : 
-                     selectedMetric === "mean_effort" ? t('text-unit-fishers-km2-day') : "",
+                     selectedMetric === "mean_effort" ? t('text-unit-fishers-km2-day') : 
+                     selectedMetricOption?.category === "catch" ? "Avg. catch (kg/fisher/month)" : "",
               angle: -90,
               position: 'insideLeft',
-              style: { textAnchor: 'middle', fontSize: 15, fill: '#666' }
+              style: { textAnchor: 'middle', fontSize: 12, fill: '#666' }
             }}
           />
           <Tooltip

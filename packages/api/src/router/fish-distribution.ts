@@ -15,7 +15,7 @@ export const fishDistributionRouter = createTRPCRouter({
           {
             $match: {
               landing_site: { $in: input.bmus },
-              total_catch_kg: { $ne: null },
+              mean_catch_kg: { $ne: null },
             },
           },
           {
@@ -24,6 +24,7 @@ export const fishDistributionRouter = createTRPCRouter({
               date: 1,
               landing_site: 1,
               fish_category: 1,
+              mean_catch_kg: 1,
               total_catch_kg: 1,
             },
           },
@@ -75,7 +76,7 @@ export const fishDistributionRouter = createTRPCRouter({
           {
             $group: {
               _id: "$fish_category",
-              total_catch: { $sum: "$total_catch_kg" },
+              total_catch: { $sum: "$mean_catch_kg" },
               bmus: { $addToSet: "$landing_site" },
             },
           },
@@ -106,15 +107,17 @@ export const fishDistributionRouter = createTRPCRouter({
     .input(z.object({ 
       bmus: z.string().array(),
       categories: z.string().array().optional(),
+      useTotal: z.boolean().optional().default(false), // true for total_catch_kg, false for mean_catch_kg
     }))
     .query(async ({ input }) => {
       try {
         await getDb();
         
         // Prepare match stage with optional category filtering
+        const fieldToUse = input.useTotal ? 'total_catch_kg' : 'mean_catch_kg';
         const matchStage: any = {
           landing_site: { $in: input.bmus },
-          total_catch_kg: { $ne: null },
+          [fieldToUse]: { $ne: null },
         };
         
         if (input.categories && input.categories.length > 0) {
@@ -132,7 +135,7 @@ export const fishDistributionRouter = createTRPCRouter({
                 category: "$fish_category",
                 landing_site: "$landing_site"
               },
-              total_catch: { $sum: "$total_catch_kg" },
+              total_catch: { $sum: `$${fieldToUse}` },
             },
           },
           {

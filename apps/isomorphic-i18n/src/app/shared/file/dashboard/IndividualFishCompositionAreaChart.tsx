@@ -173,7 +173,7 @@ export default function IndividualFishCompositionAreaChart({
           )}
           onClick={() => setChartMode('absolute')}
         >
-          {t('text-absolute-values')}
+                                  {t('text-average-values')}
         </button>
         <button
           className={cn(
@@ -188,7 +188,7 @@ export default function IndividualFishCompositionAreaChart({
         </button>
       </div>
       <div className="w-full h-[400px]">
-        <ResponsiveContainer width="100%" height="100%">
+                      <ResponsiveContainer width="100%" height="100%" minHeight={384}>
           <AreaChart
             data={areaChartData}
             margin={{ top: 20, right: 30, left: 60, bottom: 20 }}

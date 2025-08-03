@@ -126,7 +126,7 @@ export default function IndividualFishCompositionChart({
       </div>
       {/* Chart */}
       <div className="h-96 w-full pt-9">
-        <ResponsiveContainer width="100%" height="100%">
+        <ResponsiveContainer width="100%" height="100%" minHeight={384}>
           <BarChart
             data={chartData}
             margin={{ top: 10, right: 50, left: 30, bottom: 0 }}

@@ -7,6 +7,7 @@ export type TFishDistribution = {
   landing_site: string;
   date: Date;
   fish_category: string;
+  mean_catch_kg: number;
   total_catch_kg: number;
 };
 
@@ -18,6 +19,7 @@ const fishDistributionSchema = new Schema<TFishDistribution>(
     landing_site: { type: String, required: true },
     date: { type: Date, required: true },
     fish_category: { type: String, required: true },
+    mean_catch_kg: { type: Number, required: true, default: 0 },
     total_catch_kg: { type: Number, required: true, default: 0 },
   },
   {
