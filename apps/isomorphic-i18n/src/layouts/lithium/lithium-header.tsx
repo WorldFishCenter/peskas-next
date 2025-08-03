@@ -404,11 +404,19 @@ function HeaderMenuRight({ lang, isCatchCompositionPage }: { lang?: string; isCa
   return (
     <div className="ms-auto flex shrink-0 items-center gap-1 text-gray-700 xs:gap-1 md:gap-2 xl:gap-3">
       {/* <ReferenceBMU /> */}
-      {/* Only show HeaderMetricSelector if not IIA user and not on catch composition page */}
-      {!isIiaUser && !isCatchCompositionPage && <HeaderMetricSelector />}
+      {/* Only show HeaderMetricSelector if not IIA user and not on catch composition page - hidden on mobile */}
+      {!isIiaUser && !isCatchCompositionPage && (
+        <div className="hidden sm:block">
+          <HeaderMetricSelector />
+        </div>
+      )}
       <TimeRangeSelector lang={lang} />
-      {/* Only show FilterSelector if not IIA user and not on catch composition page */}
-      {!isIiaUser && !isCatchCompositionPage && <FilterSelector />}
+      {/* Only show FilterSelector if not IIA user and not on catch composition page - hidden on mobile */}
+      {!isIiaUser && !isCatchCompositionPage && (
+        <div className="hidden sm:block">
+          <FilterSelector />
+        </div>
+      )}
       <CompactLanguageSwitcher />
       {/* <ThemeToggle /> */}
       <ProfileMenu
