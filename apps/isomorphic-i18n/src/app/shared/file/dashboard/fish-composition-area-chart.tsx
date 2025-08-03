@@ -484,7 +484,7 @@ export default function FishCompositionAreaChart({
            <div className="p-4 md:p-6 h-full min-h-96">
              {/* Main Chart */}
              <div className="w-full h-[400px] min-h-96">
-               <ResponsiveContainer width="100%" height="100%">
+               <ResponsiveContainer width="100%" height="100%" minHeight={384}>
                  <AreaChart
                    data={useChartData}
                    margin={{ top: 20, right: 30, left: 60, bottom: 60 }}

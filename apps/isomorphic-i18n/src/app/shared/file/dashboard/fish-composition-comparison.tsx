@@ -463,6 +463,7 @@ const CustomYAxisTick = ({ x = 0, y = 0, payload = { value: '' }, userBMU }: any
               <ResponsiveContainer 
                 width={useChartData.length === 1 ? "75%" : "100%"} 
                 height="100%"
+                minHeight={384}
               >
                 <BarChart
                   data={useChartData}

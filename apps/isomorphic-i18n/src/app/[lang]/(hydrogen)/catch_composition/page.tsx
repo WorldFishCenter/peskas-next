@@ -44,6 +44,7 @@ export default function CatchCompositionPage({ params }: PageProps) {
   // Use the same state management pattern as the homepage FileDashboard
   const [selectedCategory, setSelectedCategory] = useState<string>("Octopus");
   const [activeTab, setActiveTab] = useState("trends");
+  const [isCollapseOpen, setIsCollapseOpen] = useState(false);
   const { t } = useTranslation("common");
   
   // Use the same permission patterns as homepage
@@ -187,7 +188,10 @@ export default function CatchCompositionPage({ params }: PageProps) {
               header={({ open, toggle }) => (
                 <button
                   type="button"
-                  onClick={toggle}
+                  onClick={() => {
+                    toggle();
+                    setIsCollapseOpen(!open);
+                  }}
                   className="flex w-full cursor-pointer items-center justify-between"
                 >
                   <div className="flex items-center gap-4">
@@ -212,8 +216,10 @@ export default function CatchCompositionPage({ params }: PageProps) {
                 </button>
               )}
             >
-              <div className="space-y-6 pt-6">
-                <div className="grid grid-cols-12 gap-5 xl:gap-6">
+              {/* Only render charts when collapse is open to prevent 0x0 dimension warnings */}
+              {isCollapseOpen && (
+                <div className="space-y-6 pt-6">
+                  <div className="grid grid-cols-12 gap-5 xl:gap-6">
                   <div className="col-span-12">
                     {isLoadingIndividualCharts || !allBmuIndividualData ? (
                       <div className="h-96 w-full flex items-center justify-center">
@@ -252,8 +258,9 @@ export default function CatchCompositionPage({ params }: PageProps) {
                       />
                     )}
                   </div>
+                  </div>
                 </div>
-              </div>
+              )}
             </Collapse>
           </div>
         )}
