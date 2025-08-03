@@ -775,7 +775,7 @@ export default function FishCompositionChart({
       switch(tab) {
         case 'trends':
         case 'standard':
-          return t("text-monthly-trends-over-time") + " (kg)";
+          return t("text-monthly-trends-over-time");
         case 'comparison':
         case 'recent':
           // Get time range label for dynamic baseline description
@@ -794,11 +794,11 @@ export default function FishCompositionChart({
             }
           };
           const timeRangeLabel = getTimeRangeLabel(selectedTimeRange);
-          return (t("text-performance-vs-selected-average", { timeRange: timeRangeLabel }) || `Performance vs ${timeRangeLabel} Average`) + " (kg)";
+          return (t("text-performance-vs-selected-average", { timeRange: timeRangeLabel }) || `Performance vs ${timeRangeLabel} Average`);
         case 'annual':
-          return t("text-yearly-summary") + " (kg)";
+          return t("text-yearly-summary");
         default:
-          return t("text-monthly-trends-over-time") + " (kg)";
+          return t("text-monthly-trends-over-time");
       }
     }
     
@@ -806,14 +806,14 @@ export default function FishCompositionChart({
     switch(tab) {
       case 'trends':
       case 'standard':
-        return t("text-monthly-trends-over-time") + " (kg)";
+        return t("text-monthly-trends-over-time");
       case 'comparison':
       case 'recent':
-        return t("text-performance-vs-average") + " (kg)";
+        return t("text-performance-vs-average");
       case 'annual':
-        return t("text-yearly-summary") + " (kg)";
+        return t("text-yearly-summary");
       default:
-        return t("text-monthly-trends-over-time") + " (kg)";
+        return t("text-monthly-trends-over-time");
     }
   };
   
@@ -823,7 +823,7 @@ export default function FishCompositionChart({
       switch(tab) {
         case 'trends':
         case 'standard':
-          return t("text-trends-explanation") || "Shows how fish catch weight changes month by month";
+          return t("text-trends-explanation") || "Shows how average fish catch weight changes month by month";
         case 'comparison':
         case 'recent':
           // Get time range label for dynamic baseline description
@@ -842,11 +842,11 @@ export default function FishCompositionChart({
             }
           };
           const timeRangeLabel = getTimeRangeLabel(selectedTimeRange);
-          return t("text-cia-selected-time-comparison-explanation", { timeRange: timeRangeLabel }) || `Shows fish catch weight compared to your ${timeRangeLabel} average`;
+          return t("text-cia-selected-time-comparison-explanation", { timeRange: timeRangeLabel }) || `Shows average fish catch weight compared to your ${timeRangeLabel} average`;
         case 'annual':
           return t("text-yearly-explanation") || "Shows average fish catch weight for each year";
         default:
-          return t("text-trends-explanation") || "Shows how fish catch weight changes month by month";
+          return t("text-trends-explanation") || "Shows how average fish catch weight changes month by month";
       }
     }
     
@@ -854,21 +854,21 @@ export default function FishCompositionChart({
     switch(tab) {
       case 'trends':
       case 'standard':
-        return t("text-trends-explanation") || "Shows how fish catch weight changes month by month";
+        return t("text-trends-explanation") || "Shows how average fish catch weight changes month by month";
       case 'comparison':
       case 'recent':
-        return t("text-comparison-explanation") || "Shows fish catch weight compared to the average";
+        return t("text-comparison-explanation") || "Shows average fish catch weight compared to the average";
       case 'annual':
         return t("text-yearly-explanation") || "Shows average fish catch weight for each year";
       default:
-        return t("text-trends-explanation") || "Shows how fish catch weight changes month by month";
+        return t("text-trends-explanation") || "Shows how average fish catch weight changes month by month";
     }
   };
 
   if (loading) return <LoadingState />;
   if (!useChartData || useChartData.length === 0) {
     return (
-      <WidgetCard title={t("text-fish-distribution") + " (kg)"}>
+      <WidgetCard title={t("text-fish-distribution")}>
         <div className="h-96 w-full flex items-center justify-center">
           <span className="text-sm text-gray-500">{t("text-no-data")}</span>
         </div>
@@ -888,7 +888,6 @@ export default function FishCompositionChart({
                 selectedCategoryOption={selectedCategoryOption}
                 fishCategories={FISH_CATEGORIES}
               />
-              <span className="ml-2 text-xs text-gray-500">(kg)</span>
             </div>
           </div>
           <div className="hidden sm:block text-base font-medium text-gray-800 mx-auto">

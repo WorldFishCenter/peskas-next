@@ -421,15 +421,15 @@ const CustomYAxisTick = ({ x = 0, y = 0, payload = { value: '' }, userBMU }: any
             <div className="text-base font-medium text-gray-800">
               <div className="text-center">
                 {hasRestrictedAccess && effectiveBMU
-                  ? t("text-fish-composition-for-bmu", { bmuName: effectiveBMU }) || `Fish Composition for ${effectiveBMU}`
-                  : t("text-fish-composition-by-bmu") || "Fish Composition by BMU"}
+                  ? t("text-fish-composition-for-bmu", { bmuName: effectiveBMU }) || `Average Fish Composition for ${effectiveBMU}`
+                  : t("text-fish-composition-by-bmu") || "Average Fish Composition by BMU"}
               </div>
               <div className="text-xs text-gray-500 text-center mt-1">
                 {isAdmin 
                   ? t("text-comparison-chart-description") || "Showing limited BMU selection. Use reference selector to highlight a BMU."
                   : hasRestrictedAccess
-                    ? t("text-cia-chart-description") || "Distribution of fish groups in your BMU"
-                    : t("text-comparison-chart-description") || "Compare fish group distribution across BMUs"}
+                    ? t("text-cia-chart-description") || "Average distribution of fish groups in your BMU"
+                    : t("text-comparison-chart-description") || "Compare average fish group distribution across BMUs"}
               </div>
             </div>
           </div>

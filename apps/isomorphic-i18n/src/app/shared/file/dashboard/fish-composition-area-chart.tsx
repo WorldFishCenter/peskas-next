@@ -100,6 +100,7 @@ export default function FishCompositionAreaChart({
   // Memoize the API query to prevent re-fetching on every render
   const fishDistributionQuery = api.fishDistribution.monthlyTrends.useQuery({ 
     bmus: queryBmus,
+    useTotal: true, // Use total_catch_kg for this component
   }, {
     retry: 3,
     retryDelay: 1000,
@@ -346,13 +347,13 @@ export default function FishCompositionAreaChart({
                  </div>
                );
              })}
-             {chartMode === 'absolute' && (
-               <div className="pt-1 mt-2 border-t border-gray-200">
-                 <span className="text-sm font-medium text-gray-900">
-                   Total: {payload.reduce((sum: number, entry: any) => sum + (entry.value || 0), 0).toLocaleString()} kg
-                 </span>
-               </div>
-             )}
+                         {chartMode === 'absolute' && (
+              <div className="pt-1 mt-2 border-t border-gray-200">
+                <span className="text-sm font-medium text-gray-900">
+                  Total: {payload.reduce((sum: number, entry: any) => sum + (entry.value || 0), 0).toLocaleString()} kg
+                </span>
+              </div>
+            )}
            </div>
          </div>
        );

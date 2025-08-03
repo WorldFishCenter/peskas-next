@@ -173,7 +173,7 @@ export default function IndividualFishCompositionAreaChart({
           )}
           onClick={() => setChartMode('absolute')}
         >
-          {t('text-absolute-values')}
+                                  {t('text-average-values')}
         </button>
         <button
           className={cn(
