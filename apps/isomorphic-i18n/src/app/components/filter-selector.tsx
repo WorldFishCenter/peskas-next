@@ -12,11 +12,11 @@ import isEmpty from 'lodash/isEmpty';
 import { useAtom, atom } from 'jotai';
 import { atomWithStorage } from 'jotai/utils';
 import Fuse from "fuse.js";
-import { MetricKey } from "@/app/shared/file/dashboard/charts/types";
+import { MetricKey } from "@/app/shared/analytics/charts/utils/chart-types";
 
 import type { TBmu } from "@repo/nosql/schema/bmu";
 import SimpleBar from '@ui/simplebar';
-import useUserPermissions from "../shared/file/dashboard/hooks/useUserPermissions";
+import { useUserPermissions } from "../shared/analytics/core/hooks/use-user-permissions";
 import { useTranslation } from "@/app/i18n/client";
 import cn from "@utils/class-names";
 

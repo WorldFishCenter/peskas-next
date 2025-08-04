@@ -12,9 +12,9 @@ import { PiTrendUp as TrendingUpIcon, PiTrendDown as TrendingDownIcon } from "re
 import { useTranslation } from "@/app/i18n/client";
 import { api } from "@/trpc/react";
 import { bmusAtom } from "@/app/components/filter-selector";
-import useUserPermissions from "./hooks/useUserPermissions";
+import { useUserPermissions } from "../../analytics/core/hooks/use-user-permissions";
 import { getClientLanguage } from "@/app/i18n/language-link";
-import { useIndividualFisherDataOnly } from "./hooks/useIndividualData";
+import { useIndividualFisherDataOnly } from "../../analytics/individual/hooks/use-individual-data";
 
 type FileStatsType = {
   className?: string;

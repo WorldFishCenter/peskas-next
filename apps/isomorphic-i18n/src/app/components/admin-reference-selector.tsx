@@ -5,7 +5,7 @@ import { useAtom } from "jotai";
 import { Popover, PopoverContent, PopoverTrigger } from "@ui/popover";
 import { Input } from "@ui/input";
 import SimpleBar from "@ui/simplebar";
-import { adminReferenceBmuAtom, useUserPermissions } from "../shared/file/dashboard/hooks/useUserPermissions";
+import { adminReferenceBmuAtom, useUserPermissions } from "../shared/analytics/core/hooks/use-user-permissions";
 import { api } from "@/trpc/react";
 import { useTranslation } from "@/app/i18n/client";
 import { ActionIcon } from "rizzui";

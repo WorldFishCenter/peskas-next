@@ -7,7 +7,7 @@ import ChatSolidIcon from "@components/icons/chat-solid";
 import LanguageSwitcher from "@/app/i18n/language-switcher";
 import { useTranslation } from "@/app/i18n/client";
 import AdminReferenceSelector from "@/app/components/admin-reference-selector";
-import { useUserPermissions } from "@/app/shared/file/dashboard/hooks/useUserPermissions";
+import { useUserPermissions } from "@/app/shared/analytics/core/hooks/use-user-permissions";
 
 export default function HeaderMenuRight({ lang }: { lang?: string }) {
   const { t } = useTranslation(lang!, 'common');
