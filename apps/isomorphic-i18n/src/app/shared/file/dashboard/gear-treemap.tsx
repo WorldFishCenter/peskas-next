@@ -6,7 +6,6 @@ import { useTranslation } from "@/app/i18n/client";
 import { api } from "@/trpc/react";
 import { bmusAtom, selectedMetricAtom, selectedTimeRangeAtom } from "@/app/components/filter-selector";
 import cn from "@utils/class-names";
-import { useTheme } from "next-themes";
 import MetricCard from "@components/cards/metric-card";
 import { getClientLanguage } from "@/app/i18n/language-link";
 import {
@@ -27,6 +26,8 @@ import { generateColor, updateBmuColorRegistry } from "./charts/utils";
 import useUserPermissions from "./hooks/useUserPermissions";
 // Import time range filtering utilities
 import { getTimeRangeStartDate } from "./utils/timeRangeFilter";
+// Import individual gear data hook
+import useIndividualGearData from "./hooks/useIndividualGearData";
 
 // Colors for gear types (consistent set)
 const GEAR_COLORS = [
@@ -293,34 +294,15 @@ export default function GearHeatmap({
   lang?: string;
   bmu?: string;
 }) {
-  const { theme } = useTheme();
   const [barData, setBarData] = useState<any[]>([]);
   const [rankingData, setRankingData] = useState<RankingDataItem[]>([]);
   const [comparisonData, setComparisonData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
-  // Use client language and handle language changes properly
+  // Use client language for translations
   const clientLang = getClientLanguage();
-  const { t, i18n } = useTranslation(clientLang, "common");
-  const [currentLang, setCurrentLang] = useState(clientLang);
-  
-  // Listen for language changes
-  useEffect(() => {
-    const handleLanguageChange = (event: CustomEvent) => {
-      setCurrentLang(event.detail.language);
-      
-      // Make sure i18n instance is updated
-      if (i18n.language !== event.detail.language) {
-        i18n.changeLanguage(event.detail.language);
-      }
-    };
-    
-    window.addEventListener('i18n-language-changed', handleLanguageChange as EventListener);
-    return () => {
-      window.removeEventListener('i18n-language-changed', handleLanguageChange as EventListener);
-    };
-  }, [i18n]);
+  const { t } = useTranslation(clientLang, "common");
   
   const [bmus] = useAtom(bmusAtom);
   const [selectedMetric] = useAtom(selectedMetricAtom);
@@ -344,7 +326,9 @@ export default function GearHeatmap({
     getAccessibleBMUs,
     hasRestrictedAccess,
     shouldShowAggregated,
-    canCompareWithOthers
+    canCompareWithOthers,
+    shouldShowIndividualData,
+    userFisherId
   } = useUserPermissions();
   
   // Determine which BMU to use for filtering - prefer passed prop, then user's BMU
@@ -373,6 +357,35 @@ export default function GearHeatmap({
     
     return params;
   }, [safeBmus, selectedTimeRange]); // Only recalculate when BMUs or time range actually changes
+
+  // Helper function to check if current metric is compatible with individual gear data
+  const isMetricCompatibleWithIndividualData = useMemo(() => {
+    // Individual fishers only have direct data for CPUE and RPUE (not area-based metrics)
+    const compatibleMetrics = ['mean_cpue', 'mean_rpue'];
+    return compatibleMetrics.includes(selectedMetric);
+  }, [selectedMetric]);
+
+  // Only fetch individual data when needed and compatible
+  const shouldFetchIndividualGearData = useMemo(() => 
+    shouldShowIndividualData && isMetricCompatibleWithIndividualData,
+    [shouldShowIndividualData, isMetricCompatibleWithIndividualData]
+  );
+
+  // Calculate date range for individual gear data
+  const dateRange = useMemo(() => {
+    const startDate = getTimeRangeStartDate(selectedTimeRange);
+    const endDate = new Date();
+    endDate.setHours(23, 59, 59, 999);
+    return { startDate, endDate };
+  }, [selectedTimeRange]);
+
+  // Fetch individual gear data for users who should see individual data
+  const {
+    processedGearData: individualGearData,
+    processedBmuAverageData: bmuGearAverageData,
+    isLoading: isLoadingIndividualGear,
+    hasError: hasIndividualGearError
+  } = useIndividualGearData(shouldFetchIndividualGearData ? dateRange : undefined);
   
   // Force refetch when bmus or time range changes by adding bmus and time range to the query key
   const { data: rawData, refetch, isLoading: isQueryLoading, isError: isQueryError, error: queryError } = api.gear.summaries.useQuery(
@@ -446,16 +459,31 @@ export default function GearHeatmap({
       return;
     }
     
-    // Reset data processing flag if metric or time range has changed
-    if (previousMetric.current !== selectedMetric || previousTimeRangeRef.current !== selectedTimeRange) {
+    // Reset data processing flag if metric, time range, or individual gear data has changed
+    const shouldResetProcessing = 
+      previousMetric.current !== selectedMetric || 
+      previousTimeRangeRef.current !== selectedTimeRange;
+    
+    // Also reset if we should fetch individual data but haven't processed it yet, or if individual data has changed
+    const individualDataChanged = shouldFetchIndividualGearData && (
+      (!dataProcessed.current) || 
+      (individualGearData && individualGearData.length > 0)
+    );
+    
+    if (shouldResetProcessing || individualDataChanged) {
       dataProcessed.current = false;
       previousMetric.current = selectedMetric;
       previousTimeRangeRef.current = selectedTimeRange;
       setLoading(true);
     }
     
+    // For individual data users, wait for individual data to load before processing
+    if (shouldFetchIndividualGearData && isLoadingIndividualGear) {
+      return;
+    }
+    
     // Skip processing if already done and no changes
-    if (dataProcessed.current) {
+    if (dataProcessed.current && !shouldResetProcessing && !individualDataChanged) {
       return;
     }
 
@@ -523,13 +551,18 @@ export default function GearHeatmap({
         }),
         {}
       );
-      setSiteColors(newSiteColors);
 
-      // Only set initial visibility state if it's empty or BMUs have changed
+        
+        setSiteColors(newSiteColors);
+
+      // Only set initial visibility state if it's empty or BMUs have changed, or if individual data has been added
       const currentVisibilityKeys = Object.keys(visibilityState);
+      const shouldShowIndividualInVisibility = shouldFetchIndividualGearData && userFisherId && individualGearData && individualGearData.length > 0;
+      
       const needsVisibilityUpdate = currentVisibilityKeys.length === 0 || 
         !uniqueBMUs.every(bmu => currentVisibilityKeys.includes(bmu)) ||
-        !currentVisibilityKeys.every(key => uniqueBMUs.includes(key));
+        !currentVisibilityKeys.every(key => uniqueBMUs.includes(key) || key === "individualFisher") ||
+        (shouldShowIndividualInVisibility && !currentVisibilityKeys.includes("individualFisher"));
         
       if (needsVisibilityUpdate) {
         const initialVisibility = uniqueBMUs.reduce<VisibilityState>(
@@ -543,6 +576,11 @@ export default function GearHeatmap({
           }),
           {}
         );
+        // Add individual fisher visibility if showing individual data and metric is compatible
+        if (shouldShowIndividualInVisibility) {
+          initialVisibility["individualFisher"] = { opacity: 1 }; // Always show individual fisher data
+        }
+        
         setVisibilityState(initialVisibility);
       }
 
@@ -592,6 +630,17 @@ export default function GearHeatmap({
             gearData[d.BMU] = Number(d[mappedMetricField].toFixed(2));
           }
         });
+
+        // Add individual fisher gear data if available and metric is compatible
+        if (shouldFetchIndividualGearData && individualGearData && userFisherId) {
+          const individualGearEntry = individualGearData.find(item => item.gear === gear);
+          if (individualGearEntry) {
+            const value = (individualGearEntry as any)[mappedMetricField];
+            if (value !== undefined && value !== null) {
+              gearData["individualFisher"] = Number(value.toFixed(2));
+            }
+          }
+        }
 
         return gearData;
       });
@@ -668,13 +717,26 @@ export default function GearHeatmap({
           // Difference (for sorting)
           const diff = bmuValue - otherBMUsAvg;
 
-          return {
+          const result: any = {
             name: capitalizeGearType((gear || '').replace(/_/g, " ")),
             [effectiveBMU]: Number(bmuValue.toFixed(2)),
             average: Number(otherBMUsAvg.toFixed(2)),
             diff: diff,
             color: GEAR_COLORS[index % GEAR_COLORS.length]
           };
+
+          // Add individual fisher data if available and metric is compatible
+          if (shouldFetchIndividualGearData && individualGearData && userFisherId) {
+            const individualGearEntry = individualGearData.find(item => item.gear === gear);
+            if (individualGearEntry) {
+              const value = (individualGearEntry as any)[mappedMetricField];
+              if (value !== undefined && value !== null) {
+                result["individualFisher"] = Number(value.toFixed(2));
+              }
+            }
+          }
+
+          return result;
         }).sort((a, b) => Math.abs(b.diff) - Math.abs(a.diff));
 
         setComparisonData(comparisonData);
@@ -689,7 +751,7 @@ export default function GearHeatmap({
     } finally {
       setLoading(false);
     }
-  }, [rawData, selectedMetric, selectedTimeRange, effectiveBMU, hasRestrictedAccess, isWbciaUser, safeBmus]);
+  }, [rawData, selectedMetric, selectedTimeRange, effectiveBMU, hasRestrictedAccess, isWbciaUser, safeBmus, individualGearData, shouldFetchIndividualGearData, userFisherId, isLoadingIndividualGear]);
 
   const getTabTitle = (tab: string): string => {
     // Custom titles for CIA users who can only see their own BMU
@@ -756,8 +818,22 @@ export default function GearHeatmap({
     }
   };
 
-  // Show loading state if query is loading or component is processing data
-  if (isQueryLoading || loading) return <LoadingState />;
+  // Show loading state if query is loading, component is processing data, or individual gear data is loading
+  const isWaitingForData = isQueryLoading || loading || (shouldFetchIndividualGearData && isLoadingIndividualGear);
+  if (isWaitingForData) return <LoadingState />;
+  
+  // Show error state for individual gear data errors (but allow showing BMU data if available)
+  if (shouldFetchIndividualGearData && hasIndividualGearError && !rawData) {
+    return (
+      <WidgetCard title="Gear Analysis" className={cn("h-full", className)}>
+        <div className="h-96 w-full flex items-center justify-center">
+          <span className="text-sm text-gray-500">
+            Error loading individual gear data. Please try again or contact support.
+          </span>
+        </div>
+      </WidgetCard>
+    );
+  }
   
   // Show error state for query errors
   if (isQueryError) {
@@ -903,46 +979,33 @@ export default function GearHeatmap({
                   wrapperStyle={{ position: 'relative', marginTop: '10px' }}
                 />
                 
-                {/* Reference lines for fisher revenue */}
-                {/* {selectedMetric === "mean_rpue" && (
-                  <>
-                    <ReferenceLine
-                      y={BASELINE_DATA.INCOME.POVERTY_LINE}
-                      stroke="#ef4444"
-                      strokeDasharray="3 3"
-                      strokeWidth={1.5}
-                      label={{ value: "Poverty Line", position: "left", fill: "#ef4444", fontSize: 11 }}
-                    />
-                    <ReferenceLine
-                      y={BASELINE_DATA.INCOME.NATIONAL_MINIMUM_WAGE}
-                      stroke="#f59e0b"
-                      strokeDasharray="3 3"
-                      strokeWidth={1.5}
-                      label={{ value: "Minimum Wage", position: "left", fill: "#f59e0b", fontSize: 11 }}
-                    />
-                    <ReferenceLine
-                      y={BASELINE_DATA.INCOME.LIVING_WAGE}
-                      stroke="#22c55e"
-                      strokeDasharray="3 3"
-                      strokeWidth={1.5}
-                      label={{ value: "Living Wage", position: "left", fill: "#22c55e", fontSize: 11 }}
-                    />
-                  </>
-                )} */}
-                
-                {uniqueBMUs.map((bmu) => (
+                {Object.entries(siteColors).map(([key, color]) => (
                   <Bar
-                    key={bmu}
-                    dataKey={bmu}
-                    name={bmu}
-                    fill={siteColors[bmu]}
-                    stroke={siteColors[bmu]}
-                    fillOpacity={(visibilityState[bmu]?.opacity || 1) * 0.85}
-                    strokeOpacity={visibilityState[bmu]?.opacity || 1}
+                    key={key}
+                    dataKey={key}
+                    name={key}
+                    fill={color}
+                    stroke={color}
+                    fillOpacity={(visibilityState[key]?.opacity || 1) * 0.85}
+                    strokeOpacity={visibilityState[key]?.opacity || 1}
                     radius={[4, 4, 0, 0]}
                     isAnimationActive={false}
                   />
                 ))}
+                
+                {/* Add individual fisher bar if data is available - after BMU bars for consistent legend order */}
+                {shouldFetchIndividualGearData && userFisherId && individualGearData && individualGearData.length > 0 && (
+                  <Bar
+                    dataKey="individualFisher"
+                    name={t("text-your-performance") || "Your Performance"}
+                    fill="#F79F79"
+                    stroke="#F79F79"
+                    fillOpacity={(visibilityState["individualFisher"]?.opacity || 1) * 0.85}
+                    strokeOpacity={visibilityState["individualFisher"]?.opacity || 1}
+                    radius={[4, 4, 0, 0]}
+                    isAnimationActive={false}
+                  />
+                )}
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -1000,33 +1063,6 @@ export default function GearHeatmap({
                   wrapperStyle={{ position: 'relative', marginTop: '10px' }}
                 />
                 
-                {/* Reference lines for fisher revenue
-                {selectedMetric === "mean_rpue" && (
-                  <>
-                    <ReferenceLine
-                      x={BASELINE_DATA.INCOME.POVERTY_LINE}
-                      stroke="#ef4444"
-                      strokeDasharray="3 3"
-                      strokeWidth={1.5}
-                      label={{ value: "Poverty Line", position: "left", fill: "#ef4444", fontSize: 11 }}
-                    />
-                    <ReferenceLine
-                      x={BASELINE_DATA.INCOME.NATIONAL_MINIMUM_WAGE}
-                      stroke="#f59e0b"
-                      strokeDasharray="3 3"
-                      strokeWidth={1.5}
-                      label={{ value: "Minimum Wage", position: "left", fill: "#f59e0b", fontSize: 11 }}
-                    />
-                    <ReferenceLine
-                      x={BASELINE_DATA.INCOME.LIVING_WAGE}
-                      stroke="#22c55e"
-                      strokeDasharray="3 3"
-                      strokeWidth={1.5}
-                      label={{ value: "Living Wage", position: "left", fill: "#22c55e", fontSize: 11 }}
-                    />
-                  </>
-                )} */}
-                
                 <Bar
                   dataKey={effectiveBMU}
                   name={effectiveBMU}
@@ -1041,6 +1077,16 @@ export default function GearHeatmap({
                   radius={[0, 4, 4, 0]}
                   isAnimationActive={false}
                 />
+                {/* Individual fisher bar if data is available and metric is compatible */}
+                {shouldFetchIndividualGearData && userFisherId && individualGearData && individualGearData.length > 0 && (
+                  <Bar
+                    dataKey="individualFisher"
+                    name={t("text-your-performance") || "Your Performance"}
+                    fill="#F79F79"
+                    radius={[0, 4, 4, 0]}
+                    isAnimationActive={false}
+                  />
+                )}
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -1071,17 +1117,3 @@ export default function GearHeatmap({
   );
 }
 
-const WidgetCardTitle = ({
-  title,
-  children,
-}: {
-  title: string;
-  children?: React.ReactNode;
-}) => {
-  return (
-    <div className="flex items-center justify-between">
-      <h2 className="text-base font-medium">{title}</h2>
-      {children}
-    </div>
-  );
-};
