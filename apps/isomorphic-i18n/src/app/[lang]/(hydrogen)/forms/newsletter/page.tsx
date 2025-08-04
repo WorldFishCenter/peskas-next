@@ -1,11 +1,4 @@
-import NewsLetterOne from '@/app/shared/newsletter/newsletter-1/newsletter';
-import NewsLetterTwo from '@/app/shared/newsletter/newsletter-2/newsletter';
-import NewsLetterThree from '@/app/shared/newsletter/newsletter-3/newsletter';
-import NewsLetterFour from '@/app/shared/newsletter/newsletter-4/newsletter';
-import NewsLetterFive from '@/app/shared/newsletter/newsletter-5/newsletter';
-import NewsLetterSix from '@/app/shared/newsletter/newsletter-6/newsletter';
-import NewsLetterSeven from '@/app/shared/newsletter/newsletter-7/newsletter';
-import NewsLetterEight from '@/app/shared/newsletter/newsletter-8/newsletter';
+// Newsletter components removed - not needed for fisheries data dashboard
 import PageHeader from '@/app/shared/page-header';
 import { routes } from '@/config/routes';
 import { metaObject } from '@/config/site.config';
@@ -37,15 +30,17 @@ export default function NewsletterFormPage({
   return (
     <>
       <PageHeader title={pageHeader.title} breadcrumb={pageHeader.breadcrumb} />
-      <div className="grid grid-cols-2 gap-6 @container">
-        <NewsLetterOne className="col-span-full @4xl:col-span-1" />
-        <NewsLetterTwo className="col-span-full @4xl:col-span-1" />
-        <NewsLetterThree className="col-span-full @4xl:col-span-1" />
-        <NewsLetterFour className="col-span-full @4xl:col-span-1" />
-        <NewsLetterFive className="col-span-full @[2160px]:col-span-1" />
-        <NewsLetterSix className="col-span-full @[2160px]:col-span-1" />
-        <NewsLetterSeven className="col-span-full @[2160px]:col-span-1" />
-        <NewsLetterEight className="col-span-full @[2160px]:col-span-1" />
+      <div className="grid grid-cols-1 gap-6 @container">
+        <div className="rounded-lg border border-gray-200 p-6">
+          <h3 className="text-lg font-semibold mb-4">Newsletter Components Removed</h3>
+          <p className="text-gray-600 mb-4">
+            Newsletter components have been removed as they are not relevant to the fisheries data dashboard.
+            This page is kept for navigation compatibility.
+          </p>
+          <p className="text-sm text-gray-500">
+            If you need newsletter functionality for the fisheries dashboard, please implement domain-specific components.
+          </p>
+        </div>
       </div>
     </>
   );

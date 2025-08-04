@@ -74,8 +74,13 @@ export default function RecentFiles({
           {recentFiles.map((item) => (
             <Card
               key={item.id}
-              item={item}
-              onDeleteItem={() => null}
+              item={{
+                id: item.id.toString(),
+                name: item.file.name,
+                size: item.size,
+                type: 'folder',
+                modified: `${item.totalFiles} files`
+              }}
               className="min-w-[273px] hover:-translate-y-0 hover:shadow-none"
             />
           ))}

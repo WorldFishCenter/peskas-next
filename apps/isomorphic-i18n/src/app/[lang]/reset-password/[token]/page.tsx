@@ -1,4 +1,4 @@
-import AuthWrapperFour from '@/app/shared/auth-layout/auth-wrapper-four';
+import AuthWrapperOne from '@/app/shared/auth-layout/auth-wrapper-one';
 import ResetPasswordForm from './reset-password-form';
 
 export default function ForgotPassword({
@@ -7,7 +7,7 @@ export default function ForgotPassword({
   params: { lang?: string, token: string };
 }) {
   return (
-    <AuthWrapperFour
+    <AuthWrapperOne
       title={
         <>
           Reset your password.
@@ -16,6 +16,6 @@ export default function ForgotPassword({
       lang={lang}
     >
       <ResetPasswordForm lang={lang} token={token}/>
-    </AuthWrapperFour>
+    </AuthWrapperOne>
   );
 }
