@@ -267,7 +267,7 @@ export default function IndividualFisherTrends({
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 rounded-full" style={{ backgroundColor: '#F79F79' }} />
                 <p className="text-sm font-medium">
-                  {t('text-your')} {metricLabel} <span className="font-semibold">{formatValue(yourValue)}</span>
+                  You {metricLabel} <span className="font-semibold">{formatValue(yourValue)}</span>
                 </p>
               </div>
             )}
@@ -276,7 +276,7 @@ export default function IndividualFisherTrends({
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 rounded-full" style={{ backgroundColor: '#8693AB' }} />
                 <p className="text-sm font-medium">
-                  {fisherBMU} {t('text-average')} {metricLabel} <span className="font-semibold">{formatValue(avgValue)}</span>
+                  Other {fisherBMU} fishers (mean) {metricLabel} <span className="font-semibold">{formatValue(avgValue)}</span>
                 </p>
               </div>
             )}
@@ -361,7 +361,7 @@ export default function IndividualFisherTrends({
             <Bar
               dataKey={selectedMetric === "mean_cpue" ? "cpue" : selectedMetric === "mean_rpue" ? "rpue" : selectedMetric === "mean_costs" ? "cost" : "profit"}
               fill="#F79F79"
-              name={t('text-your-performance')}
+              name="You"
               radius={[4, 4, 0, 0]}
               barSize={18}
             />
@@ -369,7 +369,7 @@ export default function IndividualFisherTrends({
             <Bar
               dataKey={selectedMetric === "mean_cpue" ? "avgCpue" : selectedMetric === "mean_rpue" ? "avgRpue" : selectedMetric === "mean_costs" ? "avgCost" : "avgProfit"}
               fill="#8693AB"
-              name={`${fisherBMU} ${t('text-average')}`}
+              name={`Other ${fisherBMU} fishers (mean)`}
               radius={[4, 4, 0, 0]}
               barSize={18}
             />

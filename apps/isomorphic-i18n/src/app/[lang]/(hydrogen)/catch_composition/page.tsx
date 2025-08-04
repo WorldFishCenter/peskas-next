@@ -127,8 +127,8 @@ export default function CatchCompositionPage({ params }: PageProps) {
                   selectedCategory={selectedCategory}
                   setSelectedCategory={setSelectedCategory}
                   bmuName={bmuName || ""}
-                  title={t("text-fish-composition-trends")}
-                  description={t("text-fish-composition-trends-desc")}
+                  title={t("text-your-monthly-trends")}
+                  description={t("text-compared-with-bmu-average", { bmu: bmuName })}
                 />
               )}
             </div>
@@ -235,8 +235,8 @@ export default function CatchCompositionPage({ params }: PageProps) {
                         selectedCategory={selectedCategory}
                         setSelectedCategory={setSelectedCategory}
                         bmuName={bmuName || ""}
-                        title={t("text-fish-composition-trends")}
-                        description={t("text-fish-composition-trends-desc")}
+                        title={t("text-your-monthly-trends")}
+                        description={t("text-compared-with-bmu-average", { bmu: bmuName })}
                       />
                     )}
                   </div>
