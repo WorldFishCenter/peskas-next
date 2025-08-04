@@ -344,14 +344,18 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
           const individualFisherData = individualFisherChartData[metric.field];
           const lastIndividualPoint = individualFisherData?.[individualFisherData.length - 1];
           
+          // Helper function to check if a value should be treated as "no data"
+          const isNoData = (value: any) => {
+            return value === null || value === undefined || value === 0 || (typeof value === 'number' && Math.abs(value) < 0.01);
+          };
+          
           setComparisonValues(prev => ({
             ...prev,
             [metric.id]: {
-              reference: lastPoint.sale === null || lastPoint.sale === undefined ? null : Math.round(lastPoint.sale),
+              reference: isNoData(lastPoint.sale) ? null : Math.round(lastPoint.sale || 0),
               others: canCompareWithOthers && lastOthersPoint ? 
-                (lastOthersPoint.sale === null || lastOthersPoint.sale === undefined ? 
-                null : Math.round(lastOthersPoint.sale)) : undefined,
-              individualFisher: lastIndividualPoint ? Math.round(lastIndividualPoint.value) : undefined,
+                (isNoData(lastOthersPoint.sale) ? null : Math.round(lastOthersPoint.sale || 0)) : undefined,
+              individualFisher: lastIndividualPoint && !isNoData(lastIndividualPoint.value) ? Math.round(lastIndividualPoint.value) : null,
               date: getMonthName(lastPoint.day)
             }
           }));
@@ -365,22 +369,39 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
             new Date(p.date).toLocaleString('default', { month: 'short' }) === getMonthName(day)
           );
           
-          return {
+          // Only include individual fisher data if it exists for this metric
+          const hasIndividualFisherData = (metric.id === 'catch-rate' || metric.id === 'fisher-revenue' || metric.id === 'costs' || metric.id === 'profit');
+          
+          // Helper function to check if a value should be treated as "no data"
+          const isNoData = (value: any) => {
+            return value === null || value === undefined || value === 0 || (typeof value === 'number' && Math.abs(value) < 0.01);
+          };
+          
+          const baseData = {
             day,
-            reference: point.sale === null || point.sale === undefined ? null : point.sale,
+            reference: isNoData(point.sale) ? null : point.sale,
             others: canCompareWithOthers && otherBmusMetric?.trend?.[index] ? 
-              (otherBmusMetric.trend[index].sale === null || otherBmusMetric.trend[index].sale === undefined ? 
-                null : otherBmusMetric.trend[index].sale) : null,
-            individualFisher: individualPoint?.value || null,
+              (isNoData(otherBmusMetric.trend[index].sale) ? null : otherBmusMetric.trend[index].sale) : null,
             index,
             metricId: metric.id
           };
+          
+          // Only add individualFisher field if data exists for this metric
+          if (hasIndividualFisherData && individualPoint?.value && !isNoData(individualPoint.value)) {
+            return {
+              ...baseData,
+              individualFisher: individualPoint.value
+            };
+          }
+          
+          return baseData;
         });
 
         return {
           id: metric.id,
           title: metric.title,
-          metric: Math.round(referenceMetric.current || 0).toLocaleString(),
+          metric: (referenceMetric.current === null || referenceMetric.current === undefined || referenceMetric.current === 0) ? 
+            "N/A" : Math.round(referenceMetric.current).toLocaleString(),
           unit: metric.unit,
           chart: chartData
         };
@@ -430,9 +451,12 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
     setComparisonValues(prev => ({
       ...prev,
       [metricId]: {
-        reference: Math.round(entry.payload.reference),
-        others: canCompareWithOthers ? Math.round(entry.payload.others || 0) : undefined,
-        individualFisher: entry.payload.individualFisher ? Math.round(entry.payload.individualFisher) : undefined,
+        reference: entry.payload.reference !== null && entry.payload.reference !== undefined ? 
+          Math.round(entry.payload.reference) : null,
+        others: canCompareWithOthers && entry.payload.others !== null && entry.payload.others !== undefined ? 
+          Math.round(entry.payload.others) : undefined,
+        individualFisher: entry.payload.individualFisher !== null && entry.payload.individualFisher !== undefined ? 
+          Math.round(entry.payload.individualFisher) : null,
         date: getMonthName(day)
       }
     }));
@@ -476,9 +500,12 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
         setComparisonValues(prev => ({
           ...prev,
           [metricId]: {
-            reference: Math.round(entry.payload.reference),
-            others: canCompareWithOthers ? Math.round(entry.payload.others || 0) : undefined,
-            individualFisher: entry.payload.individualFisher ? Math.round(entry.payload.individualFisher) : undefined,
+            reference: entry.payload.reference !== null && entry.payload.reference !== undefined ? 
+              Math.round(entry.payload.reference) : null,
+            others: canCompareWithOthers && entry.payload.others !== null && entry.payload.others !== undefined ? 
+              Math.round(entry.payload.others) : undefined,
+            individualFisher: entry.payload.individualFisher !== null && entry.payload.individualFisher !== undefined ? 
+              Math.round(entry.payload.individualFisher) : null,
             date: getMonthName(entry.payload.day)
           }
         }));
@@ -636,73 +663,83 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
             </div>
           </div>
           
-          <div className="h-32 w-full bg-gray-50/50 transition-colors duration-200 hover:bg-gray-100/60">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart 
-                data={stat.chart}
-                margin={{ top: 15, right: 8, bottom: 25, left: 30 }}
-                barGap={1}
-                onMouseMove={handleMouseMove}
-                onClick={handleBarClick}
-                className="[&_.recharts-cartesian-grid]:hidden"
-              >
-                <XAxis dataKey="day" hide={true} />
-                <YAxis 
-                  hide={false}
-                  domain={[(dataMin: number) => 0, (dataMax: number) => dataMax * 1.1]}
-                  tick={{ fontSize: 11, fill: '#64748b' }}
-                  tickLine={{ stroke: '#cbd5e1' }}
-                  axisLine={{ stroke: '#cbd5e1', strokeWidth: 1 }}
-                  width={40}
-                  tickCount={4}
-                  tickFormatter={(value) => {
-                    if (value >= 1000) {
-                      return `${(value / 1000).toFixed(0)}k`;
-                    }
-                    return value.toFixed(0);
-                  }}
-                />
-                <Tooltip 
-                  content={<></>}
-                  isAnimationActive={false}
-                />
-                <Bar
-                  dataKey="reference"
-                  fill="#fc3468"
-                  name={displayName}
-                  radius={[2, 2, 0, 0]}
-                  maxBarSize={8}
-                  minPointSize={3}
-                  activeBar={{ fill: '#d81b4a', stroke: '#d81b4a', strokeWidth: 1 }}
-                  shape={(props: any) => CustomBar(props, false)}
-                />
-                {canCompareWithOthers && effectiveBMU && (
+          {/* Only show chart if there's meaningful data */}
+          {stat.metric !== "N/A" && stat.chart.some(point => 
+            point.reference !== null || point.others !== null || point.individualFisher !== null
+          ) ? (
+            <div className="h-32 w-full bg-gray-50/50 transition-colors duration-200 hover:bg-gray-100/60">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart 
+                  data={stat.chart}
+                  margin={{ top: 15, right: 8, bottom: 25, left: 30 }}
+                  barGap={1}
+                  onMouseMove={handleMouseMove}
+                  onClick={handleBarClick}
+                  className="[&_.recharts-cartesian-grid]:hidden"
+                >
+                  <XAxis dataKey="day" hide={true} />
+                  <YAxis 
+                    hide={false}
+                    domain={[(dataMin: number) => 0, (dataMax: number) => dataMax * 1.1]}
+                    tick={{ fontSize: 11, fill: '#64748b' }}
+                    tickLine={{ stroke: '#cbd5e1' }}
+                    axisLine={{ stroke: '#cbd5e1', strokeWidth: 1 }}
+                    width={40}
+                    tickCount={4}
+                    tickFormatter={(value) => {
+                      if (value >= 1000) {
+                        return `${(value / 1000).toFixed(0)}k`;
+                      }
+                      return value.toFixed(0);
+                    }}
+                  />
+                  <Tooltip 
+                    content={<></>}
+                    isAnimationActive={false}
+                  />
                   <Bar
-                    dataKey="others"
+                    dataKey="reference"
                     fill="#fc3468"
-                    name="Other BMUs"
+                    name={displayName}
                     radius={[2, 2, 0, 0]}
                     maxBarSize={8}
                     minPointSize={3}
                     activeBar={{ fill: '#d81b4a', stroke: '#d81b4a', strokeWidth: 1 }}
                     shape={(props: any) => CustomBar(props, false)}
                   />
-                )}
-                {shouldShowIndividualData && userFisherId && (stat.id === 'catch-rate' || stat.id === 'fisher-revenue' || stat.id === 'costs' || stat.id === 'profit') && (
-                  <Bar
-                    dataKey="individualFisher"
-                    fill="#F79F79"
-                    name={t("text-your-performance") || "Your Performance"}
-                    radius={[2, 2, 0, 0]}
-                    maxBarSize={8}
-                    minPointSize={3}
-                    activeBar={{ fill: '#e67e22', stroke: '#e67e22', strokeWidth: 1 }}
-                    shape={(props: any) => CustomBar(props, true)}
-                  />
-                )}
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
+                  {canCompareWithOthers && effectiveBMU && (
+                    <Bar
+                      dataKey="others"
+                      fill="#fc3468"
+                      name="Other BMUs"
+                      radius={[2, 2, 0, 0]}
+                      maxBarSize={8}
+                      minPointSize={3}
+                      activeBar={{ fill: '#d81b4a', stroke: '#d81b4a', strokeWidth: 1 }}
+                      shape={(props: any) => CustomBar(props, false)}
+                    />
+                  )}
+                  {shouldShowIndividualData && userFisherId && (stat.id === 'catch-rate' || stat.id === 'fisher-revenue' || stat.id === 'costs' || stat.id === 'profit') && stat.chart.some(point => point.individualFisher !== undefined) && (
+                    <Bar
+                      dataKey="individualFisher"
+                      fill="#F79F79"
+                      name={t("text-your-performance") || "Your Performance"}
+                      radius={[2, 2, 0, 0]}
+                      maxBarSize={8}
+                      minPointSize={3}
+                      activeBar={{ fill: '#e67e22', stroke: '#e67e22', strokeWidth: 1 }}
+                      shape={(props: any) => CustomBar(props, true)}
+                    />
+                  )}
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          ) : (
+            /* Show a placeholder when no chart data */
+            <div className="h-32 w-full bg-gray-50/50 flex items-center justify-center">
+              <Text className="text-xs text-gray-400">No data available</Text>
+            </div>
+          )}
         </MetricCard>
         );
       })}
