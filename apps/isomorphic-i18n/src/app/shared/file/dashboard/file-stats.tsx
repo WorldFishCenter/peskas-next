@@ -243,36 +243,21 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
       if (!monthlyAggregates[monthKey]) {
         const monthStart = new Date(date.getFullYear(), date.getMonth(), 1);
         monthlyAggregates[monthKey] = {
-          effort: { sum: 0, count: 0, date: monthStart.getTime() },
           cpue: { sum: 0, count: 0, date: monthStart.getTime() },
-          cpua: { sum: 0, count: 0, date: monthStart.getTime() },
           rpue: { sum: 0, count: 0, date: monthStart.getTime() },
-          rpua: { sum: 0, count: 0, date: monthStart.getTime() },
           cost: { sum: 0, count: 0, date: monthStart.getTime() },
           profit: { sum: 0, count: 0, date: monthStart.getTime() }
         };
       }
       
-      // Map individual fisher metrics to BMU metrics
-      if (record.mean_effort != null) {
-        monthlyAggregates[monthKey].effort.sum += record.mean_effort;
-        monthlyAggregates[monthKey].effort.count++;
-      }
+      // Map individual fisher metrics to BMU metrics - only include metrics that exist for individual fishers
       if (record.mean_cpue != null) {
         monthlyAggregates[monthKey].cpue.sum += record.mean_cpue;
         monthlyAggregates[monthKey].cpue.count++;
       }
-      if (record.mean_cpue != null) { // Use CPUE as approximation for CPUA
-        monthlyAggregates[monthKey].cpua.sum += record.mean_cpue;
-        monthlyAggregates[monthKey].cpua.count++;
-      }
       if (record.mean_rpue != null) {
         monthlyAggregates[monthKey].rpue.sum += record.mean_rpue;
         monthlyAggregates[monthKey].rpue.count++;
-      }
-      if (record.mean_rpue != null) { // Use RPUE as approximation for RPUA
-        monthlyAggregates[monthKey].rpua.sum += record.mean_rpue;
-        monthlyAggregates[monthKey].rpua.count++;
       }
       if (record.mean_cost != null) {
         monthlyAggregates[monthKey].cost.sum += record.mean_cost;
@@ -527,6 +512,43 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
     }
   }, [canCompareWithOthers, statsData]);
 
+  // Custom bar shape that filters out non-DOM props
+  const CustomBar = (props: any, isIndividualFisher?: boolean) => {
+    // Extract only the DOM-safe props that rect elements can accept
+    const {
+      x,
+      y,
+      width,
+      height,
+      payload,
+      // Remove all non-DOM props that Recharts might pass
+      dataKey,
+      index,
+      value,
+      tooltipPayload,
+      onClick,
+      onMouseEnter,
+      onMouseLeave,
+      ...otherProps // This should now be safe for DOM
+    } = props;
+    
+    // Simple color logic: BMU data is red/pink, individual fisher data is orange
+    const fill = isIndividualFisher ? "#F79F79" : "#fc3468";
+    
+    return (
+      <rect 
+        x={x}
+        y={y}
+        width={width}
+        height={height}
+        fill={fill}
+        onClick={onClick}
+        onMouseEnter={onMouseEnter}
+        onMouseLeave={onMouseLeave}
+      />
+    );
+  };
+
   if (loading) return <LoadingState />;
   if (error) return <div className="min-w-[292px] w-full p-4 text-center text-gray-500">{error}</div>;
   if (!statsData.length) return <div className="min-w-[292px] w-full p-4 text-center text-gray-500">No data available</div>;
@@ -601,11 +623,11 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
               </div>
               {canCompareWithOthers && effectiveBMU && (
                 <div className="flex items-center gap-1">
-                  <div className="w-1.5 h-1.5 rounded-full bg-[rgba(178,216,216,0.75)]" />
+                  <div className="w-1.5 h-1.5 rounded-full bg-[#fc3468]" />
                   <span>Other BMUs</span>
                 </div>
               )}
-              {shouldShowIndividualData && userFisherId && (
+              {shouldShowIndividualData && userFisherId && (stat.id === 'catch-rate' || stat.id === 'fisher-revenue' || stat.id === 'costs' || stat.id === 'profit') && (
                 <div className="flex items-center gap-1">
                   <div className="w-1.5 h-1.5 rounded-full bg-[#F79F79]" />
                   <span>{t('text-your-performance') || 'Your Performance'}</span>
@@ -652,19 +674,21 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
                   maxBarSize={8}
                   minPointSize={3}
                   activeBar={{ fill: '#d81b4a', stroke: '#d81b4a', strokeWidth: 1 }}
+                  shape={(props: any) => CustomBar(props, false)}
                 />
                 {canCompareWithOthers && effectiveBMU && (
                   <Bar
                     dataKey="others"
-                    fill="rgba(178, 216, 216, 0.75)"
+                    fill="#fc3468"
                     name="Other BMUs"
                     radius={[2, 2, 0, 0]}
                     maxBarSize={8}
                     minPointSize={3}
-                    activeBar={{ fill: 'rgba(128, 188, 188, 1)', stroke: 'rgba(128, 188, 188, 1)', strokeWidth: 1 }}
+                    activeBar={{ fill: '#d81b4a', stroke: '#d81b4a', strokeWidth: 1 }}
+                    shape={(props: any) => CustomBar(props, false)}
                   />
                 )}
-                {shouldShowIndividualData && userFisherId && (
+                {shouldShowIndividualData && userFisherId && (stat.id === 'catch-rate' || stat.id === 'fisher-revenue' || stat.id === 'costs' || stat.id === 'profit') && (
                   <Bar
                     dataKey="individualFisher"
                     fill="#F79F79"
@@ -673,6 +697,7 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
                     maxBarSize={8}
                     minPointSize={3}
                     activeBar={{ fill: '#e67e22', stroke: '#e67e22', strokeWidth: 1 }}
+                    shape={(props: any) => CustomBar(props, true)}
                   />
                 )}
               </BarChart>
