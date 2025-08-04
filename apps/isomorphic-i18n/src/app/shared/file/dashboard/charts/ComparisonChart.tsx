@@ -80,6 +80,7 @@ export default function ComparisonChart({
       const ciaMsyExplanation = t("text-cia-msy-comparison-explanation");
       const performanceVsMinWage = t("text-performance-vs-minimum-wage");
       const ciaMinWageExplanation = t("text-cia-minimum-wage-comparison-explanation");
+
       const timeRangeLabel = getTimeRangeLabel(selectedTimeRange);
       const performanceVsSelected = t("text-performance-vs-selected-average", { timeRange: timeRangeLabel });
       const ciaSelectedExplanation = t("text-cia-selected-time-comparison-explanation", { timeRange: timeRangeLabel });
@@ -91,6 +92,7 @@ export default function ComparisonChart({
         "text-cia-msy-comparison-explanation": ciaMsyExplanation,
         "text-performance-vs-minimum-wage": performanceVsMinWage,
         "text-cia-minimum-wage-comparison-explanation": ciaMinWageExplanation,
+
         "text-performance-vs-selected-average": performanceVsSelected,
         "text-cia-selected-time-comparison-explanation": ciaSelectedExplanation,
       };
@@ -115,6 +117,7 @@ export default function ComparisonChart({
     
     // Import required utilities
     const { filterDataByTimeRange } = require('../utils/timeRangeFilter');
+    const { BASELINE_DATA, isIslandSite } = require('./siteConfig');
     
     // Apply time range filtering
     const filteredIndividualData = filterDataByTimeRange(individualFisherData, selectedTimeRange);
@@ -151,6 +154,10 @@ export default function ComparisonChart({
       } else if (selectedMetric === "mean_rpua" && record.mean_rpue != null) {
         // For BMU area revenue, use individual fisher RPUE as approximation
         value = record.mean_rpue;
+      } else if (selectedMetric === "mean_cost" && record.mean_cost != null) {
+        value = record.mean_cost;
+      } else if (selectedMetric === "mean_profit" && record.mean_profit != null) {
+        value = record.mean_profit;
       }
       
       if (value !== null) {
@@ -168,29 +175,47 @@ export default function ComparisonChart({
       }))
       .sort((a, b) => a.date - b.date);
 
-    // Calculate baseline for comparison
-    let baseline: number;
+    // Check if we're in baseline comparison mode (CIA or WBCIA users viewing baseline data)
+    const isBaselineComparisonMode = isCiaHistoricalMode || 
+      (selectedMetric === 'mean_cpue' || selectedMetric === 'mean_cpua' || selectedMetric === 'mean_rpue' || selectedMetric === 'mean_profit' || selectedMetric === 'mean_cost');
     
-    if (selectedMetric === 'mean_cpua') {
-      // Use MSY baseline for catch density
-      baseline = BASELINE_DATA.CPUA.MSY.FRINGING;
-    } else if (selectedMetric === 'mean_rpue') {
-      // Use minimum wage baseline for fisher revenue
-      baseline = BASELINE_DATA.INCOME.NATIONAL_MINIMUM_WAGE;
-    } else {
-      // For other metrics, compare against individual fisher's own average
-      if (absoluteValues.length === 0) return [];
+    
+    // For baseline comparison mode, calculate difference from appropriate baseline
+    if (isBaselineComparisonMode) {
+      let baseline: number;
       
-      const sum = absoluteValues.reduce((acc, item) => acc + item.absoluteValue, 0);
-      baseline = sum / absoluteValues.length;
+      if (selectedMetric === 'mean_cpue' || selectedMetric === 'mean_cpua' || selectedMetric === 'mean_profit' || selectedMetric === 'mean_cost') {
+        // For catch metrics, profit, and costs, use individual fisher's own average as baseline
+        const individualFisherSum = absoluteValues.reduce((sum, item) => sum + item.absoluteValue, 0);
+        baseline = individualFisherSum / absoluteValues.length;
+      } else if (selectedMetric === 'mean_rpue') {
+        // For fisher revenue, use minimum wage baseline (same as BMU data)
+        baseline = BASELINE_DATA.INCOME.NATIONAL_MINIMUM_WAGE;
+      } else {
+        // For other metrics, use the absolute value itself (no baseline comparison)
+        return absoluteValues.map(item => ({
+          date: item.date,
+          individualFisher: parseFloat(item.absoluteValue.toFixed(2))
+        }));
+      }
+      
+      // Calculate difference from appropriate baseline
+      return absoluteValues.map(item => ({
+        date: item.date,
+        individualFisher: parseFloat((item.absoluteValue - baseline).toFixed(2))
+      }));
     }
-
-    // Convert to relative values (difference from baseline)
+    
+    // For non-baseline comparison mode, return absolute values
     return absoluteValues.map(item => ({
       date: item.date,
-      individualFisher: parseFloat((item.absoluteValue - baseline).toFixed(2))
+      individualFisher: parseFloat(item.absoluteValue.toFixed(2))
     }));
-  }, [individualFisherData, userFisherId, selectedMetric, selectedTimeRange]);
+  }, [individualFisherData, userFisherId, selectedMetric, selectedTimeRange, isCiaHistoricalMode]);
+  
+  // Check for data format - moved before mergedChartData to avoid linter error
+  const hasNewDataFormat = chartData.some(point => 'difference' in point);
+  
   
   // Merge BMU data with individual fisher data
   const mergedChartData = useMemo(() => {
@@ -201,12 +226,31 @@ export default function ComparisonChart({
       individualFisherChartData.map(item => [item.date, item.individualFisher])
     );
     
+    // Check if we're in baseline comparison mode (CIA or WBCIA users viewing baseline data)
+    const isBaselineComparisonMode = isCiaHistoricalMode || 
+      (selectedMetric === 'mean_cpue' || selectedMetric === 'mean_cpua' || selectedMetric === 'mean_rpue' || selectedMetric === 'mean_profit' || selectedMetric === 'mean_cost');
+    
+    
     // Merge with BMU data
-    return chartData.map(bmuPoint => ({
-      ...bmuPoint,
-      individualFisher: fisherDataMap.get(bmuPoint.date) || undefined
-    }));
-  }, [chartData, individualFisherChartData]);
+    return chartData.map(bmuPoint => {
+      const fisherValue = fisherDataMap.get(bmuPoint.date);
+      
+      // For baseline comparison modes, always use a separate dataKey for individual fisher data
+      // This applies to both CIA (difference format) and WBCIA (BMU key format) baseline comparisons
+      if (isBaselineComparisonMode) {
+        return {
+          ...bmuPoint,
+          individualFisher: fisherValue // Keep using individualFisher for consistency
+        };
+      }
+      
+      // For non-baseline comparison mode, use the standard individualFisher key
+      return {
+        ...bmuPoint,
+        individualFisher: fisherValue
+      };
+    });
+  }, [chartData, individualFisherChartData, isCiaHistoricalMode, hasNewDataFormat, selectedMetric]);
   
   // Format date for X-axis ticks
   const formatDate = (timestamp: number) => {
@@ -306,39 +350,31 @@ export default function ComparisonChart({
   const renderCustomLegend = (props: any) => {
     if (!CustomLegend) return null;
     
-    // For CIA historical mode with difference data, we need to customize the legend
+    // For CIA historical mode, use simple legend with BMU and individual fisher
     if (isCiaHistoricalMode) {
       // For single BMU comparison (CIA users with 'difference' data)
       if (hasNewDataFormat) {
-        // Determine legend labels based on metric
-        let aboveLabel = t('text-above-average') || 'Above Average';
-        let belowLabel = t('text-below-average') || 'Below Average';
+        // Create simple payload with BMU and individual fisher
+        const customPayload = [
+          {
+            value: historicalBmuName || 'BMU',
+            type: 'rect',
+            color: '#fc3468', // BMU color
+            id: 'bmu-data'
+          }
+        ];
         
-        if (selectedMetric === 'mean_cpua') {
-          aboveLabel = t('text-above-msy') || 'Above MSY';
-          belowLabel = t('text-below-msy') || 'Below MSY';
-        } else if (selectedMetric === 'mean_rpue') {
-          aboveLabel = t('text-above-minimum-wage') || 'Above Minimum Wage';
-          belowLabel = t('text-below-minimum-wage') || 'Below Minimum Wage';
+        // Add individual fisher legend if data is available
+        if (individualFisherData && userFisherId) {
+          customPayload.push({
+            value: t("text-your-performance") || "Your Performance",
+            type: 'rect',
+            color: '#F79F79',
+            id: 'individual-fisher'
+          });
         }
-        
-      // Override the payload to show both positive and negative values
-      const customPayload = [
-        {
-            value: aboveLabel,
-          type: 'rect',
-          color: '#16a34a',
-            id: 'above-baseline'
-        },
-        {
-            value: belowLabel,
-          type: 'rect',
-          color: '#ef4444',
-            id: 'below-baseline'
-        }
-      ];
       
-      return <CustomLegend {...props} payload={customPayload} />;
+        return <CustomLegend {...props} payload={customPayload} />;
       }
       
       // For WBCIA/admin users with multiple BMUs, use default legend to show BMU names
@@ -351,15 +387,12 @@ export default function ComparisonChart({
 
   if (!chartData.length) return null;
 
-  // Check for data format
-  const hasNewDataFormat = chartData.some(point => 'difference' in point);
-
   // Validate if we have any CIA data to display
   const hasValidCiaData = () => {
     if (!isCiaHistoricalMode) return true;
     
     // For WBCIA users with baseline comparisons
-    if (selectedMetric === 'mean_cpua' || selectedMetric === 'mean_rpue') {
+    if (selectedMetric === 'mean_cpua' || selectedMetric === 'mean_rpue' || selectedMetric === 'mean_profit' || selectedMetric === 'mean_cost') {
       // Check if we have any BMU data (excluding date)
       return chartData.some(point => {
         const keys = Object.keys(point).filter(k => k !== 'date');
@@ -607,21 +640,13 @@ export default function ComparisonChart({
           {isCiaHistoricalMode && hasNewDataFormat ? (
             <Bar
               dataKey="difference"
-              name={t('text-difference-from-average') || 'Difference from Average'}
-              fill="#16a34a" // Default color
+              name={historicalBmuName || 'BMU'}
+              fill="#fc3468" // BMU color
               fillOpacity={0.85}
               strokeOpacity={1}
               radius={[4, 4, 0, 0]}
               isAnimationActive={false}
-            >
-              {chartData.map((entry, index) => (
-                <Cell
-                  key={`cell-${index}`}
-                  fill={(entry.difference !== undefined && entry.difference > 0) ? '#16a34a' : '#ef4444'} // Green for positive, red for negative
-                  fillOpacity={0.85}
-                />
-              ))}
-            </Bar>
+            />
           ) : (
             // Regular rendering for non-CIA mode
             renderBars()
@@ -637,7 +662,6 @@ export default function ComparisonChart({
               fillOpacity={(visibilityState["individualFisher"]?.opacity || 1) * 0.85}
               strokeOpacity={visibilityState["individualFisher"]?.opacity || 1}
               radius={[4, 4, 0, 0]}
-              stackId="individualFisher"
               isAnimationActive={false}
             />
           )}

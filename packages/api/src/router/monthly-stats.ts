@@ -35,6 +35,8 @@ export const monthlyStatsRouter = createTRPCRouter({
             mean_cpua: { $avg: "$mean_cpua" },
             mean_rpue: { $avg: "$mean_rpue" },
             mean_rpua: { $avg: "$mean_rpua" },
+            mean_cost: { $avg: "$mean_cost" },
+            mean_profit: { $avg: "$mean_profit" },
             date: { $first: "$date" }
           }
         },
@@ -90,6 +92,22 @@ export const monthlyStatsRouter = createTRPCRouter({
           trend: data.slice(0, 3).map(d => ({
             day: new Date(d.date).toLocaleString('default', { month: 'short' }),
             sale: d.mean_rpua
+          })).reverse()
+        },
+        cost: {
+          current: data[0].mean_cost,
+          percentage: calculatePercentageChange(data[0].mean_cost, data[1]?.mean_cost),
+          trend: data.slice(0, 3).map(d => ({
+            day: new Date(d.date).toLocaleString('default', { month: 'short' }),
+            sale: d.mean_cost
+          })).reverse()
+        },
+        profit: {
+          current: data[0].mean_profit,
+          percentage: calculatePercentageChange(data[0].mean_profit, data[1]?.mean_profit),
+          trend: data.slice(0, 3).map(d => ({
+            day: new Date(d.date).toLocaleString('default', { month: 'short' }),
+            sale: d.mean_profit
           })).reverse()
         }
       };

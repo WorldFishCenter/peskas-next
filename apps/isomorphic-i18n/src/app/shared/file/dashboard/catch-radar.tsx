@@ -50,6 +50,8 @@ const METRIC_INFO: Record<MetricKey, MetricInfo> = {
   mean_cpua: { translationKey: "text-metrics-catch-density", unit: "kg/km²/day" },
   mean_rpue: { translationKey: "text-metrics-fisher-revenue", unit: "KSH/fisher/day" },
   mean_rpua: { translationKey: "text-metrics-area-revenue", unit: "KSH/km²/day" },
+  mean_cost: { translationKey: "text-metrics-trip-costs", unit: "KES/fisher/day" },
+  mean_profit: { translationKey: "text-metrics-profit", unit: "KES/fisher/day" },
 };
 
 const getMetricLabel = (metric: string, t: any): string => {
@@ -261,8 +263,8 @@ export default function CatchRadarChart({
 
   // Helper function to check if current metric is compatible with individual fisher data
   const isMetricCompatibleWithIndividualData = useMemo(() => {
-    // Individual fishers only have direct data for CPUE and RPUE (not area-based metrics)
-    const compatibleMetrics = ['mean_cpue', 'mean_rpue'];
+    // Individual fishers only have direct data for CPUE, RPUE, costs, and profit (not area-based metrics)
+    const compatibleMetrics = ['mean_cpue', 'mean_rpue', 'mean_cost', 'mean_profit'];
     return compatibleMetrics.includes(selectedMetric);
   }, [selectedMetric]);
   
@@ -465,6 +467,10 @@ export default function CatchRadarChart({
                 fisherValue = fisherMonthData.mean_cpue;
               } else if (selectedMetric === "mean_rpue" && fisherMonthData.mean_rpue != null) {
                 fisherValue = fisherMonthData.mean_rpue;
+              } else if (selectedMetric === "mean_cost" && fisherMonthData.mean_cost != null) {
+                fisherValue = fisherMonthData.mean_cost;
+              } else if (selectedMetric === "mean_profit" && fisherMonthData.mean_profit != null) {
+                fisherValue = fisherMonthData.mean_profit;
               } else if (selectedMetric === "mean_cpua" && fisherMonthData.mean_cpue != null) {
                 // For BMU catch density, show individual fisher CPUE as approximation
                 fisherValue = fisherMonthData.mean_cpue;

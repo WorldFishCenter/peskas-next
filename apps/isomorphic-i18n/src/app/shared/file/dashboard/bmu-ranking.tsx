@@ -62,6 +62,18 @@ const METRIC_OPTIONS: MetricOption[] = [
     unit: "KES/km²/day",
     category: "revenue",
   },
+  {
+    value: "mean_cost",
+    label: "Trip Costs",
+    unit: "KES/fisher/day",
+    category: "revenue",
+  },
+  {
+    value: "mean_profit",
+    label: "Profit",
+    unit: "KES/fisher/day",
+    category: "revenue",
+  },
 ];
 
 const formatNumber = (value: number) => {
@@ -244,8 +256,8 @@ export default function BMURanking({
 
   // Helper function to check if current metric is compatible with individual fisher data
   const isMetricCompatibleWithIndividualData = useMemo(() => {
-    // Individual fishers only have direct data for CPUE and RPUE
-    const compatibleMetrics = ['mean_cpue', 'mean_rpue'];
+    // Individual fishers only have direct data for CPUE, RPUE, costs, and profit
+    const compatibleMetrics = ['mean_cpue', 'mean_rpue', 'mean_cost', 'mean_profit'];
     return compatibleMetrics.includes(selectedMetric);
   }, [selectedMetric]);
 
@@ -370,6 +382,10 @@ export default function BMURanking({
             value = record.mean_cpue;
           } else if (selectedMetric === "mean_rpue" && record.mean_rpue != null) {
             value = record.mean_rpue;
+          } else if (selectedMetric === "mean_cost" && record.mean_cost != null) {
+            value = record.mean_cost;
+          } else if (selectedMetric === "mean_profit" && record.mean_profit != null) {
+            value = record.mean_profit;
           }
           
           if (value !== null) {
@@ -444,6 +460,9 @@ export default function BMURanking({
 
     if (selectedMetricOption?.value === 'mean_effort') {
       return t("text-bmu-ranking-description-effort", { metric: metricLabel, unit: unit });
+    }
+    if (selectedMetricOption?.value === 'mean_cost') {
+      return t("text-bmu-ranking-description-cost", { metric: metricLabel, unit: unit });
     }
     if (selectedMetricOption?.category === 'revenue') {
       return t("text-bmu-ranking-description-revenue", { metric: metricLabel, unit: unit });

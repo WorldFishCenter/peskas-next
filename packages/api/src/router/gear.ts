@@ -43,6 +43,8 @@ export const gearRouter = createTRPCRouter({
             mean_cpua: 1,
             mean_rpue: 1, 
             mean_rpua: 1,
+            mean_cost: 1,
+            mean_profit: 1,
             date: 1
           })
           .sort({ date: -1 })

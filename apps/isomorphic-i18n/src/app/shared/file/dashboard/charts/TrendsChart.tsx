@@ -93,6 +93,12 @@ export default function TrendsChart({
       } else if (selectedMetric === "mean_rpue" && record.mean_rpue != null) {
         // Individual fisher RPUE maps directly to BMU RPUE  
         value = record.mean_rpue;
+      } else if (selectedMetric === "mean_cost" && record.mean_cost != null) {
+        // Individual fisher costs map directly to BMU costs
+        value = record.mean_cost;
+      } else if (selectedMetric === "mean_profit" && record.mean_profit != null) {
+        // Individual fisher profit maps directly to BMU profit
+        value = record.mean_profit;
       } else if (selectedMetric === "mean_cpua" && record.mean_cpue != null) {
         // For BMU catch density, show individual fisher CPUE as approximation
         value = record.mean_cpue;
@@ -263,6 +269,8 @@ export default function TrendsChart({
                      selectedMetric === "mean_cpua" ? t('text-unit-kg-km2-day') : 
                      selectedMetric === "mean_rpue" ? t('text-unit-kes-fisher-day') : 
                      selectedMetric === "mean_rpua" ? t('text-unit-kes-km2-day') : 
+                     selectedMetric === "mean_cost" ? t('text-unit-kes-fisher-day') : 
+                     selectedMetric === "mean_profit" ? t('text-unit-kes-fisher-day') : 
                      selectedMetric === "mean_effort" ? t('text-unit-fishers-km2-day') : 
                      selectedMetricOption?.category === "catch" ? "Avg. catch (kg/fisher/month)" : "",
               angle: -90,

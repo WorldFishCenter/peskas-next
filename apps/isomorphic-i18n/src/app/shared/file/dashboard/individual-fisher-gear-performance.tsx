@@ -125,7 +125,7 @@ export default function IndividualFisherGearPerformance({
       acc[gear].count++;
       acc[gear].sumCpue += record.mean_cpue;
       acc[gear].sumRpue += record.mean_rpue;
-      acc[gear].sumCost += record.mean_costs;
+      acc[gear].sumCost += record.mean_cost;
       acc[gear].sumProfit += record.mean_profit;
       return acc;
     }, {});
@@ -151,7 +151,7 @@ export default function IndividualFisherGearPerformance({
       acc[gear].count++;
       acc[gear].sumCpue += record.mean_cpue;
       acc[gear].sumRpue += record.mean_rpue;
-      acc[gear].sumCost += record.mean_costs;
+      acc[gear].sumCost += record.mean_cost;
       acc[gear].sumProfit += record.mean_profit;
       return acc;
     }, {});

@@ -10,6 +10,8 @@ const metricSchema = z.enum([
   "mean_cpua",
   "mean_rpue",
   "mean_rpua",
+  "mean_cost",
+  "mean_profit",
 ]);
 
 export const aggregatedCatchRouter = createTRPCRouter({
@@ -28,6 +30,8 @@ export const aggregatedCatchRouter = createTRPCRouter({
                 { mean_cpua: { $ne: null } },
                 { mean_rpue: { $ne: null } },
                 { mean_rpua: { $ne: null } },
+                { mean_cost: { $ne: null } },
+                { mean_profit: { $ne: null } },
                 { fdays: { $ne: null } },
               ],
             },
@@ -42,6 +46,8 @@ export const aggregatedCatchRouter = createTRPCRouter({
               mean_cpua: 1,
               mean_rpue: 1,
               mean_rpua: 1,
+              mean_cost: 1,
+              mean_profit: 1,
               fdays: 1,
             },
           },
@@ -74,6 +80,8 @@ export const aggregatedCatchRouter = createTRPCRouter({
                 { mean_cpua: { $ne: null } },
                 { mean_rpue: { $ne: null } },
                 { mean_rpua: { $ne: null } },
+                { mean_cost: { $ne: null } },
+                { mean_profit: { $ne: null } },
                 { fdays: { $ne: null } },
               ],
             },
@@ -92,6 +100,8 @@ export const aggregatedCatchRouter = createTRPCRouter({
               avgCPUA: { $avg: "$mean_cpua" },
               avgRPUE: { $avg: "$mean_rpue" },
               avgRPUA: { $avg: "$mean_rpua" },
+              avgCost: { $avg: "$mean_cost" },
+              avgProfit: { $avg: "$mean_profit" },
               avgFdays: { $avg: "$fdays" },
               totalEffort: { $sum: "$mean_effort" },
               totalFdays: { $sum: "$fdays" },
@@ -103,6 +113,8 @@ export const aggregatedCatchRouter = createTRPCRouter({
                   mean_cpua: "$mean_cpua",
                   mean_rpue: "$mean_rpue",
                   mean_rpua: "$mean_rpua",
+                  mean_cost: "$mean_cost",
+                  mean_profit: "$mean_profit",
                   fdays: "$fdays",
                 },
               },
@@ -120,6 +132,8 @@ export const aggregatedCatchRouter = createTRPCRouter({
                     maxCPUA: { $max: "$avgCPUA" },
                     maxRPUE: { $max: "$avgRPUE" },
                     maxRPUA: { $max: "$avgRPUA" },
+                    maxCost: { $max: "$avgCost" },
+                    maxProfit: { $max: "$avgProfit" },
                     maxFdays: { $max: "$avgFdays" },
                     bmus: { $push: "$$ROOT" },
                   },
@@ -135,6 +149,8 @@ export const aggregatedCatchRouter = createTRPCRouter({
                     avgCPUA: "$bmus.avgCPUA",
                     avgRPUE: "$bmus.avgRPUE",
                     avgRPUA: "$bmus.avgRPUA",
+                    avgCost: "$bmus.avgCost",
+                    avgProfit: "$bmus.avgProfit",
                     avgFdays: "$bmus.avgFdays",
                     totalEffort: "$bmus.totalEffort",
                     totalFdays: "$bmus.totalFdays",
@@ -172,6 +188,18 @@ export const aggregatedCatchRouter = createTRPCRouter({
                     rpuaPerformance: {
                       $multiply: [
                         { $divide: ["$bmus.avgRPUA", "$maxRPUA"] },
+                        100,
+                      ],
+                    },
+                    costPerformance: {
+                      $multiply: [
+                        { $divide: ["$bmus.avgCost", "$maxCost"] },
+                        100,
+                      ],
+                    },
+                    profitPerformance: {
+                      $multiply: [
+                        { $divide: ["$bmus.avgProfit", "$maxProfit"] },
                         100,
                       ],
                     },

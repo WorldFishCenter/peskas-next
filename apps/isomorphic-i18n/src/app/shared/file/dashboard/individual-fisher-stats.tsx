@@ -80,7 +80,7 @@ export default function IndividualFisherStats({
 
     const cpueValues = otherFishersData.filter(d => d.mean_cpue != null).map(d => d.mean_cpue);
     const rpueValues = otherFishersData.filter(d => d.mean_rpue != null).map(d => d.mean_rpue);
-    const costValues = otherFishersData.filter(d => d.mean_costs != null).map(d => d.mean_costs);
+    const costValues = otherFishersData.filter(d => d.mean_cost != null).map(d => d.mean_cost);
     const profitValues = otherFishersData.filter(d => d.mean_profit != null).map(d => d.mean_profit);
 
     return {
@@ -191,10 +191,10 @@ export default function IndividualFisherStats({
     },
     {
       title: t('text-cost'),
-      value: summary.avg_costs || 0,
+      value: summary.avg_cost || 0,
       bmuAvg: bmuAverages?.avgCost || 0,
       format: formatCurrency,
-      trend: getPerformanceStatus(summary.avg_costs || 0, bmuAverages?.avgCost || 0, 'cost'),
+      trend: getPerformanceStatus(summary.avg_cost || 0, bmuAverages?.avgCost || 0, 'cost'),
       color: 'purple' as const,
       metric: 'cost',
       description: t('text-average-cost-per-trip'),
