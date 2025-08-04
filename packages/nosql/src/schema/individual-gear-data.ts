@@ -10,7 +10,7 @@ export type TIndividualGearStats = {
   mean_cpue: number;
   mean_rpue: number;
   mean_price_kg: number;
-  mean_costs: number;
+  mean_cost: number;
   mean_profit: number;
 };
 
@@ -23,7 +23,7 @@ const individualGearStatsSchema = new Schema<TIndividualGearStats>(
     mean_cpue: { type: Number, required: true },
     mean_rpue: { type: Number, required: true },
     mean_price_kg: { type: Number, required: true },
-    mean_costs: { type: Number, required: true },
+    mean_cost: { type: Number, required: true },
     mean_profit: { type: Number, required: true },
   },
   { collection: "individual_gear_stats" }

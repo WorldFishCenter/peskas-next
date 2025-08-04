@@ -74,7 +74,7 @@ export const useIndividualGearData = (options?: UseIndividualGearDataOptions) =>
       
       gearGroups[item.gear].totalCpue += item.mean_cpue;
       gearGroups[item.gear].totalRpue += item.mean_rpue;
-      gearGroups[item.gear].totalCosts += item.mean_costs;
+      gearGroups[item.gear].totalCosts += item.mean_cost;
       gearGroups[item.gear].totalProfit += item.mean_profit;
       gearGroups[item.gear].count += 1;
     });
@@ -84,7 +84,7 @@ export const useIndividualGearData = (options?: UseIndividualGearDataOptions) =>
       gear: group.gear,
       mean_cpue: group.totalCpue / group.count,
       mean_rpue: group.totalRpue / group.count,
-      mean_costs: group.totalCosts / group.count,
+      mean_cost: group.totalCosts / group.count,
       mean_profit: group.totalProfit / group.count,
       trip_count: group.count
     }));
@@ -118,7 +118,7 @@ export const useIndividualGearData = (options?: UseIndividualGearDataOptions) =>
       
       gearGroups[item.gear].totalCpue += item.mean_cpue;
       gearGroups[item.gear].totalRpue += item.mean_rpue;
-      gearGroups[item.gear].totalCosts += item.mean_costs;
+      gearGroups[item.gear].totalCosts += item.mean_cost;
       gearGroups[item.gear].totalProfit += item.mean_profit;
       gearGroups[item.gear].count += 1;
     });
@@ -128,7 +128,7 @@ export const useIndividualGearData = (options?: UseIndividualGearDataOptions) =>
       gear: group.gear,
       mean_cpue: group.totalCpue / group.count,
       mean_rpue: group.totalRpue / group.count,
-      mean_costs: group.totalCosts / group.count,
+      mean_cost: group.totalCosts / group.count,
       mean_profit: group.totalProfit / group.count,
       fisher_count: group.count
     }));

@@ -105,11 +105,13 @@ export function FileStatWBCIAGrid({ className, lang }: { className?: string; lan
 
   // Define metrics once with monthly API field mapping
   const metrics = useMemo(() => [
-    { id: 'effort', field: 'mean_effort', title: t('text-metrics-effort'), unit: t('text-unit-fishers-km2-day') },
-    { id: 'catch-rate', field: 'mean_cpue', title: t('text-metrics-catch-rate'), unit: t('text-unit-kg-fisher-day') },
-    { id: 'catch-density', field: 'mean_cpua', title: t('text-metrics-catch-density'), unit: t('text-unit-kg-km2-day') },
-    { id: 'fisher-revenue', field: 'mean_rpue', title: t('text-metrics-fisher-revenue'), unit: t('text-unit-kes-fisher-day') },
-    { id: 'area-revenue', field: 'mean_rpua', title: t('text-metrics-area-revenue'), unit: t('text-unit-kes-km2-day') }
+    { id: 'effort', field: 'mean_effort', title: t('text-metrics-effort'), unit: t('text-unit-fishers-km2-day'), category: 'catch' as const },
+    { id: 'catch-rate', field: 'mean_cpue', title: t('text-metrics-catch-rate'), unit: t('text-unit-kg-fisher-day'), category: 'catch' as const },
+    { id: 'catch-density', field: 'mean_cpua', title: t('text-metrics-catch-density'), unit: t('text-unit-kg-km2-day'), category: 'catch' as const },
+    { id: 'fisher-revenue', field: 'mean_rpue', title: t('text-metrics-fisher-revenue'), unit: t('text-unit-kes-fisher-day'), category: 'revenue' as const },
+    { id: 'area-revenue', field: 'mean_rpua', title: t('text-metrics-area-revenue'), unit: t('text-unit-kes-km2-day'), category: 'revenue' as const },
+    { id: 'costs', field: 'mean_cost', title: t('text-metrics-trip-costs'), unit: t('text-unit-kes-fisher-day'), category: 'revenue' as const },
+    { id: 'profit', field: 'mean_profit', title: t('text-metrics-profit'), unit: t('text-unit-kes-fisher-day'), category: 'revenue' as const }
   ] as const, [t]);
 
   // Process data - use previous month data per BMU
@@ -263,7 +265,7 @@ export function FileStatWBCIAGrid({ className, lang }: { className?: string; lan
   }, []);
 
   // Custom bar shape that filters out non-DOM props
-  const CustomBar = (props: any) => {
+  const CustomBar = (props: any, metricCategory?: 'catch' | 'revenue') => {
     // Extract only the DOM-safe props that rect elements can accept
     const {
       x,
@@ -282,8 +284,10 @@ export function FileStatWBCIAGrid({ className, lang }: { className?: string; lan
       ...otherProps // This should now be safe for DOM
     } = props;
     
-    // Determine fill color based on BMU
-    const fill = payload?.bmu === userBMU ? "#fc3468" : "rgba(178, 216, 216, 0.75)";
+    // Determine fill color based on BMU and metric category
+    const isRevenueMetric = metricCategory === 'revenue';
+    const baseColor = isRevenueMetric ? "rgba(245, 158, 11, 0.5)" : "rgba(59, 130, 246, 0.5)"; // amber vs blue - more opaque
+    const fill = payload?.bmu === userBMU ? "#fc3468" : baseColor;
     
     return (
       <rect 
@@ -305,17 +309,26 @@ export function FileStatWBCIAGrid({ className, lang }: { className?: string; lan
 
   return (
     <>
-      {statsData.map((stat) => (
+      {statsData.map((stat) => {
+        // Find the metric info to get the category
+        const metricInfo = metrics.find(m => m.id === stat.id);
+        const isRevenueMetric = metricInfo?.category === 'revenue';
+        
+        return (
         <MetricCard
           key={stat.id}
           title=""
           metric={<></>}
           rounded="lg"
-          className={cn(
-            "@container text-[15px]",
-            "min-w-[260px] w-full max-w-full flex-1 p-0 overflow-hidden",
-            className
-          )}
+                      className={cn(
+              "@container text-[15px]",
+              "min-w-[260px] w-full max-w-full flex-1 p-0 overflow-hidden",
+              // Apply color scheme based on category
+              isRevenueMetric 
+                ? "bg-amber-50/60" 
+                : "bg-blue-50/60",
+              className
+            )}
         >
           <div className="p-4 pb-2">
             <div className="flex flex-col gap-1">
@@ -397,7 +410,7 @@ export function FileStatWBCIAGrid({ className, lang }: { className?: string; lan
                   maxBarSize={8}
                   minPointSize={3}
                   activeBar={{ stroke: '#333', strokeWidth: 1 }}
-                  shape={CustomBar}
+                  shape={(props: any) => CustomBar(props, metricInfo?.category)}
                   label={{
                     position: 'top',
                     fontSize: 8,
@@ -409,7 +422,8 @@ export function FileStatWBCIAGrid({ className, lang }: { className?: string; lan
             </ResponsiveContainer>
           </div>
         </MetricCard>
-      ))}
+        );
+      })}
     </>
   );
 }

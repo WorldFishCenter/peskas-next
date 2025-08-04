@@ -98,6 +98,9 @@ const prepareDataForCiaComparison = (chartData: ChartDataPoint[], bmuName: strin
   } else if (selectedMetric === 'mean_rpue') {
     // For fisher revenue, use minimum wage
     baseline = BASELINE_DATA.INCOME.NATIONAL_MINIMUM_WAGE;
+  } else if (selectedMetric === 'mean_profit') {
+    // For profit, use minimum wage as baseline (positive profit should exceed minimum wage)
+    baseline = BASELINE_DATA.INCOME.NATIONAL_MINIMUM_WAGE;
   } else {
     // For other metrics, calculate 24-month average
     // Need at least 6 data points to calculate average
@@ -181,6 +184,9 @@ const prepareMultiBMUBaselineComparison = (chartData: ChartDataPoint[], selected
         baseline = isIsland ? BASELINE_DATA.CPUA.MSY.ISLAND : BASELINE_DATA.CPUA.MSY.FRINGING;
       } else if (selectedMetric === 'mean_rpue') {
         // For fisher revenue, use minimum wage
+        baseline = BASELINE_DATA.INCOME.NATIONAL_MINIMUM_WAGE;
+      } else if (selectedMetric === 'mean_profit') {
+        // For profit, use minimum wage as baseline
         baseline = BASELINE_DATA.INCOME.NATIONAL_MINIMUM_WAGE;
       } else {
         // For other metrics, we shouldn't be here, but default to value itself
@@ -331,8 +337,8 @@ export default function CatchMetricsChart({
 
   // Helper function to check if current metric is compatible with individual fisher data
   const isMetricCompatibleWithIndividualData = useMemo(() => {
-    // Individual fishers only have direct data for CPUE and RPUE (not area-based metrics)
-    const compatibleMetrics = ['mean_cpue', 'mean_rpue'];
+    // Individual fishers only have direct data for CPUE, RPUE, costs, and profit (not area-based metrics)
+    const compatibleMetrics = ['mean_cpue', 'mean_rpue', 'mean_cost', 'mean_profit'];
     return compatibleMetrics.includes(selectedMetric);
   }, [selectedMetric]);
 
@@ -713,8 +719,8 @@ export default function CatchMetricsChart({
     if (!needsRecalculation) return;
     
     // Process data based on user type
-    if (isWbciaUser && (selectedMetric === 'mean_cpua' || selectedMetric === 'mean_rpue')) {
-      // For WBCIA users viewing catch density or fisher revenue, use baseline comparison
+    if (isWbciaUser && (selectedMetric === 'mean_cpua' || selectedMetric === 'mean_rpue' || selectedMetric === 'mean_profit')) {
+      // For WBCIA users viewing catch density, fisher revenue, or profit, use baseline comparison
       setRecentData(prepareMultiBMUBaselineComparison(chartData, selectedMetric));
     } else if (canCompareWithOthers) {
       // For other non-CIA users, use standard comparison
@@ -749,6 +755,8 @@ export default function CatchMetricsChart({
             return t("text-performance-vs-msy") || "Performance vs MSY";
           } else if (selectedMetric === 'mean_rpue') {
             return t("text-performance-vs-minimum-wage") || "Performance vs Minimum Wage";
+          } else if (selectedMetric === 'mean_profit') {
+            return t("text-profit-vs-minimum-wage") || "Profit vs Minimum Wage";
           } else {
             // Get time range label for dynamic baseline description
             const getTimeRangeLabel = (timeRange: string): string => {
@@ -804,6 +812,8 @@ export default function CatchMetricsChart({
             return t("text-cia-msy-comparison-explanation") || "Shows values compared to the Maximum Sustainable Yield baseline";
           } else if (selectedMetric === 'mean_rpue') {
             return t("text-cia-minimum-wage-comparison-explanation") || "Shows values compared to the national minimum wage";
+          } else if (selectedMetric === 'mean_profit') {
+            return t("text-cia-profit-minimum-wage-explanation") || "Shows profit values compared to the national minimum wage";
           } else {
             // Get time range label for dynamic baseline description
             const getTimeRangeLabel = (timeRange: string): string => {
@@ -967,7 +977,7 @@ export default function CatchMetricsChart({
               isTablet={isTablet}
               selectedMetric={selectedMetric}
               selectedTimeRange={selectedTimeRange}
-              isCiaHistoricalMode={isWbciaUser && (selectedMetric === 'mean_cpua' || selectedMetric === 'mean_rpue')}
+              isCiaHistoricalMode={isWbciaUser && (selectedMetric === 'mean_cpua' || selectedMetric === 'mean_rpue' || selectedMetric === 'mean_profit')}
               individualFisherData={memoizedFisherData}
               userFisherId={userFisherId}
               CustomLegend={(props) => (

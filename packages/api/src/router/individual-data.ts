@@ -23,7 +23,7 @@ export const individualDataRouter = createTRPCRouter({
           mean_cpue: 1,
           mean_rpue: 1,
           mean_price_kg: 1,
-          mean_costs: 1,
+          mean_cost: 1,
           mean_profit: 1,
         })
         .sort({ date: -1 })
@@ -73,7 +73,7 @@ export const individualDataRouter = createTRPCRouter({
             mean_cpue: 1,
             mean_rpue: 1,
             mean_price_kg: 1,
-            mean_costs: 1,
+            mean_cost: 1,
             mean_profit: 1,
           })
           .sort({ date: -1 })
@@ -241,7 +241,7 @@ export const individualDataRouter = createTRPCRouter({
               },
               avg_cpue: { $avg: "$mean_cpue" },
               avg_rpue: { $avg: "$mean_rpue" },
-              avg_costs: { $avg: "$mean_costs" },
+              avg_cost: { $avg: "$mean_cost" },
               avg_price_kg: { $avg: "$mean_price_kg" },
               avg_profit: { $avg: "$mean_profit" },
               total_trips: { $sum: 1 },
@@ -254,7 +254,7 @@ export const individualDataRouter = createTRPCRouter({
               BMU: "$_id.BMU",
               avg_cpue: { $round: ["$avg_cpue", 2] },
               avg_rpue: { $round: ["$avg_rpue", 2] },
-              avg_costs: { $round: ["$avg_costs", 2] },
+              avg_cost: { $round: ["$avg_cost", 2] },
               avg_price_kg: { $round: ["$avg_price_kg", 2] },
               avg_profit: { $round: ["$avg_profit", 2] },
               total_trips: 1,
@@ -281,7 +281,7 @@ export const individualDataRouter = createTRPCRouter({
   monthlyTrends: protectedProcedure
     .input(z.object({ 
       bmus: z.string().array(),
-      metric: z.enum(['mean_cpue', 'mean_rpue', 'mean_costs', 'mean_profit', 'mean_price_kg']).optional().default('mean_cpue'),
+      metric: z.enum(['mean_cpue', 'mean_rpue', 'mean_cost', 'mean_profit', 'mean_price_kg']).optional().default('mean_cpue'),
     }))
     .query(async ({ input }) => {
       try {
@@ -332,7 +332,7 @@ export const individualDataRouter = createTRPCRouter({
   fisherMonthlyTrends: protectedProcedure
     .input(z.object({ 
       fisherId: z.string(),
-      metric: z.enum(['mean_cpue', 'mean_rpue', 'mean_costs', 'mean_profit', 'mean_price_kg']).optional().default('mean_cpue'),
+      metric: z.enum(['mean_cpue', 'mean_rpue', 'mean_cost', 'mean_profit', 'mean_price_kg']).optional().default('mean_cpue'),
     }))
     .query(async ({ input }) => {
       try {
@@ -411,10 +411,10 @@ export const individualDataRouter = createTRPCRouter({
               total_trips: { $sum: 1 },
               avg_cpue: { $avg: "$mean_cpue" },
               avg_rpue: { $avg: "$mean_rpue" },
-              avg_costs: { $avg: "$mean_costs" },
+              avg_cost: { $avg: "$mean_cost" },
               avg_price_kg: { $avg: "$mean_price_kg" },
               avg_profit: { $avg: "$mean_profit" },
-              total_costs: { $sum: "$mean_costs" },
+              total_costs: { $sum: "$mean_cost" },
               total_revenue: { $sum: "$mean_rpue" },
               latest_trip: { $max: "$date" },
               earliest_trip: { $min: "$date" },
@@ -426,7 +426,7 @@ export const individualDataRouter = createTRPCRouter({
               total_trips: 1,
               avg_cpue: { $round: ["$avg_cpue", 2] },
               avg_rpue: { $round: ["$avg_rpue", 2] },
-              avg_costs: { $round: ["$avg_costs", 2] },
+              avg_cost: { $round: ["$avg_cost", 2] },
               avg_price_kg: { $round: ["$avg_price_kg", 2] },
               avg_profit: { $round: ["$avg_profit", 2] },
               total_costs: { $round: ["$total_costs", 2] },

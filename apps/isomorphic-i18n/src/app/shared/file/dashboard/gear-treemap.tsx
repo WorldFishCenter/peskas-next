@@ -360,8 +360,8 @@ export default function GearHeatmap({
 
   // Helper function to check if current metric is compatible with individual gear data
   const isMetricCompatibleWithIndividualData = useMemo(() => {
-    // Individual fishers only have direct data for CPUE and RPUE (not area-based metrics)
-    const compatibleMetrics = ['mean_cpue', 'mean_rpue'];
+    // Individual fishers have direct data for CPUE, RPUE, costs, and profit (not area-based metrics)
+    const compatibleMetrics = ['mean_cpue', 'mean_rpue', 'mean_cost', 'mean_profit'];
     return compatibleMetrics.includes(selectedMetric);
   }, [selectedMetric]);
 
@@ -505,8 +505,10 @@ export default function GearHeatmap({
             return 'mean_cpue';
           case 'mean_rpue':
             return 'mean_rpue';
-          case 'fisher_cost':
-            return 'mean_trip_catch'; // Use trip catch as proxy for cost
+          case 'mean_cost':
+            return 'mean_cost';
+          case 'mean_profit':
+            return 'mean_profit';
           case 'mean_effort':
             return 'mean_effort';
           case 'mean_cpua':
@@ -955,6 +957,8 @@ export default function GearHeatmap({
                            selectedMetric === "mean_cpua" ? t('text-unit-kg-km2-day') : 
                            selectedMetric === "mean_rpue" ? t('text-unit-kes-fisher-day') : 
                            selectedMetric === "mean_rpua" ? t('text-unit-kes-km2-day') : 
+                           selectedMetric === "mean_cost" ? t('text-unit-kes-fisher-day') : 
+                           selectedMetric === "mean_profit" ? t('text-unit-kes-fisher-day') : 
                            selectedMetric === "mean_effort" ? t('text-unit-fishers-km2-day') : "",
                     angle: -90,
                     position: 'insideLeft',
@@ -1032,6 +1036,8 @@ export default function GearHeatmap({
                            selectedMetric === "mean_cpua" ? t('text-unit-kg-km2-day') : 
                            selectedMetric === "mean_rpue" ? t('text-unit-kes-fisher-day') : 
                            selectedMetric === "mean_rpua" ? t('text-unit-kes-km2-day') : 
+                           selectedMetric === "mean_cost" ? t('text-unit-kes-fisher-day') : 
+                           selectedMetric === "mean_profit" ? t('text-unit-kes-fisher-day') : 
                            selectedMetric === "mean_effort" ? t('text-unit-fishers-km2-day') : "",
                     position: 'insideBottom',
                     offset: -10,

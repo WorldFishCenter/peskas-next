@@ -1,6 +1,6 @@
 import { Session } from "next-auth";
 
-export type MetricKey = "mean_effort" | "mean_cpue" | "mean_cpua" | "mean_rpue" | "mean_rpua";
+export type MetricKey = "mean_effort" | "mean_cpue" | "mean_cpua" | "mean_rpue" | "mean_rpua" | "mean_cost" | "mean_profit";
 
 export interface ChartDataPoint {
   date: number;
@@ -16,6 +16,8 @@ export interface ApiDataPoint {
   mean_cpua: number;
   mean_rpue: number;
   mean_rpua: number;
+  mean_cost: number;
+  mean_profit: number;
 }
 
 export interface MetricOption {
@@ -83,6 +85,18 @@ export const METRIC_OPTIONS: MetricOption[] = [
     unit: "KES/km²/day",
     category: "revenue",
   },
+{
+  value: "mean_cost",
+  label: "Trip Costs",
+  unit: "KES/fisher/day",
+  category: "revenue",
+},
+{
+  value: "mean_profit",
+  label: "Profit",
+  unit: "KES/fisher/day",
+  category: "revenue",
+},
 ];
 
 export const isCiaUser = (session?: Session | null): boolean => {

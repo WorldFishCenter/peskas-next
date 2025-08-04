@@ -278,6 +278,8 @@ function HeaderMetricSelector({ isMobile = false }: { isMobile?: boolean }) {
         case 'mean_cpua': return t('text-metrics-catch-density');
         case 'mean_rpue': return t('text-metrics-fisher-revenue');
         case 'mean_rpua': return t('text-metrics-area-revenue');
+        case 'mean_cost': return t('text-metrics-trip-costs');
+        case 'mean_profit': return t('text-metrics-profit');
         default: return option.label;
       }
     };
@@ -295,7 +297,7 @@ function HeaderMetricSelector({ isMobile = false }: { isMobile?: boolean }) {
             "flex items-center gap-1 sm:gap-2 py-1.5 text-xs sm:text-sm font-medium rounded-md transition-colors",
             isMobile ? "px-1.5" : "px-2 sm:px-2.5",
             "border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700",
-            selectedMetric === "mean_rpue" || selectedMetric === "mean_rpua"
+            selectedMetric === "mean_rpue" || selectedMetric === "mean_rpua" || selectedMetric === "mean_cost" || selectedMetric === "mean_profit"
               ? "text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-900/30 border-amber-200 dark:border-amber-700 hover:bg-amber-100 dark:hover:bg-amber-900/50"
               : "text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-900/30 border-blue-200 dark:border-blue-700 hover:bg-blue-100 dark:hover:bg-blue-900/50"
           )}
