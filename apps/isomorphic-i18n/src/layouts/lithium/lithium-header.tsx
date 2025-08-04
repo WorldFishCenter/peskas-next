@@ -254,41 +254,24 @@ function TimeRangeSelector({ lang }: { lang?: string }) {
   );
 }
 
-function HeaderMenuRight({ lang, isCatchCompositionPage }: { lang?: string; isCatchCompositionPage?: boolean }) {
+// Header-optimized metric selector component
+function HeaderMetricSelector({ isMobile = false }: { isMobile?: boolean }) {
   const [selectedMetric, setSelectedMetric] = useAtom(selectedMetricAtom);
   const [isMetricOpen, setIsMetricOpen] = useState(false);
   
   const clientLang = getClientLanguage();
-  const { t, i18n } = useTranslation(clientLang, "common");
-  const [currentLang, setCurrentLang] = useState(clientLang);
-  
-  useEffect(() => {
-    const handleLanguageChange = (event: CustomEvent) => {
-      setCurrentLang(event.detail.language);
-      
-      if (i18n.language !== event.detail.language) {
-        i18n.changeLanguage(event.detail.language);
-      }
-    };
-    
-    window.addEventListener('i18n-language-changed', handleLanguageChange as EventListener);
-    return () => {
-      window.removeEventListener('i18n-language-changed', handleLanguageChange as EventListener);
-    };
-  }, [i18n]);
+  const { t } = useTranslation(clientLang, "common");
   
   const selectedMetricOption = METRIC_OPTIONS.find(
     (m) => m.value === selectedMetric
   );
+  
+  const groupedMetrics = {
+    catch: METRIC_OPTIONS.filter((m) => m.category === "catch"),
+    revenue: METRIC_OPTIONS.filter((m) => m.category === "revenue"),
+  };
 
-  // Header-optimized metric selector
-  const HeaderMetricSelector = () => {
-    const groupedMetrics = {
-      catch: METRIC_OPTIONS.filter((m) => m.category === "catch"),
-      revenue: METRIC_OPTIONS.filter((m) => m.category === "revenue"),
-    };
-
-    const getDisplayLabel = (option: any) => {
+  const getDisplayLabel = (option: any) => {
       switch(option.value) {
         case 'mean_effort': return t('text-metrics-effort');
         case 'mean_cpue': return t('text-metrics-catch-rate');
@@ -309,7 +292,8 @@ function HeaderMenuRight({ lang, isCatchCompositionPage }: { lang?: string; isCa
         <button
           onClick={() => setIsMetricOpen(!isMetricOpen)}
           className={cn(
-            "flex items-center gap-2 px-2.5 py-1.5 text-sm font-medium rounded-md transition-colors",
+            "flex items-center gap-1 sm:gap-2 py-1.5 text-xs sm:text-sm font-medium rounded-md transition-colors",
+            isMobile ? "px-1.5" : "px-2 sm:px-2.5",
             "border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700",
             selectedMetric === "mean_rpue" || selectedMetric === "mean_rpua"
               ? "text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-900/30 border-amber-200 dark:border-amber-700 hover:bg-amber-100 dark:hover:bg-amber-900/50"
@@ -317,7 +301,7 @@ function HeaderMenuRight({ lang, isCatchCompositionPage }: { lang?: string; isCa
           )}
         >
           <span className="truncate">
-            {selectedMetricOption ? getDisplayLabel(selectedMetricOption) : t('text-metrics-catch')}
+            {selectedMetricOption ? (isMobile ? getDisplayLabel(selectedMetricOption).split(' ')[0] : getDisplayLabel(selectedMetricOption)) : t('text-metrics-catch')}
           </span>
           <PiCaretDownBold className={cn("h-3 w-3 transition-transform flex-shrink-0", isMetricOpen && "rotate-180")} />
         </button>
@@ -328,7 +312,12 @@ function HeaderMenuRight({ lang, isCatchCompositionPage }: { lang?: string; isCa
               className="fixed inset-0 z-[1000]" 
               onClick={() => setIsMetricOpen(false)}
             />
-            <div className="absolute left-1/2 sm:left-auto sm:right-0 top-full mt-1 w-80 sm:w-64 -translate-x-1/2 sm:translate-x-0 bg-white dark:bg-gray-900 rounded-md shadow-lg border border-gray-200 dark:border-gray-600 z-[1001] max-h-96 overflow-y-auto">
+            <div className={cn(
+              "absolute top-full mt-1 bg-white dark:bg-gray-900 rounded-md shadow-lg border border-gray-200 dark:border-gray-600 z-[1001] max-h-96 overflow-y-auto",
+              isMobile 
+                ? "left-0 w-72" 
+                : "left-1/2 sm:left-auto sm:right-0 w-80 sm:w-64 -translate-x-1/2 sm:translate-x-0"
+            )}>
               <div className="p-2">
                 {/* Catch Metrics */}
                 <div className="mb-3">
@@ -397,14 +386,15 @@ function HeaderMenuRight({ lang, isCatchCompositionPage }: { lang?: string; isCa
         )}
       </div>
     );
-  };
+}
 
+function HeaderMenuRight({ lang, isCatchCompositionPage }: { lang?: string; isCatchCompositionPage?: boolean }) {
   const { isIiaUser } = useUserPermissions();
 
   return (
     <div className="ms-auto flex shrink-0 items-center gap-1 text-gray-700 xs:gap-1 md:gap-2 xl:gap-3">
       {/* <ReferenceBMU /> */}
-      {/* Only show HeaderMetricSelector if not IIA user and not on catch composition page - hidden on mobile */}
+      {/* Only show HeaderMetricSelector if not IIA user and not on catch composition page - hidden on mobile as it's in left section */}
       {!isIiaUser && !isCatchCompositionPage && (
         <div className="hidden sm:block">
           <HeaderMetricSelector />
@@ -430,6 +420,7 @@ function HeaderMenuRight({ lang, isCatchCompositionPage }: { lang?: string; isCa
 
 export default function Header({ lang }: { lang?: string }) {
   const pathname = usePathname();
+  const { isIiaUser } = useUserPermissions();
   
   // Hide metric selector on catch composition page
   const isCatchCompositionPage = pathname?.includes('/catch_composition');
@@ -451,7 +442,7 @@ export default function Header({ lang }: { lang?: string }) {
         </LanguageLink>
         <HeaderMenuLeft lang={lang} />
       </div>
-      <div className="flex w-full items-center gap-2 sm:gap-3 md:gap-5 xl:w-auto 3xl:gap-6">
+      <div className="flex w-full items-center gap-1 sm:gap-3 md:gap-5 xl:w-auto 3xl:gap-6">
         <div className="flex w-full max-w-2xl items-center xl:w-auto">
           <HamburgerButton
             view={<Sidebar className="static w-full 2xl:w-full" lang={lang} />}
@@ -464,9 +455,10 @@ export default function Header({ lang }: { lang?: string }) {
           >
             <Logo iconOnly={true} />
           </LanguageLink>
-          {/* Mobile filter selector */}
-          {!isCatchCompositionPage && (
-            <div className="sm:hidden">
+          {/* Mobile controls */}
+          {!isCatchCompositionPage && !isIiaUser && (
+            <div className="flex items-center gap-1 sm:hidden">
+              <HeaderMetricSelector isMobile={true} />
               <FilterSelector />
             </div>
           )}
