@@ -99,8 +99,41 @@ const prepareDataForCiaComparison = (chartData: ChartDataPoint[], bmuName: strin
     // For fisher revenue, use minimum wage
     baseline = BASELINE_DATA.INCOME.NATIONAL_MINIMUM_WAGE;
   } else if (selectedMetric === 'mean_profit') {
-    // For profit, use minimum wage as baseline (positive profit should exceed minimum wage)
-    baseline = BASELINE_DATA.INCOME.NATIONAL_MINIMUM_WAGE;
+    // For profit, calculate 24-month average as baseline (same as other metrics)
+    // Need at least 6 data points to calculate average
+    if (recentData.length < 6) return recentData;
+    
+    // Calculate the average from the recent 24 months
+    let sum = 0;
+    let count = 0;
+    
+    for (let i = 0; i < recentData.length; i++) {
+      const value = recentData[i][bmuName];
+      if (value !== undefined && !isNaN(Number(value))) {
+        sum += Number(value);
+        count++;
+      }
+    }
+    
+    baseline = count > 0 ? sum / count : 0;
+  } else if (selectedMetric === 'mean_cost') {
+    // For costs, calculate 24-month average as baseline (same as profit logic)
+    // Need at least 6 data points to calculate average
+    if (recentData.length < 6) return recentData;
+    
+    // Calculate the average from the recent 24 months
+    let sum = 0;
+    let count = 0;
+    
+    for (let i = 0; i < recentData.length; i++) {
+      const value = recentData[i][bmuName];
+      if (value !== undefined && !isNaN(Number(value))) {
+        sum += Number(value);
+        count++;
+      }
+    }
+    
+    baseline = count > 0 ? sum / count : 0;
   } else {
     // For other metrics, calculate 24-month average
     // Need at least 6 data points to calculate average
@@ -186,8 +219,24 @@ const prepareMultiBMUBaselineComparison = (chartData: ChartDataPoint[], selected
         // For fisher revenue, use minimum wage
         baseline = BASELINE_DATA.INCOME.NATIONAL_MINIMUM_WAGE;
       } else if (selectedMetric === 'mean_profit') {
-        // For profit, use minimum wage as baseline
-        baseline = BASELINE_DATA.INCOME.NATIONAL_MINIMUM_WAGE;
+        // For profit, calculate BMU's own average as baseline (same as CPUE logic)
+        // Need to calculate this BMU's average across all time points
+        const bmuValues: number[] = [];
+        lastSixMonths.forEach(point => {
+          if (point[bmuName] !== undefined && point[bmuName] !== null) {
+            bmuValues.push(point[bmuName] as number);
+          }
+        });
+        baseline = bmuValues.length > 0 ? bmuValues.reduce((sum, val) => sum + val, 0) / bmuValues.length : 0;
+      } else if (selectedMetric === 'mean_cost') {
+        // For costs, calculate BMU's own average as baseline (same as profit logic)
+        const bmuValues: number[] = [];
+        lastSixMonths.forEach(point => {
+          if (point[bmuName] !== undefined && point[bmuName] !== null) {
+            bmuValues.push(point[bmuName] as number);
+          }
+        });
+        baseline = bmuValues.length > 0 ? bmuValues.reduce((sum, val) => sum + val, 0) / bmuValues.length : 0;
       } else {
         // For other metrics, we shouldn't be here, but default to value itself
         baseline = value as number;
@@ -435,9 +484,12 @@ export default function CatchMetricsChart({
       // Create a copy of the previous state
       const newState = { ...prev };
       
-      // Toggle the clicked site
+      // Get current opacity, defaulting to 1 if not set
+      const currentOpacity = prev[site]?.opacity ?? 1;
+      
+      // Toggle the clicked site - if it's visible (opacity >= 1), hide it (set to 0.05), otherwise show it (set to 1)
       newState[site] = {
-        opacity: prev[site]?.opacity === 1 ? 0.05 : 1,
+        opacity: currentOpacity >= 1 ? 0.05 : 1,
       };
       
       // For Comparison tab, we need to handle the Positive/Negative variants too
@@ -719,7 +771,7 @@ export default function CatchMetricsChart({
     if (!needsRecalculation) return;
     
     // Process data based on user type
-    if (isWbciaUser && (selectedMetric === 'mean_cpua' || selectedMetric === 'mean_rpue' || selectedMetric === 'mean_profit')) {
+    if (isWbciaUser && (selectedMetric === 'mean_cpua' || selectedMetric === 'mean_rpue' || selectedMetric === 'mean_profit' || selectedMetric === 'mean_cost')) {
       // For WBCIA users viewing catch density, fisher revenue, or profit, use baseline comparison
       setRecentData(prepareMultiBMUBaselineComparison(chartData, selectedMetric));
     } else if (canCompareWithOthers) {
@@ -755,8 +807,6 @@ export default function CatchMetricsChart({
             return t("text-performance-vs-msy") || "Performance vs MSY";
           } else if (selectedMetric === 'mean_rpue') {
             return t("text-performance-vs-minimum-wage") || "Performance vs Minimum Wage";
-          } else if (selectedMetric === 'mean_profit') {
-            return t("text-profit-vs-minimum-wage") || "Profit vs Minimum Wage";
           } else {
             // Get time range label for dynamic baseline description
             const getTimeRangeLabel = (timeRange: string): string => {
@@ -812,8 +862,6 @@ export default function CatchMetricsChart({
             return t("text-cia-msy-comparison-explanation") || "Shows values compared to the Maximum Sustainable Yield baseline";
           } else if (selectedMetric === 'mean_rpue') {
             return t("text-cia-minimum-wage-comparison-explanation") || "Shows values compared to the national minimum wage";
-          } else if (selectedMetric === 'mean_profit') {
-            return t("text-cia-profit-minimum-wage-explanation") || "Shows profit values compared to the national minimum wage";
           } else {
             // Get time range label for dynamic baseline description
             const getTimeRangeLabel = (timeRange: string): string => {
@@ -831,7 +879,12 @@ export default function CatchMetricsChart({
               }
             };
             const timeRangeLabel = getTimeRangeLabel(selectedTimeRange);
-            return t("text-cia-selected-time-comparison-explanation", { timeRange: timeRangeLabel }) || `Shows values compared to your ${timeRangeLabel} average`;
+            
+            if (selectedMetric === 'mean_profit' || selectedMetric === 'mean_cost') {
+              return t("text-cia-selected-time-comparison-explanation", { timeRange: timeRangeLabel }) || "Shows values compared to each entity's own average";
+            } else {
+              return t("text-cia-selected-time-comparison-explanation", { timeRange: timeRangeLabel }) || `Shows values compared to your ${timeRangeLabel} average`;
+            }
           }
         case 'annual':
           return t("text-yearly-explanation");
@@ -977,7 +1030,7 @@ export default function CatchMetricsChart({
               isTablet={isTablet}
               selectedMetric={selectedMetric}
               selectedTimeRange={selectedTimeRange}
-              isCiaHistoricalMode={isWbciaUser && (selectedMetric === 'mean_cpua' || selectedMetric === 'mean_rpue' || selectedMetric === 'mean_profit')}
+              isCiaHistoricalMode={isWbciaUser && (selectedMetric === 'mean_cpua' || selectedMetric === 'mean_rpue' || selectedMetric === 'mean_profit' || selectedMetric === 'mean_cost')}
               individualFisherData={memoizedFisherData}
               userFisherId={userFisherId}
               CustomLegend={(props) => (

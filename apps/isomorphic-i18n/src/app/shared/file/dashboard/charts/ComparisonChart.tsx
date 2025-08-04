@@ -80,6 +80,7 @@ export default function ComparisonChart({
       const ciaMsyExplanation = t("text-cia-msy-comparison-explanation");
       const performanceVsMinWage = t("text-performance-vs-minimum-wage");
       const ciaMinWageExplanation = t("text-cia-minimum-wage-comparison-explanation");
+
       const timeRangeLabel = getTimeRangeLabel(selectedTimeRange);
       const performanceVsSelected = t("text-performance-vs-selected-average", { timeRange: timeRangeLabel });
       const ciaSelectedExplanation = t("text-cia-selected-time-comparison-explanation", { timeRange: timeRangeLabel });
@@ -91,6 +92,7 @@ export default function ComparisonChart({
         "text-cia-msy-comparison-explanation": ciaMsyExplanation,
         "text-performance-vs-minimum-wage": performanceVsMinWage,
         "text-cia-minimum-wage-comparison-explanation": ciaMinWageExplanation,
+
         "text-performance-vs-selected-average": performanceVsSelected,
         "text-cia-selected-time-comparison-explanation": ciaSelectedExplanation,
       };
@@ -115,6 +117,7 @@ export default function ComparisonChart({
     
     // Import required utilities
     const { filterDataByTimeRange } = require('../utils/timeRangeFilter');
+    const { BASELINE_DATA, isIslandSite } = require('./siteConfig');
     
     // Apply time range filtering
     const filteredIndividualData = filterDataByTimeRange(individualFisherData, selectedTimeRange);
@@ -172,12 +175,47 @@ export default function ComparisonChart({
       }))
       .sort((a, b) => a.date - b.date);
 
-    // For CIA mode, just return the absolute values instead of difference from baseline
+    // Check if we're in baseline comparison mode (CIA or WBCIA users viewing baseline data)
+    const isBaselineComparisonMode = isCiaHistoricalMode || 
+      (selectedMetric === 'mean_cpue' || selectedMetric === 'mean_cpua' || selectedMetric === 'mean_rpue' || selectedMetric === 'mean_profit' || selectedMetric === 'mean_cost');
+    
+    
+    // For baseline comparison mode, calculate difference from appropriate baseline
+    if (isBaselineComparisonMode) {
+      let baseline: number;
+      
+      if (selectedMetric === 'mean_cpue' || selectedMetric === 'mean_cpua' || selectedMetric === 'mean_profit' || selectedMetric === 'mean_cost') {
+        // For catch metrics, profit, and costs, use individual fisher's own average as baseline
+        const individualFisherSum = absoluteValues.reduce((sum, item) => sum + item.absoluteValue, 0);
+        baseline = individualFisherSum / absoluteValues.length;
+      } else if (selectedMetric === 'mean_rpue') {
+        // For fisher revenue, use minimum wage baseline (same as BMU data)
+        baseline = BASELINE_DATA.INCOME.NATIONAL_MINIMUM_WAGE;
+      } else {
+        // For other metrics, use the absolute value itself (no baseline comparison)
+        return absoluteValues.map(item => ({
+          date: item.date,
+          individualFisher: parseFloat(item.absoluteValue.toFixed(2))
+        }));
+      }
+      
+      // Calculate difference from appropriate baseline
+      return absoluteValues.map(item => ({
+        date: item.date,
+        individualFisher: parseFloat((item.absoluteValue - baseline).toFixed(2))
+      }));
+    }
+    
+    // For non-baseline comparison mode, return absolute values
     return absoluteValues.map(item => ({
       date: item.date,
       individualFisher: parseFloat(item.absoluteValue.toFixed(2))
     }));
-  }, [individualFisherData, userFisherId, selectedMetric, selectedTimeRange]);
+  }, [individualFisherData, userFisherId, selectedMetric, selectedTimeRange, isCiaHistoricalMode]);
+  
+  // Check for data format - moved before mergedChartData to avoid linter error
+  const hasNewDataFormat = chartData.some(point => 'difference' in point);
+  
   
   // Merge BMU data with individual fisher data
   const mergedChartData = useMemo(() => {
@@ -188,12 +226,31 @@ export default function ComparisonChart({
       individualFisherChartData.map(item => [item.date, item.individualFisher])
     );
     
+    // Check if we're in baseline comparison mode (CIA or WBCIA users viewing baseline data)
+    const isBaselineComparisonMode = isCiaHistoricalMode || 
+      (selectedMetric === 'mean_cpue' || selectedMetric === 'mean_cpua' || selectedMetric === 'mean_rpue' || selectedMetric === 'mean_profit' || selectedMetric === 'mean_cost');
+    
+    
     // Merge with BMU data
-    return chartData.map(bmuPoint => ({
-      ...bmuPoint,
-      individualFisher: fisherDataMap.get(bmuPoint.date) || undefined
-    }));
-  }, [chartData, individualFisherChartData]);
+    return chartData.map(bmuPoint => {
+      const fisherValue = fisherDataMap.get(bmuPoint.date);
+      
+      // For baseline comparison modes, always use a separate dataKey for individual fisher data
+      // This applies to both CIA (difference format) and WBCIA (BMU key format) baseline comparisons
+      if (isBaselineComparisonMode) {
+        return {
+          ...bmuPoint,
+          individualFisher: fisherValue // Keep using individualFisher for consistency
+        };
+      }
+      
+      // For non-baseline comparison mode, use the standard individualFisher key
+      return {
+        ...bmuPoint,
+        individualFisher: fisherValue
+      };
+    });
+  }, [chartData, individualFisherChartData, isCiaHistoricalMode, hasNewDataFormat, selectedMetric]);
   
   // Format date for X-axis ticks
   const formatDate = (timestamp: number) => {
@@ -330,15 +387,12 @@ export default function ComparisonChart({
 
   if (!chartData.length) return null;
 
-  // Check for data format
-  const hasNewDataFormat = chartData.some(point => 'difference' in point);
-
   // Validate if we have any CIA data to display
   const hasValidCiaData = () => {
     if (!isCiaHistoricalMode) return true;
     
     // For WBCIA users with baseline comparisons
-    if (selectedMetric === 'mean_cpua' || selectedMetric === 'mean_rpue') {
+    if (selectedMetric === 'mean_cpua' || selectedMetric === 'mean_rpue' || selectedMetric === 'mean_profit' || selectedMetric === 'mean_cost') {
       // Check if we have any BMU data (excluding date)
       return chartData.some(point => {
         const keys = Object.keys(point).filter(k => k !== 'date');
@@ -608,7 +662,6 @@ export default function ComparisonChart({
               fillOpacity={(visibilityState["individualFisher"]?.opacity || 1) * 0.85}
               strokeOpacity={visibilityState["individualFisher"]?.opacity || 1}
               radius={[4, 4, 0, 0]}
-              stackId="individualFisher"
               isAnimationActive={false}
             />
           )}
