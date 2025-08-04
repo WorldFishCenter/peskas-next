@@ -14,6 +14,7 @@ import { api } from "@/trpc/react";
 import { bmusAtom } from "@/app/components/filter-selector";
 import useUserPermissions from "./hooks/useUserPermissions";
 import { getClientLanguage } from "@/app/i18n/language-link";
+import { useIndividualFisherDataOnly } from "./hooks/useIndividualData";
 
 type FileStatsType = {
   className?: string;
@@ -25,6 +26,7 @@ interface ChartPoint {
   day: string;
   reference: number | null;
   others?: number | null;
+  individualFisher?: number | null;
   index: number;
   metricId: string;
 }
@@ -33,6 +35,7 @@ interface StatData {
   id: string;
   title: string;
   metric: string;
+  unit: string;
   chart: ChartPoint[];
 }
 
@@ -62,11 +65,22 @@ interface StatsResponse {
     percentage: number;
     trend: Array<{ day: string; sale: number | null }>;
   };
+  cost: {
+    current: number;
+    percentage: number;
+    trend: Array<{ day: string; sale: number | null }>;
+  };
+  profit: {
+    current: number;
+    percentage: number;
+    trend: Array<{ day: string; sale: number | null }>;
+  };
 }
 
 interface ComparisonValue {
   reference: number | null;
   others?: number | null;
+  individualFisher?: number | null;
   date: string;
 }
 
@@ -146,7 +160,9 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
     isAdmin,
     hasRestrictedAccess,
     canCompareWithOthers,
-    referenceBMU
+    referenceBMU,
+    shouldShowIndividualData,
+    userFisherId
   } = useUserPermissions();
   
   // Determine effective BMU and display name
@@ -163,6 +179,17 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
     canCompareWithOthers && effectiveBMU ? bmus.filter(b => b !== effectiveBMU) : [],
     [bmus, canCompareWithOthers, effectiveBMU]
   );
+  
+  // Fetch individual fisher data
+  const { fisherData, isLoadingFisherData } = useIndividualFisherDataOnly();
+  
+  // Memoize fisher data to prevent re-renders while loading
+  const memoizedFisherData = useMemo(() => {
+    if (!isLoadingFisherData && shouldShowIndividualData) {
+      return fisherData;
+    }
+    return undefined;
+  }, [fisherData, isLoadingFisherData, shouldShowIndividualData]);
   
   // Fetch reference BMU data
   const { 
@@ -187,23 +214,98 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
     enabled: otherBmus.length > 0,
   }) as { data: StatsResponse | undefined, isLoading: boolean, error: any };
 
-  // Define metrics once
+  // Define metrics once with categories
   const metrics = useMemo(() => [
-    { id: 'effort', field: 'effort', title: t('text-metrics-effort') },
-    { id: 'catch-rate', field: 'cpue', title: t('text-metrics-catch-rate') },
-    { id: 'catch-density', field: 'cpua', title: t('text-metrics-catch-density') },
-    { id: 'fisher-revenue', field: 'rpue', title: t('text-metrics-fisher-revenue') },
-    { id: 'area-revenue', field: 'rpua', title: t('text-metrics-area-revenue') }
+    { id: 'effort', field: 'effort', title: t('text-metrics-effort'), unit: t('text-unit-fishers-km2-day'), category: 'catch' as const },
+    { id: 'catch-rate', field: 'cpue', title: t('text-metrics-catch-rate'), unit: t('text-unit-kg-fisher-day'), category: 'catch' as const },
+    { id: 'catch-density', field: 'cpua', title: t('text-metrics-catch-density'), unit: t('text-unit-kg-km2-day'), category: 'catch' as const },
+    { id: 'fisher-revenue', field: 'rpue', title: t('text-metrics-fisher-revenue'), unit: t('text-unit-kes-fisher-day'), category: 'revenue' as const },
+    { id: 'area-revenue', field: 'rpua', title: t('text-metrics-area-revenue'), unit: t('text-unit-kes-km2-day'), category: 'revenue' as const },
+    { id: 'costs', field: 'cost', title: t('text-metrics-trip-costs'), unit: t('text-unit-kes-fisher-day'), category: 'revenue' as const },
+    { id: 'profit', field: 'profit', title: t('text-metrics-profit'), unit: t('text-unit-kes-fisher-day'), category: 'revenue' as const }
   ] as const, [t]);
 
-  // Define a mapping from metric id to unit (inside the component to access t)
-  const metricUnits: Record<string, string> = {
-    'effort': t('text-unit-fishers-km2-day'),
-    'catch-rate': t('text-unit-kg-fisher-day'),
-    'catch-density': t('text-unit-kg-km2-day'),
-    'fisher-revenue': t('text-unit-kes-fisher-day'),
-    'area-revenue': t('text-unit-kes-km2-day'),
-  };
+  // Process individual fisher data for overlay
+  const individualFisherChartData = useMemo(() => {
+    if (!memoizedFisherData || !userFisherId || memoizedFisherData.length === 0) return {};
+    
+    // Convert daily fisher data to monthly aggregates per metric
+    const monthlyAggregates: Record<string, Record<string, { 
+      sum: number; 
+      count: number; 
+      date: number;
+    }>> = {};
+    
+    memoizedFisherData.forEach((record: any) => {
+      const date = new Date(record.date);
+      const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+      
+      if (!monthlyAggregates[monthKey]) {
+        const monthStart = new Date(date.getFullYear(), date.getMonth(), 1);
+        monthlyAggregates[monthKey] = {
+          effort: { sum: 0, count: 0, date: monthStart.getTime() },
+          cpue: { sum: 0, count: 0, date: monthStart.getTime() },
+          cpua: { sum: 0, count: 0, date: monthStart.getTime() },
+          rpue: { sum: 0, count: 0, date: monthStart.getTime() },
+          rpua: { sum: 0, count: 0, date: monthStart.getTime() },
+          cost: { sum: 0, count: 0, date: monthStart.getTime() },
+          profit: { sum: 0, count: 0, date: monthStart.getTime() }
+        };
+      }
+      
+      // Map individual fisher metrics to BMU metrics
+      if (record.mean_effort != null) {
+        monthlyAggregates[monthKey].effort.sum += record.mean_effort;
+        monthlyAggregates[monthKey].effort.count++;
+      }
+      if (record.mean_cpue != null) {
+        monthlyAggregates[monthKey].cpue.sum += record.mean_cpue;
+        monthlyAggregates[monthKey].cpue.count++;
+      }
+      if (record.mean_cpue != null) { // Use CPUE as approximation for CPUA
+        monthlyAggregates[monthKey].cpua.sum += record.mean_cpue;
+        monthlyAggregates[monthKey].cpua.count++;
+      }
+      if (record.mean_rpue != null) {
+        monthlyAggregates[monthKey].rpue.sum += record.mean_rpue;
+        monthlyAggregates[monthKey].rpue.count++;
+      }
+      if (record.mean_rpue != null) { // Use RPUE as approximation for RPUA
+        monthlyAggregates[monthKey].rpua.sum += record.mean_rpue;
+        monthlyAggregates[monthKey].rpua.count++;
+      }
+      if (record.mean_cost != null) {
+        monthlyAggregates[monthKey].cost.sum += record.mean_cost;
+        monthlyAggregates[monthKey].cost.count++;
+      }
+      if (record.mean_profit != null) {
+        monthlyAggregates[monthKey].profit.sum += record.mean_profit;
+        monthlyAggregates[monthKey].profit.count++;
+      }
+    });
+    
+    // Convert to array format with absolute values per metric
+    const result: Record<string, Array<{ date: number; value: number }>> = {};
+    
+    Object.entries(monthlyAggregates).forEach(([monthKey, metrics]) => {
+      Object.entries(metrics).forEach(([metric, agg]) => {
+        if (agg.count > 0) {
+          if (!result[metric]) result[metric] = [];
+          result[metric].push({
+            date: agg.date,
+            value: agg.sum / agg.count
+          });
+        }
+      });
+    });
+    
+    // Sort by date for each metric
+    Object.keys(result).forEach(metric => {
+      result[metric].sort((a, b) => a.date - b.date);
+    });
+    
+    return result;
+  }, [memoizedFisherData, userFisherId]);
 
   // Process data with useMemo to avoid unnecessary recalculations
   const processedData = useMemo(() => {
@@ -253,6 +355,10 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
           const lastPoint = trend[trend.length - 1];
           const lastOthersPoint = otherBmusMetric?.trend?.[otherBmusMetric.trend.length - 1];
           
+          // Get individual fisher value for this metric
+          const individualFisherData = individualFisherChartData[metric.field];
+          const lastIndividualPoint = individualFisherData?.[individualFisherData.length - 1];
+          
           setComparisonValues(prev => ({
             ...prev,
             [metric.id]: {
@@ -260,26 +366,37 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
               others: canCompareWithOthers && lastOthersPoint ? 
                 (lastOthersPoint.sale === null || lastOthersPoint.sale === undefined ? 
                 null : Math.round(lastOthersPoint.sale)) : undefined,
+              individualFisher: lastIndividualPoint ? Math.round(lastIndividualPoint.value) : undefined,
               date: getMonthName(lastPoint.day)
             }
           }));
         }
 
         // Create chart data points
-        const chartData = trend.map((point, index) => ({
-          day: point.day || '',
-          reference: point.sale === null || point.sale === undefined ? null : point.sale,
-          others: canCompareWithOthers && otherBmusMetric?.trend?.[index] ? 
-            (otherBmusMetric.trend[index].sale === null || otherBmusMetric.trend[index].sale === undefined ? 
-              null : otherBmusMetric.trend[index].sale) : null,
-          index,
-          metricId: metric.id
-        }));
+        const chartData = trend.map((point, index) => {
+          const day = point.day || '';
+          const individualFisherData = individualFisherChartData[metric.field];
+          const individualPoint = individualFisherData?.find(p => 
+            new Date(p.date).toLocaleString('default', { month: 'short' }) === getMonthName(day)
+          );
+          
+          return {
+            day,
+            reference: point.sale === null || point.sale === undefined ? null : point.sale,
+            others: canCompareWithOthers && otherBmusMetric?.trend?.[index] ? 
+              (otherBmusMetric.trend[index].sale === null || otherBmusMetric.trend[index].sale === undefined ? 
+                null : otherBmusMetric.trend[index].sale) : null,
+            individualFisher: individualPoint?.value || null,
+            index,
+            metricId: metric.id
+          };
+        });
 
         return {
           id: metric.id,
           title: metric.title,
           metric: Math.round(referenceMetric.current || 0).toLocaleString(),
+          unit: metric.unit,
           chart: chartData
         };
       });
@@ -287,7 +404,7 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
       console.error("Error transforming data:", error);
       return null;
     }
-  }, [statsData1, statsData2, metrics, canCompareWithOthers, isLoading1]);
+  }, [statsData1, statsData2, metrics, canCompareWithOthers, isLoading1, individualFisherChartData]);
 
   // Update state based on processed data
   useEffect(() => {
@@ -330,6 +447,7 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
       [metricId]: {
         reference: Math.round(entry.payload.reference),
         others: canCompareWithOthers ? Math.round(entry.payload.others || 0) : undefined,
+        individualFisher: entry.payload.individualFisher ? Math.round(entry.payload.individualFisher) : undefined,
         date: getMonthName(day)
       }
     }));
@@ -375,6 +493,7 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
           [metricId]: {
             reference: Math.round(entry.payload.reference),
             others: canCompareWithOthers ? Math.round(entry.payload.others || 0) : undefined,
+            individualFisher: entry.payload.individualFisher ? Math.round(entry.payload.individualFisher) : undefined,
             date: getMonthName(entry.payload.day)
           }
         }));
@@ -414,7 +533,12 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
 
   return (
     <>
-      {statsData.map((stat) => (
+      {statsData.map((stat) => {
+        // Find the metric info to get the category
+        const metricInfo = metrics.find(m => m.id === stat.id);
+        const isRevenueMetric = metricInfo?.category === 'revenue';
+        
+        return (
         <MetricCard
           key={stat.id}
           title=""
@@ -423,35 +547,48 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
           className={cn(
             "@container text-[15px]",
             "min-w-[260px] w-full max-w-full flex-1 p-0 overflow-hidden",
+            // Apply color scheme based on category
+            isRevenueMetric 
+              ? "bg-amber-50/60" 
+              : "bg-blue-50/60",
             className
           )}
         >
-          <div className="p-4">
-            <div className="flex justify-between items-center w-full">
-              <Text className="text-sm text-gray-700">{stat.title}</Text>
-              {hoveredPercentages[stat.id] && (
-                <span className={cn(
-                  "inline-flex items-center text-sm font-medium",
-                  hoveredPercentages[stat.id].increased ? "text-green-500" : "text-red-500"
-                )}>
-                  {hoveredPercentages[stat.id].increased ? (
-                    <TrendingUpIcon className="me-1 h-4 w-4" />
-                  ) : (
-                    <TrendingDownIcon className="me-1 h-4 w-4" />
-                  )}
-                  {hoveredPercentages[stat.id].percentage}
-                </span>
-              )}
+          <div className="p-4 pb-2">
+            <div className="flex flex-col gap-1">
+              <div className="flex items-baseline gap-1">
+                <Text className="text-m font-medium text-gray-700">{stat.title}</Text>
+                <Text className="text-xs text-gray-400">({stat.unit})</Text>
+              </div>
+              <Text className="text-xs text-gray-500">
+                Monthly trend comparison
+              </Text>
             </div>
             
-            <div className="flex items-baseline gap-2 mt-0.5">
-              <Text className="text-xl font-bold text-gray-900">
-                {!comparisonValues[stat.id] ? stat.metric : 
-                  (comparisonValues[stat.id]?.reference === null || comparisonValues[stat.id]?.reference === undefined ? 
-                  "N/A" : comparisonValues[stat.id]?.reference?.toLocaleString() || "-")}
-              </Text>
+            <div className="flex items-baseline justify-between mt-2">
+              <div className="flex items-baseline gap-2">
+                <Text className="text-l font-bold text-gray-900">
+                  {!comparisonValues[stat.id] ? stat.metric : 
+                    (comparisonValues[stat.id]?.reference === null || comparisonValues[stat.id]?.reference === undefined ? 
+                    "N/A" : comparisonValues[stat.id]?.reference?.toLocaleString() || "-")}
+                </Text>
+                {hoveredPercentages[stat.id] && (
+                  <span className={cn(
+                    "inline-flex items-center text-xs font-medium",
+                    hoveredPercentages[stat.id].increased ? "text-green-500" : "text-red-500"
+                  )}>
+                    {hoveredPercentages[stat.id].increased ? (
+                      <TrendingUpIcon className="me-1 h-3 w-3" />
+                    ) : (
+                      <TrendingDownIcon className="me-1 h-3 w-3" />
+                    )}
+                    {hoveredPercentages[stat.id].percentage}
+                  </span>
+                )}
+              </div>
+              
               {hoveredPercentages[stat.id] && (
-                <span className="text-2xs text-gray-500">
+                <span className="text-xs text-gray-500">
                   {hoveredPercentages[stat.id].monthComparison}
                 </span>
               )}
@@ -468,14 +605,20 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
                   <span>Other BMUs</span>
                 </div>
               )}
+              {shouldShowIndividualData && userFisherId && (
+                <div className="flex items-center gap-1">
+                  <div className="w-1.5 h-1.5 rounded-full bg-[#F79F79]" />
+                  <span>{t('text-your-performance') || 'Your Performance'}</span>
+                </div>
+              )}
             </div>
           </div>
           
-          <div className="h-24 w-full bg-gray-50/50 transition-colors duration-200 hover:bg-gray-100/60">
+          <div className="h-32 w-full bg-gray-50/50 transition-colors duration-200 hover:bg-gray-100/60">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart 
                 data={stat.chart}
-                margin={{ top: 5, right: 8, bottom: 5, left: 30 }}
+                margin={{ top: 15, right: 8, bottom: 25, left: 30 }}
                 barGap={1}
                 onMouseMove={handleMouseMove}
                 onClick={handleBarClick}
@@ -521,32 +664,23 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
                     activeBar={{ fill: 'rgba(128, 188, 188, 1)', stroke: 'rgba(128, 188, 188, 1)', strokeWidth: 1 }}
                   />
                 )}
+                {shouldShowIndividualData && userFisherId && (
+                  <Bar
+                    dataKey="individualFisher"
+                    fill="#F79F79"
+                    name={t("text-your-performance") || "Your Performance"}
+                    radius={[2, 2, 0, 0]}
+                    maxBarSize={8}
+                    minPointSize={3}
+                    activeBar={{ fill: '#e67e22', stroke: '#e67e22', strokeWidth: 1 }}
+                  />
+                )}
               </BarChart>
             </ResponsiveContainer>
           </div>
-          
-          {/* <div className="px-3 py-2 border-t border-gray-100 bg-gray-50/30 flex justify-between text-xs">
-            <div className="flex flex-col">
-              <span className="text-2xs text-gray-500">{displayName}</span>
-              <span className="font-medium">
-                {!comparisonValues[stat.id] ? "-" : 
-                  (comparisonValues[stat.id]?.reference === null || comparisonValues[stat.id]?.reference === undefined ? 
-                  "N/A" : comparisonValues[stat.id]?.reference?.toLocaleString() || "-")}
-              </span>
-            </div>
-            {canCompareWithOthers && effectiveBMU && (
-              <div className="flex flex-col">
-                <span className="text-2xs text-gray-500">Other BMUs</span>
-                <span className="font-medium">
-                  {!comparisonValues[stat.id] ? "-" : 
-                    (comparisonValues[stat.id]?.others === null || comparisonValues[stat.id]?.others === undefined ? 
-                    "N/A" : comparisonValues[stat.id]?.others?.toLocaleString() || "-")}
-                </span>
-              </div>
-            )}
-          </div> */}
         </MetricCard>
-      ))}
+        );
+      })}
     </>
   );
 }

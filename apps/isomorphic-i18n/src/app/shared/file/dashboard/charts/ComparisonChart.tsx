@@ -151,6 +151,10 @@ export default function ComparisonChart({
       } else if (selectedMetric === "mean_rpua" && record.mean_rpue != null) {
         // For BMU area revenue, use individual fisher RPUE as approximation
         value = record.mean_rpue;
+      } else if (selectedMetric === "mean_cost" && record.mean_cost != null) {
+        value = record.mean_cost;
+      } else if (selectedMetric === "mean_profit" && record.mean_profit != null) {
+        value = record.mean_profit;
       }
       
       if (value !== null) {
@@ -322,23 +326,33 @@ export default function ComparisonChart({
           belowLabel = t('text-below-minimum-wage') || 'Below Minimum Wage';
         }
         
-      // Override the payload to show both positive and negative values
-      const customPayload = [
-        {
+        // Create custom payload with baseline comparison and individual fisher data
+        const customPayload = [
+          {
             value: aboveLabel,
-          type: 'rect',
-          color: '#16a34a',
+            type: 'rect',
+            color: '#16a34a',
             id: 'above-baseline'
-        },
-        {
+          },
+          {
             value: belowLabel,
-          type: 'rect',
-          color: '#ef4444',
+            type: 'rect',
+            color: '#ef4444',
             id: 'below-baseline'
+          }
+        ];
+        
+        // Add individual fisher legend if data is available
+        if (individualFisherData && userFisherId) {
+          customPayload.push({
+            value: t("text-your-performance") || "Your Performance",
+            type: 'rect',
+            color: '#F79F79',
+            id: 'individual-fisher'
+          });
         }
-      ];
       
-      return <CustomLegend {...props} payload={customPayload} />;
+        return <CustomLegend {...props} payload={customPayload} />;
       }
       
       // For WBCIA/admin users with multiple BMUs, use default legend to show BMU names
