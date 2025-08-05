@@ -22,7 +22,7 @@ import {
 
 // Import shared MetricSelector component
 import { METRIC_OPTIONS } from "../../charts/utils/chart-types";
-import { generateColor, updateBmuColorRegistry } from "../../charts/utils/chart-utils";
+import { generateColor, updateBmuColorRegistry, getSortedBmuList } from "../../charts/utils/chart-utils";
 import useUserPermissions from "../../core/hooks/use-user-permissions";
 // Import time range filtering utilities
 import { getTimeRangeStartDate } from "../../core/utils/time-range-filter";
@@ -532,10 +532,20 @@ export default function GearHeatmap({
         return;
       }
 
-      // Extract unique BMUs from the data
-      const uniqueBMUs = Array.from(
-        new Set(rawData.map((d: GearData) => d.BMU))
-      ).sort();
+      // Extract unique BMUs that have data for the selected metric
+      const uniqueBMUsSet = Array.from(
+        new Set(
+          rawData
+            .filter((d: GearData) => {
+              const value = (d as any)[mappedMetricField];
+              return value !== undefined && value !== null;
+            })
+            .map((d: GearData) => d.BMU)
+        )
+      );
+      
+      // Sort BMUs consistently across all charts
+      const uniqueBMUs = getSortedBmuList(uniqueBMUsSet);
       
       // Filter BMUs based on user permissions - use direct logic instead of function dependency
       const accessibleBMUs = hasRestrictedAccess 

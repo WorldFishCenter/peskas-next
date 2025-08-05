@@ -21,6 +21,20 @@ export const updateBmuColorRegistry = (bmuNames: string[]) => {
   globalBmuNames = allNames.sort();
 };
 
+// Function to get consistently sorted BMU list for chart ordering
+export const getSortedBmuList = (bmuNames: string[]): string[] => {
+  // Filter out special cases like average and historical_average
+  const filteredNames = bmuNames.filter(name => 
+    name !== 'average' && 
+    name !== 'historical_average' && 
+    typeof name === 'string' && 
+    name.trim().length > 0
+  );
+  
+  // Sort alphabetically for consistent ordering across all charts
+  return filteredNames.sort();
+};
+
 // Standard color function for all charts - using consistent mapping without hardcoding BMUs
 export const generateColor = (index: number, site: string, referenceBmu: string | undefined): string => {
   // Special case for reference BMU

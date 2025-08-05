@@ -21,13 +21,12 @@ import { useSession } from "next-auth/react";
 // Import shared permissions hook
 import useUserPermissions from "../../core/hooks/use-user-permissions";
 // Import shared color function
-import { generateColor, updateBmuColorRegistry } from "../../charts/utils/chart-utils";
+import { generateColor, updateBmuColorRegistry, getSortedBmuList } from "../../charts/utils/chart-utils";
 import { MetricKey, MetricOption } from "../../charts/utils/chart-types";
 // Import site configuration
 // Import time range filtering utilities
 import { getTimeRangeStartDate } from "../../core/utils/time-range-filter";
 import { useIndividualData } from "../../individual/hooks/use-individual-data";
-
 
 interface RadarData {
   month: string;
@@ -300,8 +299,6 @@ export default function CatchRadarChart({
       }
     );
 
-
-
   // Force refetch when bmus or metric changes - more efficient check
   useEffect(() => {
     // Save current scroll position
@@ -361,7 +358,9 @@ export default function CatchRadarChart({
         });
         return sites;
       }, new Set<string>());
-      const uniqueSites: string[] = Array.from(uniqueSitesSet);
+      
+      // Sort BMUs consistently across all charts
+      const uniqueSites: string[] = getSortedBmuList(Array.from(uniqueSitesSet));
 
       // If no sites found, show error
       if (uniqueSites.length === 0) {

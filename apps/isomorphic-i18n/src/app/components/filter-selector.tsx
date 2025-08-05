@@ -256,6 +256,11 @@ const FilterGroup = ({
   const { t } = useTranslation("common");
 
   const handleBmuSelect = (unit: string) => {
+    // Prevent deselecting starred BMUs
+    if (referenceBmu === unit && bmus.includes(unit)) {
+      return; // Do nothing if trying to deselect a starred BMU
+    }
+    
     // For the CIA group, ensure only one BMU is selectable
     if (isCiaUser) {
       setBmus([unit]);
@@ -330,6 +335,8 @@ const FilterGroup = ({
             label={unit}
             checked={bmus.includes(unit)}
             onChange={() => handleBmuSelect(unit)}
+            disabled={isReferenceBmu}
+            className={isReferenceBmu ? "opacity-75" : ""}
           />
         </div>
         {isAdmin && (
@@ -355,9 +362,16 @@ const FilterGroup = ({
       : section.units.every(unit => bmus.includes(unit.value));
 
     const handleSectionSelect = () => {
+      // Check if this region contains a starred BMU
+      const hasStarredBmu = section.units.some(unit => referenceBmu === unit.value);
+      
       // For region view in admin mode, select only one BMU per region
       if (isAdmin && viewMode === 'region') {
         if (isRegionSelected) {
+          // Prevent deselecting region if it contains a starred BMU
+          if (hasStarredBmu) {
+            return; // Do nothing if trying to deselect a region with starred BMU
+          }
           // Remove all BMUs from this region
           setBmus(bmus.filter(bmu => !section.units.some(unit => unit.value === bmu)));
         } else {
@@ -370,6 +384,10 @@ const FilterGroup = ({
       
       // Standard behavior for other cases
       if (isRegionSelected) {
+        // Prevent deselecting region if it contains a starred BMU
+        if (hasStarredBmu) {
+          return; // Do nothing if trying to deselect a region with starred BMU
+        }
         setBmus(
           bmus.filter(
             (filter) =>
@@ -401,16 +419,21 @@ const FilterGroup = ({
             }
             checked={isRegionSelected}
             onChange={handleSectionSelect}
+            disabled={!!(hasReferenceBmu && isRegionSelected)}
+            className={hasReferenceBmu && isRegionSelected ? "opacity-75" : ""}
           />
         </div>
         <div className="mt-1 ml-6 space-y-1">
           {section.units.map((unit) => {
             // In region view for admin, only one BMU can be selected per region
-            const disabled = isAdmin && viewMode === 'region' && isRegionSelected && 
+            const regionDisabled = isAdmin && viewMode === 'region' && isRegionSelected && 
               !bmus.includes(unit.value);
             
             // Check if this is the reference BMU
             const isReferenceBmu = referenceBmu === unit.value;
+            
+            // Disable checkbox if BMU is starred (referenced) or region-disabled
+            const disabled = regionDisabled || isReferenceBmu;
             
             return (
               <div key={unit.value} className="flex items-center justify-between pr-2">
@@ -423,7 +446,7 @@ const FilterGroup = ({
                     className={disabled ? "opacity-50" : ""}
                   />
                 </div>
-                {isAdmin && !disabled && (
+                {isAdmin && !regionDisabled && (
                   <button
                     className={cn(
                       "ml-4 text-lg flex-shrink-0 w-6 h-6 flex items-center justify-center", 
