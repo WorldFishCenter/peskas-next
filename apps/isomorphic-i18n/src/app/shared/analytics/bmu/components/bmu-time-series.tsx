@@ -25,7 +25,7 @@ import SimpleBar from "@ui/simplebar";
 import cn from "@utils/class-names";
 import { ActionIcon, Popover } from "rizzui";
 import { useSession } from "next-auth/react";
-import { generateColor, updateBmuColorRegistry } from "../../charts/utils/chart-utils";
+import { generateColor, updateBmuColorRegistry, getSortedBmuList } from "../../charts/utils/chart-utils";
 import { MetricKey, METRIC_OPTIONS } from "../../charts/utils/chart-types";
 import useUserPermissions from "../../core/hooks/use-user-permissions";
 import { getClientLanguage } from "@/app/i18n/language-link";
@@ -400,9 +400,12 @@ export default function CatchMetricsChart({
 
     try {
       // Get unique sites from the data
-      const uniqueSites = Array.from(
+      const uniqueSitesSet = Array.from(
         new Set(monthlyData.map((item: ApiDataPoint) => item.landing_site))
       );
+      
+      // Sort BMUs consistently across all charts
+      const uniqueSites = getSortedBmuList(uniqueSitesSet);
 
       // Update the global BMU color registry to ensure unique colors
       updateBmuColorRegistry(uniqueSites as string[]);

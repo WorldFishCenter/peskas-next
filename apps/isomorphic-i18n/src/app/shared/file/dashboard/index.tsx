@@ -37,10 +37,10 @@ export default function FileDashboard({ lang }: { lang?: string }) {
   const [selectedMetric, setSelectedMetric] = useAtom(selectedMetricAtom);
   const [activeTab, setActiveTab] = useState("trends");
   const { t } = useTranslation("common");
-  const { referenceBMU, isIiaUser, userFisherId, isWbciaUser, shouldShowUnifiedDashboard, isAdminFisher } = useUserPermissions();
+  const { referenceBMU, userBMU, isIiaUser, userFisherId, isWbciaUser, shouldShowUnifiedDashboard, isAdminFisher } = useUserPermissions();
 
   // Use reference BMU if available or fall back to user's BMU
-  const effectiveBMU = referenceBMU || undefined;
+  const effectiveBMU = referenceBMU || userBMU;
 
   // If user is IIA, show individual fisher dashboard
   if (isIiaUser && userFisherId) {

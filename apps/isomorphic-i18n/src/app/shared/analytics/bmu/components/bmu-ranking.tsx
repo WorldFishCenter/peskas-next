@@ -24,7 +24,7 @@ import {
 // Import shared components and types
 import { MetricOption } from "../../charts/utils/chart-types";
 import useUserPermissions from "../../core/hooks/use-user-permissions";
-import { generateColor, updateBmuColorRegistry } from "../../charts/utils/chart-utils";
+import { generateColor, updateBmuColorRegistry, getSortedBmuList } from "../../charts/utils/chart-utils";
 import { useIndividualFisherDataOnly } from "../../individual/hooks/use-individual-data";
 
 // Import time range filtering utilities
@@ -353,8 +353,9 @@ export default function BMURanking({
         }
       });
 
-      // Get all BMU names and update color registry to ensure unique colors
-      const bmuNames = Object.keys(bmuAverages);
+      // Get all BMU names and sort them consistently 
+      const bmuNamesUnsorted = Object.keys(bmuAverages);
+      const bmuNames = getSortedBmuList(bmuNamesUnsorted);
       updateBmuColorRegistry(bmuNames);
 
       // Calculate averages and create ranking data

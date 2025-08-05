@@ -17,7 +17,7 @@ import {
   ApiDataPoint, 
   VisibilityState 
 } from "../../charts/utils/chart-types";
-import { generateColor, getAnnualData, getRecentData, updateBmuColorRegistry } from "../../charts/utils/chart-utils";
+import { generateColor, getAnnualData, getRecentData, updateBmuColorRegistry, getSortedBmuList } from "../../charts/utils/chart-utils";
 import CustomLegend from "../../charts/base/custom-legend";
 // Import the chart components
 import TrendsChart from "../../charts/base/trends-chart";
@@ -339,10 +339,12 @@ export default function CatchMetricsChart({
   const effectiveBMU = bmu || userBMU;
   
   // Ensure bmus is always an array - memoized to prevent unnecessary re-renders
-  const safeBmus = useMemo(() => bmus || [], [bmus]);
+  const safeBmus = useMemo(() => {
+    return bmus || [];
+  }, [bmus]);
   
   // Fetch monthly data
-  const { data: monthlyData, refetch } = api.aggregatedCatch.monthly.useQuery(
+  const { data: monthlyData, refetch, error: queryError } = api.aggregatedCatch.monthly.useQuery(
     { bmus: safeBmus },
     {
       refetchOnMount: true,
@@ -351,6 +353,7 @@ export default function CatchMetricsChart({
       enabled: safeBmus.length > 0,
     }
   );
+
 
   // Fetch individual fisher data for admin-fishers
   const dateRange = useMemo(() => {
@@ -461,8 +464,8 @@ export default function CatchMetricsChart({
     // Check if bmus array has changed
     if (JSON.stringify(previousBmus.current) !== JSON.stringify(safeBmus)) {
       dataProcessed.current = false;
-      previousBmus.current = [...safeBmus];
       refetch();
+      // Note: previousBmus.current will be updated in the data processing useEffect
     }
   }, [safeBmus, refetch]);
 
@@ -569,7 +572,8 @@ export default function CatchMetricsChart({
 
   // Process main data when monthlyData changes
   useEffect(() => {
-    if (!monthlyData || safeBmus.length === 0) return;
+    
+    if (!monthlyData || !safeBmus || safeBmus.length === 0) return;
     
     // Reset processing flag if metric or time range changed
     if (previousMetricRef.current !== selectedMetric || previousTimeRangeRef.current !== selectedTimeRange) {
@@ -578,17 +582,39 @@ export default function CatchMetricsChart({
       previousTimeRangeRef.current = selectedTimeRange;
     }
     
-    // Prevent re-processing data unnecessarily
-    if (chartData.length > 0 && !loading && 
-        JSON.stringify(previousBmus.current) === JSON.stringify(safeBmus) && 
+    // Check if BMUs have changed
+    const bmusChanged = JSON.stringify(previousBmus.current) !== JSON.stringify(safeBmus);
+    
+    // Prevent re-processing data unnecessarily UNLESS BMUs have changed
+    const shouldSkipProcessing = (chartData.length > 0 && !loading && 
+        !bmusChanged && 
         previousMetricRef.current === selectedMetric &&
-        previousTimeRangeRef.current === selectedTimeRange) return;
+        previousTimeRangeRef.current === selectedTimeRange);
+    
+    
+    if (shouldSkipProcessing) return;
+    
+    // Update tracking after we decide to process
+    if (bmusChanged) {
+      previousBmus.current = [...safeBmus];
+      dataProcessed.current = false;
+    }
 
     try {
-      // Get unique sites from the data
-      const uniqueSites = Array.from(
-        new Set(monthlyData.map((item: ApiDataPoint) => item.landing_site))
+      // Get unique sites that have data for the selected metric (like radar chart)
+      const uniqueSitesSet = Array.from(
+        new Set(
+          monthlyData
+            .filter((item: ApiDataPoint) => {
+              const value = item[selectedMetric];
+              return value !== undefined && value !== null;
+            })
+            .map((item: ApiDataPoint) => item.landing_site)
+        )
       );
+      
+      // Sort BMUs consistently across all charts
+      const uniqueSites = getSortedBmuList(uniqueSitesSet);
       
       // Apply user permissions
       const accessibleSites = hasRestrictedAccess 
@@ -696,14 +722,14 @@ export default function CatchMetricsChart({
         // Store the value
         dataMap[timestamp][item.landing_site] = value;
       });
-
+      
       // Initialize groupedData with all months in the range
       const groupedData: Record<string, ChartDataPoint> = {};
       allMonths.forEach(timestamp => {
         groupedData[timestamp] = {
           date: timestamp,
           ...uniqueSites.reduce((sites, site) => {
-            // Use the stored value if available, otherwise undefined
+            // Use the stored value if available, otherwise undefined  
             const monthData = dataMap[timestamp];
             return { 
               ...sites, 
@@ -748,8 +774,6 @@ export default function CatchMetricsChart({
       setFiveYearMarks(marks);
       setChartData(processedData);
       
-      previousBmus.current = [...safeBmus];
-      previousMetricRef.current = selectedMetric;
     } catch (error) {
       console.error("Error transforming data:", error);
     } finally {
