@@ -33,7 +33,7 @@ const catchMonthlySchema = new Schema<TCatchMonthly>(
     fdays: Number,
   },
   {
-    collection: "monthly_stats",
+    collection: "catch_monthly",
   },
 );
 
