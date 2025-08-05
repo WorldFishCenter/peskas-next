@@ -1,4 +1,4 @@
-import AuthWrapperFour from '@/app/shared/auth-layout/auth-wrapper-four';
+import AuthWrapperOne from '@/app/shared/auth-layout/auth-wrapper-one';
 import ForgetPasswordForm from './forgot-password-form';
 
 export default function ForgotPassword({
@@ -7,7 +7,7 @@ export default function ForgotPassword({
   params: { lang?: string };
 }) {
   return (
-    <AuthWrapperFour
+    <AuthWrapperOne
       title={
         <>
           Having trouble to sign in? <br className="hidden sm:inline-block" />{' '}
@@ -17,6 +17,6 @@ export default function ForgotPassword({
       lang={lang}
     >
       <ForgetPasswordForm lang={lang}/>
-    </AuthWrapperFour>
+    </AuthWrapperOne>
   );
 }

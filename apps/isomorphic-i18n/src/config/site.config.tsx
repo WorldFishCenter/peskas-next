@@ -19,8 +19,19 @@ export const siteConfig = {
   layout: LAYOUT_OPTIONS.LITHIUM,
   favicon: sailboatIcon,
   author: {
-    name: 'E-Global Labs LTD',
-    url: 'https://www.e-globallabs.com',
+    name: 'WorldFish',
+    url: 'https://www.worldfishcenter.org',
+  },
+  partners: [
+    {
+      name: 'WCS',
+      fullName: 'Wildlife Conservation Society',
+      url: 'https://www.wcs.org',
+    },
+  ],
+  mainContributor: {
+    name: 'Lorenzo Longobardi',
+    role: 'Main Contributor',
   },
   headerLinks: [],
 };

@@ -22,13 +22,13 @@ import { useSession } from "next-auth/react";
 import type { TBmu } from "@repo/nosql/schema/bmu";
 import LanguageLink, { getClientLanguage } from "@/app/i18n/language-link";
 import { useAtom } from 'jotai';
-import { METRIC_OPTIONS } from '@/app/shared/file/dashboard/charts/types';
+import { METRIC_OPTIONS } from '@/app/shared/analytics/charts/utils/chart-types';
 import { useState, useEffect } from 'react';
 import { changeAppLanguage } from '@/app/i18n/language-switcher';
 import { USFlag } from "@components/icons/language/USFlag";
 import { SWFlag } from "@components/icons/language/SWFlag";
 import { useTranslation } from "@/app/i18n/client";
-import useUserPermissions from "@/app/shared/file/dashboard/hooks/useUserPermissions";
+import { useUserPermissions } from "@/app/shared/analytics/core/hooks/use-user-permissions";
 import { usePathname } from "next/navigation";
 
 type SerializedBmu = {

@@ -1,9 +1,9 @@
 import { IndividualStatsModel } from "@repo/nosql/schema/individual-data";
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "../trpc";
+import { IndividualFishDistributionModel } from "@repo/nosql/schema/individual-fish-distribution";
 import { TRPCError } from "@trpc/server";
 import getDb from "@repo/nosql";
-import { IndividualFishDistributionModel } from "@repo/nosql/schema/individual-fish-distribution";
 
 export const individualDataRouter = createTRPCRouter({
   // Get all individual data for specified BMUs
@@ -11,23 +11,26 @@ export const individualDataRouter = createTRPCRouter({
     .input(z.object({ bmus: z.string().array() }))
     .query(async ({ input }) => {
       try {
-        await getDb(); // Ensure DB connection is established
-        return await IndividualStatsModel.find({
+        await getDb();
+        
+        const matchStage = {
           BMU: { $in: input.bmus },
-        })
-        .select({
-          _id: 0,
-          date: 1,
-          BMU: 1,
-          fisher_id: 1,
-          mean_cpue: 1,
-          mean_rpue: 1,
-          mean_price_kg: 1,
-          mean_cost: 1,
-          mean_profit: 1,
-        })
-        .sort({ date: -1 })
-        .exec();
+        };
+        
+        return await IndividualStatsModel.find(matchStage)
+          .select({
+            _id: 0,
+            date: 1,
+            BMU: 1,
+            fisher_id: 1,
+            mean_cpue: 1,
+            mean_rpue: 1,
+            mean_price_kg: 1,
+            mean_cost: 1,
+            mean_profit: 1,
+          })
+          .sort({ date: -1 })
+          .exec();
       } catch (error) {
         console.error('Error in individual data all query:', error);
         throw new TRPCError({
@@ -49,7 +52,6 @@ export const individualDataRouter = createTRPCRouter({
       try {
         await getDb();
         
-        // Prepare match stage with optional date filtering
         const matchStage: any = {
           fisher_id: input.fisherId,
         };
@@ -79,7 +81,7 @@ export const individualDataRouter = createTRPCRouter({
           .sort({ date: -1 })
           .exec();
       } catch (error) {
-        console.error('Error in individual data byFisherId query:', error);
+        console.error('Error in individual fisher data query:', error);
         throw new TRPCError({
           code: 'INTERNAL_SERVER_ERROR',
           message: 'Failed to fetch individual fisher data',
@@ -115,7 +117,7 @@ export const individualDataRouter = createTRPCRouter({
         }
         
         // Aggregate by year
-        const yearlyData = await IndividualStatsModel.aggregate([
+        return await IndividualStatsModel.aggregate([
           { $match: matchStage },
           {
             $group: {
@@ -136,8 +138,6 @@ export const individualDataRouter = createTRPCRouter({
           },
           { $sort: { year: 1 } }
         ]);
-        
-        return yearlyData;
       } catch (error) {
         console.error('Error in individual data yearlyByFisherId query:', error);
         throw new TRPCError({
@@ -184,9 +184,9 @@ export const individualDataRouter = createTRPCRouter({
                 BMU: "$BMU",
                 gear: "$gear",
               },
-              avg_cpue: { $avg: "$fisher_cpue" },
-              avg_rpue: { $avg: "$fisher_rpue" },
-              avg_cost: { $avg: "$fisher_cost" },
+              avg_cpue: { $avg: "$mean_cpue" },
+              avg_rpue: { $avg: "$mean_rpue" },
+              avg_cost: { $avg: "$mean_cost" },
               total_fishers: { $sum: 1 },
             },
           },
@@ -355,7 +355,7 @@ export const individualDataRouter = createTRPCRouter({
           {
             $project: {
               _id: 0,
-              month: "_id",
+              month: "$_id",
               date: { $dateFromString: { dateString: { $concat: ["$_id", "-01"] } } },
               avg_value: { $round: ["$avg_value", 2] },
               count: 1,
@@ -455,14 +455,25 @@ export const individualDataRouter = createTRPCRouter({
       endDate: z.string().optional(),
     }))
     .query(async ({ input }) => {
-      await getDb();
-      const query: any = { fisher_id: input.fisherId };
-      if (input.startDate || input.endDate) {
-        query.date = {};
-        if (input.startDate) query.date.$gte = new Date(input.startDate);
-        if (input.endDate) query.date.$lte = new Date(input.endDate);
+      try {
+        await getDb();
+        
+        const query: any = { fisher_id: input.fisherId };
+        if (input.startDate || input.endDate) {
+          query.date = {};
+          if (input.startDate) query.date.$gte = new Date(input.startDate);
+          if (input.endDate) query.date.$lte = new Date(input.endDate);
+        }
+        
+        return await IndividualFishDistributionModel.find(query).sort({ date: 1 }).exec();
+      } catch (error) {
+        console.error('Error in individual fish distribution by fisher query:', error);
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: 'Failed to fetch individual fish distribution by fisher',
+          cause: error,
+        });
       }
-      return IndividualFishDistributionModel.find(query).sort({ date: 1 }).exec();
     }),
 
   // Get individual fish distribution by BMU
@@ -473,13 +484,24 @@ export const individualDataRouter = createTRPCRouter({
       endDate: z.string().optional(),
     }))
     .query(async ({ input }) => {
-      await getDb();
-      const query: any = { landing_site: input.bmu };
-      if (input.startDate || input.endDate) {
-        query.date = {};
-        if (input.startDate) query.date.$gte = new Date(input.startDate);
-        if (input.endDate) query.date.$lte = new Date(input.endDate);
+      try {
+        await getDb();
+        
+        const query: any = { landing_site: input.bmu };
+        if (input.startDate || input.endDate) {
+          query.date = {};
+          if (input.startDate) query.date.$gte = new Date(input.startDate);
+          if (input.endDate) query.date.$lte = new Date(input.endDate);
+        }
+        
+        return await IndividualFishDistributionModel.find(query).sort({ date: 1 }).exec();
+      } catch (error) {
+        console.error('Error in individual fish distribution by BMU query:', error);
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: 'Failed to fetch individual fish distribution by BMU',
+          cause: error,
+        });
       }
-      return IndividualFishDistributionModel.find(query).sort({ date: 1 }).exec();
     }),
 }); 

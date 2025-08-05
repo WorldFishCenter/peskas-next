@@ -11,7 +11,7 @@ import MetricCard from "@components/cards/metric-card";
 import { useTranslation } from "@/app/i18n/client";
 import { getClientLanguage } from "@/app/i18n/language-link";
 import { api } from "@/trpc/react";
-import useUserPermissions from "./hooks/useUserPermissions";
+import { useUserPermissions } from "../../analytics/core/hooks/use-user-permissions";
 import { bmusAtom } from "@/app/components/filter-selector";
 
 type FileStatsCIAType = {

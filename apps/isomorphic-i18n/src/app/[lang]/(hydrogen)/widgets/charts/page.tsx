@@ -4,7 +4,7 @@ import { routes } from "@/config/routes";
 import { Button } from "rizzui";
 import { metaObject } from "@/config/site.config";
 import PageHeader from "@/app/shared/page-header";
-import ChartWidgets from "@/app/shared/chart-widgets";
+// Chart widgets removed - replaced by analytics components
 import { useTranslation } from "@/app/i18n/client";
 
 // export const metadata = {
@@ -53,7 +53,26 @@ export default function ChartsPage({
         </div>
       </PageHeader>
 
-      <ChartWidgets />
+      <div className="grid grid-cols-1 gap-6 @container">
+        <div className="rounded-lg border border-gray-200 p-6">
+          <h3 className="text-lg font-semibold mb-4">{t("text-analytics-charts")}</h3>
+          <p className="text-gray-600 mb-4">
+            {t("text-analytics-charts-description") || "Interactive charts and analytics are available in the main dashboard and analytics sections."}
+          </p>
+          <div className="flex gap-2">
+            <a href="/">
+              <Button variant="solid">
+                {t("text-view-dashboard") || "View Dashboard"}
+              </Button>
+            </a>
+            <a href="/catch_composition">
+              <Button variant="outline">
+                {t("text-view-analytics") || "View Analytics"}
+              </Button>
+            </a>
+          </div>
+        </div>
+      </div>
     </>
   );
 }
