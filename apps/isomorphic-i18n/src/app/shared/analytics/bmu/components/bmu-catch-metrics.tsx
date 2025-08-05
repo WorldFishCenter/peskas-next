@@ -675,10 +675,8 @@ export default function CatchMetricsChart({
         initialVisibility["individualFisher"] = { opacity: 1 };
       }
       
-      // Only set visibility state if it's the initial load
-      if (Object.keys(visibilityState).length === 0) {
-        setVisibilityState(initialVisibility);
-      }
+      // Always update visibility state when BMUs change to ensure proper muted/unmuted state
+      setVisibilityState(initialVisibility);
 
       // Apply time range filter instead of hardcoded 2023 filter
       const filteredData = filterDataByTimeRange(monthlyData as ApiDataPoint[], selectedTimeRange);

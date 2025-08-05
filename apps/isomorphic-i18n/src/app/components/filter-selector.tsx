@@ -419,7 +419,7 @@ const FilterGroup = ({
             }
             checked={isRegionSelected}
             onChange={handleSectionSelect}
-            disabled={hasReferenceBmu && isRegionSelected}
+            disabled={!!(hasReferenceBmu && isRegionSelected)}
             className={hasReferenceBmu && isRegionSelected ? "opacity-75" : ""}
           />
         </div>
