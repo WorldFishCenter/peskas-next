@@ -540,7 +540,7 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
   }, [canCompareWithOthers, statsData]);
 
   // Custom bar shape that filters out non-DOM props
-  const CustomBar = (props: any, isIndividualFisher?: boolean) => {
+  const CustomBar = (props: any, barType?: 'reference' | 'others' | 'individualFisher') => {
     // Extract only the DOM-safe props that rect elements can accept
     const {
       x,
@@ -559,8 +559,15 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
       ...otherProps // This should now be safe for DOM
     } = props;
     
-    // Simple color logic: BMU data is red/pink, individual fisher data is orange
-    const fill = isIndividualFisher ? "#F79F79" : "#fc3468";
+    // Color logic based on bar type
+    let fill = "#fc3468"; // Default reference color (red)
+    let fillOpacity = 1; // Default full opacity
+    if (barType === 'others') {
+      fill = "#64748b"; // Gray for other BMUs
+      fillOpacity = 0.5; // Muted opacity for others
+    } else if (barType === 'individualFisher') {
+      fill = "#F79F79"; // Orange for individual fisher
+    }
     
     return (
       <rect 
@@ -569,6 +576,7 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
         width={width}
         height={height}
         fill={fill}
+        fillOpacity={fillOpacity}
         onClick={onClick}
         onMouseEnter={onMouseEnter}
         onMouseLeave={onMouseLeave}
@@ -650,8 +658,8 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
               </div>
               {canCompareWithOthers && effectiveBMU && (
                 <div className="flex items-center gap-1">
-                  <div className="w-1.5 h-1.5 rounded-full bg-[#fc3468]" />
-                  <span>Other BMUs</span>
+                  <div className="w-1.5 h-1.5 rounded-full bg-[#64748b] opacity-50" />
+                  <span className="opacity-75">Other BMUs</span>
                 </div>
               )}
               {shouldShowIndividualData && userFisherId && (stat.id === 'catch-rate' || stat.id === 'fisher-revenue' || stat.id === 'costs' || stat.id === 'profit') && (
@@ -705,18 +713,18 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
                     maxBarSize={8}
                     minPointSize={3}
                     activeBar={{ fill: '#d81b4a', stroke: '#d81b4a', strokeWidth: 1 }}
-                    shape={(props: any) => CustomBar(props, false)}
+                    shape={(props: any) => CustomBar(props, 'reference')}
                   />
                   {canCompareWithOthers && effectiveBMU && (
                     <Bar
                       dataKey="others"
-                      fill="#fc3468"
+                      fill="#64748b"
                       name="Other BMUs"
                       radius={[2, 2, 0, 0]}
                       maxBarSize={8}
                       minPointSize={3}
-                      activeBar={{ fill: '#d81b4a', stroke: '#d81b4a', strokeWidth: 1 }}
-                      shape={(props: any) => CustomBar(props, false)}
+                      activeBar={{ fill: '#475569', stroke: '#475569', strokeWidth: 1 }}
+                      shape={(props: any) => CustomBar(props, 'others')}
                     />
                   )}
                   {shouldShowIndividualData && userFisherId && (stat.id === 'catch-rate' || stat.id === 'fisher-revenue' || stat.id === 'costs' || stat.id === 'profit') && stat.chart.some(point => point.individualFisher !== undefined) && (
@@ -728,7 +736,7 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
                       maxBarSize={8}
                       minPointSize={3}
                       activeBar={{ fill: '#e67e22', stroke: '#e67e22', strokeWidth: 1 }}
-                      shape={(props: any) => CustomBar(props, true)}
+                      shape={(props: any) => CustomBar(props, 'individualFisher')}
                     />
                   )}
                 </BarChart>

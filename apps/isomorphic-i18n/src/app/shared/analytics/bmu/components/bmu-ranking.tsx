@@ -150,9 +150,9 @@ const CustomTooltip = ({ active, payload, selectedMetricOption }: any) => {
   return null;
 };
 
-// Custom Y-axis tick to highlight user's BMU and individual fisher data
-const CustomYAxisTick = ({ x = 0, y = 0, payload = { value: '' }, userBMU, isIndividualFisher }: any) => {
-  const isUserBMU = payload.value === userBMU;
+// Custom Y-axis tick to highlight effective BMU and individual fisher data
+const CustomYAxisTick = ({ x = 0, y = 0, payload = { value: '' }, effectiveBMU, isIndividualFisher }: any) => {
+  const isEffectiveBMU = payload.value === effectiveBMU;
   const isYourPerformance = isIndividualFisher;
 
   return (
@@ -165,12 +165,12 @@ const CustomYAxisTick = ({ x = 0, y = 0, payload = { value: '' }, userBMU, isInd
         className={cn(
           "text-xs",
           isYourPerformance ? "fill-blue-600 font-bold" : 
-          isUserBMU ? "fill-blue-600 font-semibold" : "fill-gray-500"
+          isEffectiveBMU ? "fill-blue-600 font-semibold" : "fill-gray-500"
         )}
       >
         {payload.value}
       </text>
-      {isUserBMU && !isYourPerformance && (
+      {isEffectiveBMU && !isYourPerformance && (
         <text
           x={-5}
           y={0}
@@ -228,6 +228,7 @@ export default function BMURanking({
   // Use the centralized permissions hook
   const {
     userBMU,
+    referenceBMU,
     isCiaUser,
     isAdmin,
     getAccessibleBMUs,
@@ -236,8 +237,8 @@ export default function BMURanking({
     userFisherId,
   } = useUserPermissions();
 
-  // Determine which BMU to use for highlighting - prefer passed prop, then user's BMU
-  const effectiveBMU = bmu || userBMU;
+  // Determine which BMU to use for highlighting - prefer passed prop, then reference BMU (for admins), then user's BMU
+  const effectiveBMU = bmu || referenceBMU || userBMU;
 
   // Ensure bmus is always an array
   const safeBmus = bmus || [];
@@ -435,7 +436,7 @@ export default function BMURanking({
     } finally {
       setLoading(false);
     }
-  }, [rawData, selectedMetric, selectedTimeRange, effectiveBMU, hasRestrictedAccess, getAccessibleBMUs, shouldShowIndividualData, isMetricCompatibleWithIndividualData, fisherData, userFisherId, t, isLoadingFisherData]);
+  }, [rawData, selectedMetric, selectedTimeRange, effectiveBMU, referenceBMU, hasRestrictedAccess, getAccessibleBMUs, shouldShowIndividualData, isMetricCompatibleWithIndividualData, fisherData, userFisherId, t, isLoadingFisherData]);
 
   // If in CIA mode, don't render the ranking as it doesn't make sense to show a comparison
   // ranking with just one BMU
@@ -528,7 +529,7 @@ export default function BMURanking({
                 type="category"
                 tick={(props) => <CustomYAxisTick 
                   {...props} 
-                  userBMU={userBMU} 
+                  effectiveBMU={effectiveBMU} 
                   isIndividualFisher={rankingData.find(item => item.name === props.payload?.value)?.isIndividualFisher || false}
                 />}
                 axisLine={false}
