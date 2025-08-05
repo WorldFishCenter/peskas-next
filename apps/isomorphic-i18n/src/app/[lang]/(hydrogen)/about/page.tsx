@@ -45,98 +45,143 @@ export default function AboutPage({
         <div className="mx-auto max-w-[1200px] space-y-10 py-6">
           <div className="prose mx-auto max-w-full dark:prose-invert lg:prose-lg">
             <Text className="mb-8 text-lg leading-loose text-gray-600 lg:text-xl">
-              Peskas is an innovative digital monitoring system designed to transform data into actionable insights for Kenya&apos;s small-scale fisheries. Operating at the intersection of technology and community-driven resource management, Peskas serves as a bridge between traditional fishing practices and sustainable marine resource management.
+              Peskas is the WCS and WorldFish digital monitoring system designed for small-scale reef fisheries in Kenya. This platform serves as part of a behavioral research experiment testing how different levels of digital information access affect fishing practices and community management in coastal coral reef fisheries.
             </Text>
 
-            <SectionBlock title="Our Purpose">
+            <SectionBlock title="Research Purpose">
               <Text className="text-gray-600">
-                The platform aims to enhance decision-making in coastal communities by providing transparent, accessible fisheries data. Through careful monitoring and analysis, Peskas helps balance ecological sustainability with the economic needs of fishing communities.
+                Peskas is implemented as part of a two-year research study evaluating the effects of digital information on behavior change in small-scale reef fisheries. The study addresses challenges of sustainable fisheries management using the Knowledge-Attitude-Practice (KAP) framework, testing how different levels of information access influence fishing practices and community governance.
               </Text>
             </SectionBlock>
 
-            <SectionBlock title="Data and Insights">
-              <div className="space-y-6">
+            <SectionBlock title="Experimental Design">
+              <Text className="text-gray-600">
+                The study implements a Before-After-Control-Impact (BACI) approach across 35 accessible landing sites in Kenya&apos;s 5 coastal counties, organized into Beach Management Units (BMUs). Each BMU represents a different treatment group with varying levels of information access.
+              </Text>
+              <div className="space-y-6 mt-4">
                 <div>
                   <Title as="h4" className="mb-2 text-lg font-medium">
-                    Catch Monitoring
+                    Five Treatment Groups
                   </Title>
-                  <Text className="text-gray-600">
-                    Comprehensive data collection on fish species, catch volumes, and fishing locations provides a clear picture of fishing activities along Kenya&apos;s coast. This information helps track changes in fish populations and identify sustainable harvest levels.
-                  </Text>
-                </div>
-
-                <div>
-                  <Title as="h4" className="mb-2 text-lg font-medium">
-                    Economic Analysis
-                  </Title>
-                  <Text className="text-gray-600">
-                    The system captures and analyzes economic data, including:
-                  </Text>
-                  <ul className="mt-2 list-inside list-disc text-gray-600">
-                    <li>Revenue from fishing activities</li>
-                    <li>Operational costs</li>
-                    <li>Market trends and pricing</li>
-                    <li>Economic performance indicators</li>
+                  <ul className="list-inside list-disc text-gray-600 space-y-2">
+                    <li><strong>Control Group:</strong> Traditional expert-interpreted data presented annually</li>
+                    <li><strong>Individual Level:</strong> Dashboard displaying anonymous individual fisher metrics (catch, effort, CPUE, costs, profit)</li>
+                    <li><strong>Community Level:</strong> Dashboard showing community-aggregated fisheries data</li>
+                    <li><strong>Individual + Community:</strong> Combined access to both individual and community-level information</li>
+                    <li><strong>Neighborhood Level:</strong> Access to individual, community, and adjacent BMU comparative data</li>
                   </ul>
                 </div>
 
                 <div>
                   <Title as="h4" className="mb-2 text-lg font-medium">
-                    Community-Level Assessment
+                    Key Performance Metrics
                   </Title>
                   <Text className="text-gray-600">
-                    Peskas aggregates data at the community level, enabling Beach Management Units (BMUs) to:
+                    The platform tracks essential fisheries indicators including:
                   </Text>
                   <ul className="mt-2 list-inside list-disc text-gray-600">
-                    <li>Track overall fishery performance</li>
-                    <li>Monitor community-wide fishing patterns</li>
-                    <li>Assess the effectiveness of management strategies</li>
-                    <li>Compare performance with neighboring communities</li>
+                    <li>Catch Per Unit Effort (CPUE) and Income Per Unit Effort (IPUE)</li>
+                    <li>Monthly catch volumes, fishing effort, and fuel usage</li>
+                    <li>Operational costs and net profit calculations</li>
+                    <li>Fishing gear performance and boat utilization</li>
+                    <li>Compliance with sustainable fishing thresholds</li>
                   </ul>
                 </div>
 
                 <div>
                   <Title as="h4" className="mb-2 text-lg font-medium">
-                    Sustainability Metrics
+                    Testing Three Behavioral Models
                   </Title>
                   <Text className="text-gray-600">
-                    The platform incorporates sustainability indicators that help communities understand:
+                    The research tests three theories of human behavior:
                   </Text>
                   <ul className="mt-2 list-inside list-disc text-gray-600">
-                    <li>Current catch levels relative to sustainable thresholds</li>
-                    <li>Long-term trends in fish populations</li>
-                    <li>Ecosystem health indicators</li>
-                    <li>Impact of various fishing practices</li>
+                    <li><strong>Information Deficit Model:</strong> More information leads to better decisions</li>
+                    <li><strong>Self-Interested Actor Model:</strong> Individuals focus on personal costs and benefits</li>
+                    <li><strong>Neighborhood Interested Actor Model:</strong> Community-level optimization drives decisions</li>
                   </ul>
                 </div>
               </div>
             </SectionBlock>
 
-            <SectionBlock title="Implementation Approach">
+            <SectionBlock title="Knowledge-Attitude-Practice Framework">
               <Text className="text-gray-600">
-                Peskas operates through a carefully structured system of Beach Management Units across Kenya&apos;s coastal regions. Each BMU receives specific levels of information access, allowing for individual fisher and trader data access, community-level performance metrics, regional comparison capabilities, and sustainable fishing threshold monitoring.
+                The study employs the KAP framework to structure behavioral interventions, where each treatment group receives different attitude framing and social practice training alongside their information access level.
               </Text>
+              <div className="mt-4 space-y-4">
+                <div>
+                  <Title as="h5" className="mb-2 font-medium">Knowledge Component</Title>
+                  <Text className="text-sm text-gray-600">
+                    Different scales of information access: expert-interpreted reports, individual fisher data, community-level aggregations, and neighborhood comparisons.
+                  </Text>
+                </div>
+                <div>
+                  <Title as="h5" className="mb-2 font-medium">Attitude Component</Title>
+                  <Text className="text-sm text-gray-600">
+                    Tailored framing for each group - individual cost-benefit focus, community optimization goals, or multi-scale integration approaches.
+                  </Text>
+                </div>
+                <div>
+                  <Title as="h5" className="mb-2 font-medium">Practice Component</Title>
+                  <Text className="text-sm text-gray-600">
+                    Regular observer-organized meetings with group discussions guided by treatment-specific social practice framing and data interpretation training.
+                  </Text>
+                </div>
+              </div>
             </SectionBlock>
 
-            <SectionBlock title="Knowledge Framework">
+            <SectionBlock title="Research Context and Challenges">
               <Text className="text-gray-600">
-                The system is built on a Knowledge, Attitude, and Practices (KAP) framework, which structures information delivery to maximize its impact on behavior change and decision-making. This approach ensures that data is not just collected but transformed into practical knowledge that can influence fishing practices and resource management decisions.
+                This research addresses critical challenges in managing coral reef fisheries commons, particularly the &quot;weakest-neighbor phenomenon&quot; where only the least restrictive management measures are agreed upon across communities. Kenya&apos;s nearshore coral reef fisheries provide ideal conditions for testing knowledge and communication solutions.
               </Text>
+              <div className="mt-4 space-y-4">
+                <div>
+                  <Title as="h5" className="mb-2 font-medium">Commons Management Challenges</Title>
+                  <Text className="text-sm text-gray-600">
+                    Dense populations, closely adjacent villages, and trans-jurisdictional environments create complex management scenarios requiring innovative information-sharing approaches.
+                  </Text>
+                </div>
+                <div>
+                  <Title as="h5" className="mb-2 font-medium">Response Variables</Title>
+                  <Text className="text-sm text-gray-600">
+                    The study measures approximately 20 response variables including fishing patterns, compliance with regulations, governance participation, livelihood improvement, and community well-being.
+                  </Text>
+                </div>
+                <div>
+                  <Title as="h5" className="mb-2 font-medium">Policy Implications</Title>
+                  <Text className="text-sm text-gray-600">
+                    Findings will inform governments and conservation organizations on the effectiveness of digital tools in promoting sustainable fishing practices while improving coastal community livelihoods.
+                  </Text>
+                </div>
+              </div>
             </SectionBlock>
 
-            <SectionBlock title="Long-Term Vision">
+            <SectionBlock title="Development and Research Partnership">
               <Text className="text-gray-600">
-                Peskas is committed to supporting the sustainable development of Kenya&apos;s small-scale fisheries by:
+                The Peskas dashboard was developed through a collaborative partnership between WorldFish (Penang, Malaysia) and the Wildlife Conservation Society (Mombasa, Kenya). This digital monitoring system serves as the platform for implementing a controlled behavioral experiment testing the effects of information access on fishing community behavior.
               </Text>
-              <ul className="mt-2 list-inside list-disc text-gray-600">
-                <li>Promoting evidence-based decision-making</li>
-                <li>Supporting the economic viability of fishing communities</li>
-                <li>Protecting marine ecosystems</li>
-                <li>Enhancing transparency in fisheries management</li>
-                <li>Building capacity for data-driven resource stewardship</li>
-              </ul>
+              <div className="mt-4 space-y-4">
+                <div>
+                  <Title as="h5" className="mb-2 font-medium">Study Timeline</Title>
+                  <Text className="text-sm text-gray-600">
+                    The two-year intervention study is designed to provide robust evidence on the effectiveness of different information dissemination strategies in small-scale fisheries management.
+                  </Text>
+                </div>
+                <div>
+                  <Title as="h5" className="mb-2 font-medium">Research Hypotheses</Title>
+                  <Text className="text-sm text-gray-600">
+                    The study tests whether increased information access leads to more sustainable behaviors, whether individual or community-focused information is more effective, and how neighborhood-level data influences collective action.
+                  </Text>
+                </div>
+                <div>
+                  <Title as="h5" className="mb-2 font-medium">Expected Outcomes</Title>
+                  <Text className="text-sm text-gray-600">
+                    Results will provide critical evidence for governments and conservation organizations on balancing ecological sustainability with community needs through digital information tools.
+                  </Text>
+                </div>
+              </div>
               <Text className="mt-4 text-gray-600">
-                Through this comprehensive approach, Peskas works to ensure that Kenya&apos;s marine resources continue to support coastal livelihoods while maintaining ecological balance for future generations.
+                This experiment represents a significant contribution to understanding how digital monitoring systems can effectively support sustainable fisheries management in highly biodiverse nearshore coral reef environments.
               </Text>
             </SectionBlock>
           </div>
