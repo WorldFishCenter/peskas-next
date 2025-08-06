@@ -11,9 +11,6 @@ import { api } from "@/trpc/react";
 import { useMemo, useEffect, useState, useCallback } from "react";
 import { getClientLanguage } from "@/app/i18n/language-link";
 import { BASELINE_DATA } from "../../charts/utils/site-config";
-import { useAtom } from 'jotai';
-import { selectedTimeRangeAtom } from "@/app/components/filter-selector";
-import { getTimeRangeStartDate } from "../../core/utils/time-range-filter";
 import MetricCard from "@components/cards/metric-card";
 
 interface ChartPoint {
@@ -45,14 +42,14 @@ export default function IndividualFisherStats({
   // Use client language instead of lang prop
   const clientLang = getClientLanguage();
   const { t, i18n } = useTranslation(clientLang);
-  const [selectedTimeRange] = useAtom(selectedTimeRangeAtom);
   
-  // Calculate date range based on selected time range
+  // Always use a fixed date range for stats (latest 3 months) - independent of time range filter
   const dateRange = useMemo(() => {
     const endDate = new Date();
-    const startDate = getTimeRangeStartDate(selectedTimeRange, endDate);
+    const startDate = new Date();
+    startDate.setMonth(startDate.getMonth() - 3); // Always get last 3 months
     return { startDate, endDate };
-  }, [selectedTimeRange]);
+  }, []);
   
   const { fisherPerformanceSummary, isLoadingFisherSummary, fisherData } = useIndividualData(dateRange);
   
@@ -209,7 +206,7 @@ export default function IndividualFisherStats({
           metric: Math.round(latestValue).toLocaleString(),
           unit: metric.unit,
           chart: monthValues,
-          monthName: `${latestMonthName} (latest month)`,
+          monthName: t('text-your-performance-last-3-months'),
           category: metric.category
         };
       });
@@ -217,7 +214,7 @@ export default function IndividualFisherStats({
       console.error("Error transforming data:", error);
       return null;
     }
-  }, [fisherData, metrics, canCompareWithOthers, bmuData, userFisherId]);
+  }, [fisherData, metrics, canCompareWithOthers, bmuData, userFisherId, t]);
 
   // Chart interaction handlers (similar to CIA file-stats.tsx)
   const handleBarClick = useCallback((data: any, metricId: string) => {
@@ -321,18 +318,14 @@ export default function IndividualFisherStats({
                   <Text className="text-xs text-gray-400">({stat.unit})</Text>
                 </div>
                 <Text className="text-xs text-gray-500">
-                  Your performance - {stat.monthName}
+                  {stat.monthName}
                 </Text>
               </div>
             </div>
             
             {/* Legend for individual data */}
-            <div className="flex items-center gap-3 text-2xs px-4 pb-2">
-              <div className="flex items-center gap-1">
-                <div className="w-1.5 h-1.5 rounded-full bg-[#F79F79]" />
-                <span>You</span>
-              </div>
-              {canCompareWithOthers && stat.chart.some(point => point.bmuValue !== undefined) && (
+            {canCompareWithOthers && stat.chart.some(point => point.bmuValue !== undefined) && (
+              <div className="flex items-center gap-3 text-2xs px-4 pb-2">
                 <div className="flex items-center gap-1">
                   <div className={cn(
                     "w-1.5 h-1.5 rounded-full",
@@ -340,8 +333,8 @@ export default function IndividualFisherStats({
                   )} />
                   <span>{fisherBMU} Avg</span>
                 </div>
-              )}
-            </div>
+              </div>
+            )}
             
             <div 
               className="h-32 w-full bg-gray-50/50 transition-colors duration-200 hover:bg-gray-100/60"
