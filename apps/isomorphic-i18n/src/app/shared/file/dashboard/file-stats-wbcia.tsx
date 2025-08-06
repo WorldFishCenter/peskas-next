@@ -438,7 +438,7 @@ export function FileStatWBCIAGrid({ className, lang }: { className?: string; lan
             <ResponsiveContainer width="100%" height="100%">
               <BarChart 
                 data={stat.chart}
-                margin={{ top: 15, right: 8, bottom: 25, left: 30 }}
+                margin={{ top: 15, right: 8, bottom: 25, left: 8 }}
                 barGap={2}
                 onMouseMove={(state) => handleMouseMove(state, stat.id)}
                 onClick={(data) => handleBarClick(data, stat.id)}
@@ -475,10 +475,10 @@ export function FileStatWBCIAGrid({ className, lang }: { className?: string; lan
                 <YAxis 
                   hide={false}
                   domain={[0, (dataMax: number) => dataMax * 1.1]}
-                  tick={{ fontSize: 11, fill: '#64748b' }}
+                  tick={{ fontSize: 10, fill: '#64748b' }}
                   tickLine={{ stroke: '#cbd5e1' }}
                   axisLine={{ stroke: '#cbd5e1', strokeWidth: 1 }}
-                  width={40}
+                  width={25}
                   tickCount={4}
                   tickFormatter={(value) => {
                     if (value >= 1000) {
