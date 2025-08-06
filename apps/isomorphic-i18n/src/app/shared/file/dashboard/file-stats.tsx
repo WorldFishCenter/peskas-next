@@ -206,7 +206,7 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
           unit: metric.unit,
           chart: monthValues,
           userBMUValue: null,
-          monthName: `${latestMonthName} (latest month)`
+          monthName: t('text-last-3-months')
         };
       });
     } catch (error) {
@@ -306,7 +306,7 @@ className={cn(
                 <Text className="text-xs text-gray-400">({stat.unit})</Text>
               </div>
               <Text className="text-xs text-gray-500">
-                {effectiveBMU} - {stat.monthName}
+                {stat.monthName}
               </Text>
             </div>
             
