@@ -12,9 +12,8 @@ import { useTranslation } from "@/app/i18n/client";
 import { getClientLanguage } from "@/app/i18n/language-link";
 import { api } from "@/trpc/react";
 import { useUserPermissions } from "../../analytics/core/hooks/use-user-permissions";
-import { bmusAtom, selectedTimeRangeAtom } from "@/app/components/filter-selector";
+import { bmusAtom } from "@/app/components/filter-selector";
 import { useIndividualData } from "../../analytics/individual/hooks/use-individual-data";
-import { getTimeRangeStartDate } from "../../analytics/core/utils/time-range-filter";
 
 type FileStatsType = {
   className?: string;
@@ -72,7 +71,6 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [hoveredMonth, setHoveredMonth] = useState<{[key: string]: { month: string; value: number | null }}>({});
-  const [selectedTimeRange] = useAtom(selectedTimeRangeAtom);
   
   // Listen for language changes
   useEffect(() => {
@@ -100,9 +98,10 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
   // Calculate date range for individual data
   const dateRange = useMemo(() => {
     const endDate = new Date();
-    const startDate = getTimeRangeStartDate(selectedTimeRange, endDate);
+    const startDate = new Date();
+    startDate.setMonth(startDate.getMonth() - 3); // Always get last 3 months
     return { startDate, endDate };
-  }, [selectedTimeRange]);
+  }, []);
   
   // Fetch individual fisher data if user has fisher permissions (use same data source as other components)
   const { fisherData } = useIndividualData(
