@@ -120,18 +120,27 @@ export default function IndividualFisherTrends({
     
     if (validValues.length === 0) return [];
     
-    const average = validValues.reduce((sum, val) => sum + val, 0) / validValues.length;
+    // Determine the baseline based on the metric
+    let baseline: number;
     
-    // Create comparison data showing difference from average
+    if (selectedMetric === 'mean_rpue') {
+      // For fisher revenue, use minimum wage baseline
+      baseline = BASELINE_DATA.INCOME.NATIONAL_MINIMUM_WAGE;
+    } else {
+      // For other metrics, use the fisher's own average
+      baseline = validValues.reduce((sum, val) => sum + val, 0) / validValues.length;
+    }
+    
+    // Create comparison data showing difference from baseline
     return chartData.map(point => {
       const value = point[metricKey];
-      const difference = value !== undefined && value !== null ? value - average : undefined;
+      const difference = value !== undefined && value !== null ? value - baseline : undefined;
       
       return {
         ...point,
         [metricKey]: value, // Keep original value for trends
-        difference: difference, // Difference from average for comparison
-        average: average, // Store average for reference
+        difference: difference, // Difference from baseline for comparison
+        average: baseline, // Store baseline for reference
       };
     });
   }, [chartData, selectedMetric]);
@@ -217,7 +226,7 @@ export default function IndividualFisherTrends({
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 rounded-full" style={{ backgroundColor: '#8693AB' }} />
                 <p className="text-sm font-medium">
-                  Your Average {metricLabel} <span className="font-semibold">{formatValue(average)}</span>
+                  {selectedMetric === "mean_rpue" ? t('text-minimum-wage') : "Your Average"} {metricLabel} <span className="font-semibold">{formatValue(average)}</span>
                 </p>
               </div>
             )}
@@ -226,7 +235,7 @@ export default function IndividualFisherTrends({
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 rounded-full" style={{ backgroundColor: difference > 0 ? '#10b981' : '#ef4444' }} />
                 <p className="text-sm font-medium">
-                  Difference <span className={`font-semibold ${difference > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  {selectedMetric === "mean_rpue" ? t('text-difference-from-minimum-wage') : "Difference"} <span className={`font-semibold ${difference > 0 ? 'text-green-600' : 'text-red-600'}`}>
                     {difference > 0 ? '+' : ''}{formatValue(difference)}
                   </span>
                 </p>
@@ -245,7 +254,7 @@ export default function IndividualFisherTrends({
       case 'trends':
         return t("text-your-monthly-trends");
       case 'comparison':
-        return t("text-performance-vs-your-average");
+        return selectedMetric === "mean_rpue" ? t("text-performance-vs-minimum-wage") : t("text-performance-vs-your-average");
       default:
         return t("text-your-monthly-trends");
     }
@@ -256,7 +265,7 @@ export default function IndividualFisherTrends({
       case 'trends':
         return t("text-trends-explanation");
       case 'comparison':
-        return t("text-comparison-vs-your-average-explanation");
+        return selectedMetric === "mean_rpue" ? t("text-cia-minimum-wage-comparison-explanation") : t("text-comparison-vs-your-average-explanation");
       default:
         return t("text-trends-explanation");
     }
