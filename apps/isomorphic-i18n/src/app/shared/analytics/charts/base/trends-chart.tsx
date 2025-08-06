@@ -400,39 +400,7 @@ export default function TrendsChart({
               />
             </>
           )}
-          
-          {selectedMetric === "mean_rpua" && (
-            <>
-              <ReferenceLine
-                y={BASELINE_DATA.REVENUE_PER_AREA.MSY.FRINGING}
-                stroke="#22c55e"
-                strokeDasharray="8 4"
-                strokeWidth={2}
-                label={{ value: "MSY Fringing", position: "left", fill: "#22c55e", fontSize: 11 }}
-              />
-              <ReferenceLine
-                y={BASELINE_DATA.REVENUE_PER_AREA.MSY.ISLAND}
-                stroke="#16a34a"
-                strokeDasharray="8 4"
-                strokeWidth={2}
-                label={{ value: "MSY Island", position: "left", fill: "#16a34a", fontSize: 11 }}
-              />
-              <ReferenceLine
-                y={BASELINE_DATA.REVENUE_PER_AREA.CURRENT.FRINGING}
-                stroke="#f59e0b"
-                strokeDasharray="4 4"
-                strokeWidth={1.5}
-                label={{ value: "Current Fringing", position: "left", fill: "#f59e0b", fontSize: 11 }}
-              />
-              <ReferenceLine
-                y={BASELINE_DATA.REVENUE_PER_AREA.CURRENT.ISLAND}
-                stroke="#ea580c"
-                strokeDasharray="4 4"
-                strokeWidth={1.5}
-                label={{ value: "Current Island", position: "left", fill: "#ea580c", fontSize: 11 }}
-              />
-            </>
-          )}
+
           
           {CustomLegend && <Legend content={(props) => <CustomLegend {...props} />} />}
         </LineChart>
