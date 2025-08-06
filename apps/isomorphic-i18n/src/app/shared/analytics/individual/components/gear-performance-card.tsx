@@ -11,9 +11,10 @@ export type GearPerformanceCardProps = {
   selectedMetric: string;
   t: (key: string) => string;
   bmuName?: string | null;
+  canCompareWithOthers?: boolean;
 };
 
-const GearPerformanceCard: React.FC<GearPerformanceCardProps> = ({ gear, selectedMetric, t, bmuName }) => {
+const GearPerformanceCard: React.FC<GearPerformanceCardProps> = ({ gear, selectedMetric, t, bmuName, canCompareWithOthers = true }) => {
   const percentDiff = gear.bmuAverage > 0 
     ? ((gear.yourValue - gear.bmuAverage) / gear.bmuAverage * 100)
     : 0;
@@ -53,56 +54,62 @@ const GearPerformanceCard: React.FC<GearPerformanceCardProps> = ({ gear, selecte
           </span>
         </div>
       </div>
-      {/* Others Average */}
-      <div className="mb-3">
-        <div className="flex justify-between items-center mb-1">
-          <span className="text-sm font-medium text-gray-700">{`${t('text-others-in-bmu')}${bmuName ? ' ' + bmuName : ''}`}</span>
-          <span className="text-sm text-gray-600">
-            {selectedMetric === "fisher_cpue" 
-              ? `${gear.bmuAverage.toFixed(2)} kg/trip`
-              : `KES ${gear.bmuAverage.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`
+      {/* Others Average - only for users who can compare */}
+      {canCompareWithOthers && (
+        <div className="mb-3">
+          <div className="flex justify-between items-center mb-1">
+            <span className="text-sm font-medium text-gray-700">{`${t('text-others-in-bmu')}${bmuName ? ' ' + bmuName : ''}`}</span>
+            <span className="text-sm text-gray-600">
+              {selectedMetric === "fisher_cpue" 
+                ? `${gear.bmuAverage.toFixed(2)} kg/trip`
+                : `KES ${gear.bmuAverage.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`
+              }
+            </span>
+          </div>
+        </div>
+      )}
+      {/* Visual Comparison Bar - only for users who can compare */}
+      {canCompareWithOthers && (
+        <div className="mb-3 space-y-2">
+          {/* Your bar */}
+          <div className="relative">
+            <div className="h-6 bg-gray-200 rounded-md overflow-hidden">
+              <div 
+                className={"h-full rounded-md transition-all duration-500"}
+                style={{ width: `${yourWidth}%`, backgroundColor: yourBarColor }}
+              />
+            </div>
+            <span className="absolute left-2 top-0 h-6 flex items-center text-xs font-medium text-white">
+              {t('text-you')}
+            </span>
+          </div>
+          {/* Others bar */}
+          <div className="relative">
+            <div className="h-6 bg-gray-200 rounded-md overflow-hidden">
+              <div className="h-full rounded-md transition-all duration-500"
+                style={{ width: `${othersWidth}%`, backgroundColor: othersBarColor }}
+              />
+            </div>
+            <span className="absolute left-2 top-0 h-6 flex items-center text-xs font-medium text-white">
+              {t('text-others')}
+            </span>
+          </div>
+        </div>
+      )}
+      {/* Comparison Result - only for users who can compare */}
+      {canCompareWithOthers && (
+        <div className={`p-3 rounded-lg text-center ${isPerformingBetter ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'}`}>
+          <div className={`text-lg font-bold ${isPerformingBetter ? 'text-green-700' : 'text-red-700'}`}>
+            {isPerformingBetter ? '👍' : '👎'} {percentDiff > 0 ? '+' : ''}{percentDiff.toFixed(1)}%
+          </div>
+          <p className={`text-xs font-medium ${isPerformingBetter ? 'text-green-600' : 'text-red-600'}`}>
+            {isPerformingBetter 
+              ? (selectedMetric === 'fisher_cost' ? t('text-you-spend-less') : t('text-you-perform-better'))
+              : (selectedMetric === 'fisher_cost' ? t('text-you-spend-more') : t('text-you-perform-lower'))
             }
-          </span>
+          </p>
         </div>
-      </div>
-      {/* Visual Comparison Bar */}
-      <div className="mb-3 space-y-2">
-        {/* Your bar */}
-        <div className="relative">
-          <div className="h-6 bg-gray-200 rounded-md overflow-hidden">
-            <div 
-              className={"h-full rounded-md transition-all duration-500"}
-              style={{ width: `${yourWidth}%`, backgroundColor: yourBarColor }}
-            />
-          </div>
-          <span className="absolute left-2 top-0 h-6 flex items-center text-xs font-medium text-white">
-            {t('text-you')}
-          </span>
-        </div>
-        {/* Others bar */}
-        <div className="relative">
-          <div className="h-6 bg-gray-200 rounded-md overflow-hidden">
-            <div className="h-full rounded-md transition-all duration-500"
-              style={{ width: `${othersWidth}%`, backgroundColor: othersBarColor }}
-            />
-          </div>
-          <span className="absolute left-2 top-0 h-6 flex items-center text-xs font-medium text-white">
-            {t('text-others')}
-          </span>
-        </div>
-      </div>
-      {/* Comparison Result */}
-      <div className={`p-3 rounded-lg text-center ${isPerformingBetter ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'}`}>
-        <div className={`text-lg font-bold ${isPerformingBetter ? 'text-green-700' : 'text-red-700'}`}>
-          {isPerformingBetter ? '👍' : '👎'} {percentDiff > 0 ? '+' : ''}{percentDiff.toFixed(1)}%
-        </div>
-        <p className={`text-xs font-medium ${isPerformingBetter ? 'text-green-600' : 'text-red-600'}`}>
-          {isPerformingBetter 
-            ? (selectedMetric === 'fisher_cost' ? t('text-you-spend-less') : t('text-you-perform-better'))
-            : (selectedMetric === 'fisher_cost' ? t('text-you-spend-more') : t('text-you-perform-lower'))
-          }
-        </p>
-      </div>
+      )}
     </div>
   );
 };

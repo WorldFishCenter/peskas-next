@@ -59,10 +59,15 @@ export default function FileDashboard({ lang }: { lang?: string }) {
         <div className="grid grid-cols-1 gap-5 xl:gap-6">
           {/* Individual fisher stats cards */}
           <IndividualFisherStats lang={lang} />
-          {/* Individual fisher daily trends */}
-          <IndividualFisherTrends lang={lang} />
-          {/* Individual gear performance */}
-          <IndividualFisherGearPerformance lang={lang} />
+          {/* Horizontal layout: Fisher trends (7/12) and gear performance (5/12) */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 xl:gap-6">
+            <div className="lg:col-span-8 col-span-1">
+              <IndividualFisherTrends lang={lang} />
+            </div>
+            <div className="lg:col-span-4 col-span-1">
+              <IndividualFisherGearPerformance lang={lang} />
+            </div>
+          </div>
         </div>
       </div>
     );

@@ -70,7 +70,7 @@ export default function IndividualFisherTrends({
 }) {
   const { t, i18n } = useTranslation(lang || 'en');
   const [selectedTimeRange] = useAtom(selectedTimeRangeAtom);
-  const { userFisherId, isIiaUser, isAdminFisher, shouldShowIndividualData } = useUserPermissions();
+  const { userFisherId, isIiaUser, isAdminFisher, shouldShowIndividualData, canCompareWithOthers, canSeeBMUData } = useUserPermissions();
   
   // All users who see individual charts use global header metric selector
   const [globalSelectedMetric, setGlobalSelectedMetric] = useAtom(selectedMetricAtom);
@@ -92,15 +92,15 @@ export default function IndividualFisherTrends({
     return fisherData[0]?.BMU; // Assuming all records have the same BMU
   }, [fisherData]);
 
-  // Fetch all data for the fisher's BMU to calculate average
+  // Fetch all data for the fisher's BMU to calculate average - only for users who can compare with others
   const { data: bmuData, isLoading: isLoadingBmuData } = api.individualData.all.useQuery(
     { bmus: fisherBMU ? [fisherBMU] : [] },
-    { enabled: !!fisherBMU }
+    { enabled: !!fisherBMU && canCompareWithOthers }
   );
 
-  // Calculate BMU average data (excluding current fisher)
+  // Calculate BMU average data (excluding current fisher) - only for users who can compare with others
   const bmuAverageData = useMemo(() => {
-    if (!bmuData || !userFisherId) return {};
+    if (!bmuData || !userFisherId || !canCompareWithOthers) return {};
     
     // Group by date and calculate averages excluding current fisher
     const dateGroups: Record<string, { 
@@ -162,7 +162,7 @@ export default function IndividualFisherTrends({
     });
     
     return averages;
-  }, [bmuData, userFisherId]);
+  }, [bmuData, userFisherId, canCompareWithOthers]);
 
   // Process daily data for chart
   const chartData = useMemo(() => {
@@ -172,7 +172,7 @@ export default function IndividualFisherTrends({
     return fisherData
       .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
       .map(record => {
-        const avgData = bmuAverageData[record.date.toString()] || {};
+        const avgData = canCompareWithOthers ? (bmuAverageData[record.date.toString()] || {}) : {};
         return {
           date: new Date(record.date).getTime(),
           dateDisplay: format(new Date(record.date), "MMM dd"),
@@ -183,11 +183,11 @@ export default function IndividualFisherTrends({
           cost: record.mean_cost ?? undefined,
           profit: record.mean_profit ?? undefined,
           priceKg: record.mean_price_kg ?? undefined,
-          // BMU average data
-          avgCpue: avgData.cpue,
-          avgRpue: avgData.rpue,
-          avgCost: avgData.cost,
-          avgProfit: avgData.profit,
+          // BMU average data - only for users who can compare
+          avgCpue: canCompareWithOthers ? avgData.cpue : undefined,
+          avgRpue: canCompareWithOthers ? avgData.rpue : undefined,
+          avgCost: canCompareWithOthers ? avgData.cost : undefined,
+          avgProfit: canCompareWithOthers ? avgData.profit : undefined,
           bmu: record.BMU,
         };
       });
@@ -269,8 +269,8 @@ export default function IndividualFisherTrends({
                 </p>
               </div>
             )}
-            {/* BMU Average */}
-            {avgValue !== undefined && avgValue !== null && (
+            {/* BMU Average - only for users who can compare */}
+            {canCompareWithOthers && avgValue !== undefined && avgValue !== null && (
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 rounded-full" style={{ backgroundColor: '#8693AB' }} />
                 <p className="text-sm font-medium">
@@ -290,10 +290,10 @@ export default function IndividualFisherTrends({
     return null;
   };
 
-  if (isLoadingFisherData || isLoadingBmuData) {
+  if (isLoadingFisherData || (canCompareWithOthers && isLoadingBmuData)) {
     return (
       <WidgetCard
-        title={t('text-your-daily-trends')}
+        title={t('text-your-monthly-trends')}
         className="h-full"
       >
         <div className="h-96 w-full flex items-center justify-center">
@@ -309,7 +309,7 @@ export default function IndividualFisherTrends({
   return (
     <WidgetCard
       title={t('text-your-monthly-trends')}
-      description={t('text-compared-with-bmu-average', { bmu: fisherBMU })}
+      description={canCompareWithOthers ? t('text-compared-with-bmu-average', { bmu: fisherBMU }) : t('text-trends-explanation')}
       headerClassName="pb-2"
     >
       {/* Metric selector buttons - hidden for all users, they should use header metric selector */}
@@ -375,14 +375,16 @@ export default function IndividualFisherTrends({
               radius={[4, 4, 0, 0]}
               barSize={18}
             />
-            {/* BMU Average as bars (slightly lighter color) */}
-            <Bar
-              dataKey={selectedMetric === "mean_cpue" ? "avgCpue" : selectedMetric === "mean_rpue" ? "avgRpue" : selectedMetric === "mean_cost" ? "avgCost" : "avgProfit"}
-              fill="#8693AB"
-              name={`Other ${fisherBMU} fishers (mean)`}
-              radius={[4, 4, 0, 0]}
-              barSize={18}
-            />
+            {/* BMU Average as bars - only for users who can compare */}
+            {canCompareWithOthers && (
+              <Bar
+                dataKey={selectedMetric === "mean_cpue" ? "avgCpue" : selectedMetric === "mean_rpue" ? "avgRpue" : selectedMetric === "mean_cost" ? "avgCost" : "avgProfit"}
+                fill="#8693AB"
+                name={`Other ${fisherBMU} fishers (mean)`}
+                radius={[4, 4, 0, 0]}
+                barSize={18}
+              />
+            )}
             {/* Income baseline reference lines (only for RPUE) */}
             {selectedMetric === "mean_rpue" && (
               <>
@@ -420,12 +422,14 @@ export default function IndividualFisherTrends({
               />
             )}
             {/* Legend */}
-            <Legend 
-              verticalAlign="bottom" 
-              height={36}
-              iconType="rect"
-              wrapperStyle={{ paddingTop: '10px' }}
-            />
+            {canCompareWithOthers && (
+              <Legend 
+                verticalAlign="bottom" 
+                height={36}
+                iconType="rect"
+                wrapperStyle={{ paddingTop: '10px' }}
+              />
+            )}
           </BarChart>
         </ResponsiveContainer>
       </div>
