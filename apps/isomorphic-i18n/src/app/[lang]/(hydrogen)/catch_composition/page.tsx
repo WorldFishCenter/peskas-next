@@ -7,9 +7,8 @@ import type { TBmu } from "@repo/nosql/schema/bmu";
 import FishCompositionChart from "@/app/shared/analytics/species/components/composition-chart";
 import FishCompositionComparison from "@/app/shared/analytics/species/components/composition-comparison";
 import FishCompositionAreaChart from "@/app/shared/analytics/species/components/composition-area-chart";
-import IndividualFishCompositionChart from "@/app/shared/analytics/species/components/individual-composition-chart";
+import IndividualFishCompositionUnified from "@/app/shared/analytics/species/components/individual-fish-composition-unified";
 import IndividualFishCompositionComparison from "@/app/shared/analytics/species/components/individual-composition-comparison";
-import IndividualFishCompositionAreaChart from "@/app/shared/analytics/species/components/individual-composition-area-chart";
 import { useUserPermissions } from "@/app/shared/analytics/core/hooks/use-user-permissions";
 import { useIndividualData } from "@/app/shared/analytics/individual/hooks/use-individual-data";
 import { api } from "@/trpc/react";
@@ -123,6 +122,7 @@ export default function CatchCompositionPage({ params }: PageProps) {
       <div className="w-full">
         <div className="grid grid-cols-1 gap-5 xl:gap-6">
           <div className="grid grid-cols-12 gap-5 xl:gap-6">
+            {/* Unified Fish Composition Charts with Tab Switching */}
             <div className="col-span-12">
               {isLoadingIndividualCharts || (!allBmuIndividualData && !individualOnlyData) ? (
                 <div className="h-96 w-full flex items-center justify-center">
@@ -132,17 +132,20 @@ export default function CatchCompositionPage({ params }: PageProps) {
                   </div>
                 </div>
               ) : (
-                <IndividualFishCompositionChart
+                <IndividualFishCompositionUnified
                   allData={allBmuIndividualData || individualOnlyData || []}
                   userFisherId={userFisherId || ""}
                   selectedCategory={selectedCategory}
                   setSelectedCategory={setSelectedCategory}
                   bmuName={bmuName || ""}
-                  title={t("text-your-monthly-trends")}
-                  description={t("text-trends-explanation")}
+                  activeTab="bar-chart"
+                  onTabChange={(tab) => {
+                    // Optional: Add any additional tab change handling here
+                  }}
                 />
               )}
             </div>
+            {/* Keep the composition comparison as a separate component */}
             <div className="col-span-12">
               {isLoadingIndividualCharts || (!allBmuIndividualData && !individualOnlyData) ? (
                 <div className="h-96 w-full flex items-center justify-center">
@@ -158,25 +161,6 @@ export default function CatchCompositionPage({ params }: PageProps) {
                   bmuName={bmuName || ""}
                   title={t("text-fish-composition-comparison")}
                   description={t("text-fish-composition-comparison-desc")}
-                />
-              )}
-            </div>
-            <div className="col-span-12">
-              {isLoadingIndividualCharts || (!allBmuIndividualData && !individualOnlyData) ? (
-                <div className="h-96 w-full flex items-center justify-center">
-                  <div className="flex flex-col items-center gap-2">
-                    <div className="w-8 h-8 border-4 border-gray-200 border-t-gray-500 rounded-full animate-spin" />
-                    <span className="text-sm text-gray-500">{t("text-loading")}</span>
-                  </div>
-                </div>
-              ) : (
-                <IndividualFishCompositionAreaChart
-                  allData={allBmuIndividualData || individualOnlyData || []}
-                  userFisherId={userFisherId || ""}
-                  bmuName={bmuName || ""}
-                  title={t("text-fish-composition-area-chart-title")}
-                  description={t("text-fish-composition-area-chart-desc")}
-                  isIiaUser={isIiaUser}
                 />
               )}
             </div>

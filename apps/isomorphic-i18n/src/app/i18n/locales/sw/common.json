@@ -925,5 +925,13 @@
   "text-performance-vs-your-average": "Utendaji Dhidi ya Wastani Wako",
   "text-comparison-vs-your-average-explanation": "Inaonyesha utendaji wako ikilinganishwa na wastani wako mwenyewe katika kipindi kilichochaguliwa",
   "text-difference-from-minimum-wage": "Tofauti na Kima cha Chini cha Mshahara",
-  "text-your-performance-last-3-months": "Utendaji wako - Miezi 3 iliyopita"
+  "text-your-performance-last-3-months": "Utendaji wako - Miezi 3 iliyopita",
+  "text-bar-chart-tab": "Chati ya Miimbo",
+  "text-area-chart-tab": "Chati ya Eneo",
+  "text-monthly-fish-composition": "Muundo wa Samaki wa Kila Mwezi",
+  "text-fish-composition-over-time": "Muundo wa Samaki Baada ya Muda",
+  "text-fish-composition-bar-description": "Mwelekeo wa uvuvi wa kila mwezi kwa aina ya samaki iliyochaguliwa ikilinganishwa na wavuvi wengine wa BMU",
+  "text-fish-composition-individual-description": "Mwelekeo wa uvuvi wa kila mwezi kwa aina ya samaki iliyochaguliwa",
+  "text-fish-composition-area-description": "Mgawanyo wa muundo wa samaki baada ya muda ikilinganishwa na wavuvi wengine wa BMU",
+  "text-fish-composition-area-individual-description": "Mgawanyo wa muundo wa samaki baada ya muda"
 }

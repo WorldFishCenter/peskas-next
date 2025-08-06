@@ -188,44 +188,55 @@ export default function IndividualFishCompositionComparison({
 
   return (
     <WidgetCard title={title} description={description} headerClassName="pb-2">
-      <SimpleBar className="h-full">
-        <div className="p-4 md:p-6 h-full">
-          <div className="w-full" style={{ height: "220px" }}>
-            <ResponsiveContainer width="100%" height="100%" minHeight={384}>
-              <BarChart
-                data={chartData.map((row, i) => ({ ...row, label: rowLabels[i]?.label || row.label }))}
-                layout="vertical"
-                margin={{ top: 20, right: 30, left: 60, bottom: 20 }}
-                barCategoryGap={8}
-              >
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis type="number" tick={{ fontSize: 12 }} domain={[0, 100]} unit="%" 
-                 label={{
-                   value: 'Avg. catch composition (% per month)',
-                   position: 'insideBottom',
-                   offset: -10,
-                   style: { textAnchor: 'middle', fontSize: 12, fill: '#666' }
-                 }}
+      <SimpleBar>
+        <div className="h-96 w-full pt-9">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart
+              data={chartData.map((row, i) => ({ ...row, label: rowLabels[i]?.label || row.label }))}
+              layout="vertical"
+              margin={{ top: 20, right: 30, left: 20, bottom: 60 }}
+              barCategoryGap={8}
+            >
+              <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+              <XAxis 
+                type="number" 
+                tick={{ fontSize: 12 }} 
+                domain={[0, 100]} 
+                tickFormatter={(value) => `${value}%`}
+                label={{
+                  value: 'Avg. catch composition (% per month)',
+                  position: 'insideBottom',
+                  offset: -5,
+                  style: { textAnchor: 'middle', fontSize: 12, fill: '#666' }
+                }}
+                axisLine={false}
+              />
+              <YAxis 
+                type="category" 
+                dataKey="label" 
+                tick={{ fontSize: 12 }} 
+                width={canCompareWithOthers ? 140 : 80}
+                axisLine={false}
+              />
+              <Tooltip content={<CustomTooltip />} />
+              {categoryDisplays.map(category => (
+                <Bar
+                  key={category.id}
+                  dataKey={category.id}
+                  name={category.name}
+                  stackId="stack"
+                  fill={category.color}
+                  isAnimationActive={false}
+                  fillOpacity={visibilityState[category.id]?.opacity ?? 1}
+                  hide={visibilityState[category.id]?.opacity === 0.2}
+                  radius={[0, 2, 2, 0]}
                 />
-                <YAxis type="category" dataKey="label" tick={{ fontSize: 12 }} width={180} />
-                <Tooltip content={<CustomTooltip />} />
-                {categoryDisplays.map(category => (
-                  <Bar
-                    key={category.id}
-                    dataKey={category.id}
-                    name={category.name}
-                    stackId="a"
-                    fill={category.color}
-                    isAnimationActive={false}
-                    fillOpacity={visibilityState[category.id]?.opacity ?? 1}
-                    hide={visibilityState[category.id]?.opacity === 0.2}
-                  />
-                ))}
-                <Legend verticalAlign="bottom" height={36} iconType="rect" wrapperStyle={{ paddingTop: '10px' }} content={<CustomLegend />} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
+              ))}
+            </BarChart>
+          </ResponsiveContainer>
         </div>
+        {/* Move legend outside of chart container */}
+        <CustomLegend />
       </SimpleBar>
     </WidgetCard>
   );

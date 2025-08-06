@@ -1070,5 +1070,13 @@
   "text-fish-composition-comparison": "Fish Composition Comparison",
   "text-fish-composition-comparison-desc": "Shows fish composition comparison for your BMU",
   "text-fish-composition-area-chart-title": "Fish Composition Area Chart",
-  "text-fish-composition-area-chart-desc": "Shows area chart of fish composition for your BMU"
+  "text-fish-composition-area-chart-desc": "Shows area chart of fish composition for your BMU",
+  "text-bar-chart-tab": "Bar Chart",
+  "text-area-chart-tab": "Area Chart",
+  "text-monthly-fish-composition": "Monthly Fish Composition",
+  "text-fish-composition-over-time": "Fish Composition Over Time",
+  "text-fish-composition-bar-description": "Monthly catch trends for the selected fish category compared with other BMU fishers",
+  "text-fish-composition-individual-description": "Monthly catch trends for the selected fish category",
+  "text-fish-composition-area-description": "Fish composition distribution over time compared with other BMU fishers",
+  "text-fish-composition-area-individual-description": "Fish composition distribution over time"
 }
