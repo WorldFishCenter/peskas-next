@@ -969,7 +969,6 @@
   "text-rpue": "RPUE",
   "text-cost": "Cost",
   "text-net-profit": "Net Profit",
-  "text-your-daily-trends": "Your Daily Trends",
   "text-last": "Last",
   "text-fishing-days": "fishing days",
   "text-your-gear-performance": "Your Gear Performance",
@@ -1047,6 +1046,8 @@
   "text-cia-msy-comparison-explanation": "Shows values compared to the Maximum Sustainable Yield baseline",
   "text-performance-vs-minimum-wage": "Performance vs Minimum Wage",
   "text-cia-minimum-wage-comparison-explanation": "Shows values compared to the national minimum wage",
+  "text-performance-vs-your-average": "Performance vs Your Average",
+  "text-comparison-vs-your-average-explanation": "Shows your performance compared to your own average over the selected time period",
 
   "text-above-msy": "Above MSY",
   "text-below-msy": "Below MSY",

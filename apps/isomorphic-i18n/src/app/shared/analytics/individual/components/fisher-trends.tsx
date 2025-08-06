@@ -15,6 +15,7 @@ import {
   Legend,
   ResponsiveContainer,
   ReferenceLine,
+  Cell,
 } from "recharts";
 import { format } from "date-fns";
 import cn from "@utils/class-names";
@@ -24,8 +25,9 @@ import { useAtom } from 'jotai';
 import { selectedTimeRangeAtom, selectedMetricAtom } from "@/app/components/filter-selector";
 import { MetricKey } from "../../charts/utils/chart-types";
 import { getTimeRangeStartDate } from "../../core/utils/time-range-filter";
+import SimpleBar from "@ui/simplebar";
 
-// Custom Y-axis tick component for consistent styling (without units since they're now in axis label)
+// Custom Y-axis tick component for consistent styling
 function CustomYAxisTick({ x = 0, y = 0, payload = { value: 0 }, selectedMetric }: any) {
   const formattedValue = Number.isInteger(payload.value) && payload.value > 999
     ? payload.value.toLocaleString()
@@ -46,21 +48,6 @@ function CustomYAxisTick({ x = 0, y = 0, payload = { value: 0 }, selectedMetric 
   );
 }
 
-const COLORS = {
-  blue: "#3b82f6", // blue
-  green: "#10b981", // green
-  amber: "#f59e0b", // amber
-  orange: "#f97316", // orange
-  purple: "#9333ea", // purple
-};
-
-const METRIC_OPTIONS = [
-  { key: 'mean_cpue', label: 'text-cpue', color: 'blue', unit: 'kg/trip' },
-  { key: 'mean_rpue', label: 'text-rpue', color: 'green', unit: 'KES/trip' },
-  { key: 'mean_cost', label: 'text-costs', color: 'amber', unit: 'KES/trip' },
-  { key: 'mean_profit', label: 'text-profit', color: 'orange', unit: 'KES/trip' },
-];
-
 export default function IndividualFisherTrends({ 
   lang, 
 }: { 
@@ -77,6 +64,9 @@ export default function IndividualFisherTrends({
   const selectedMetric = globalSelectedMetric;
   const setSelectedMetric = (metric: string) => setGlobalSelectedMetric(metric as MetricKey);
 
+  // Add tab state for comparison mode
+  const [activeTab, setActiveTab] = useState("trends");
+
   // Calculate date range based on selected time range
   const dateRange = useMemo(() => {
     const endDate = new Date();
@@ -92,78 +82,6 @@ export default function IndividualFisherTrends({
     return fisherData[0]?.BMU; // Assuming all records have the same BMU
   }, [fisherData]);
 
-  // Fetch all data for the fisher's BMU to calculate average - only for users who can compare with others
-  const { data: bmuData, isLoading: isLoadingBmuData } = api.individualData.all.useQuery(
-    { bmus: fisherBMU ? [fisherBMU] : [] },
-    { enabled: !!fisherBMU && canCompareWithOthers }
-  );
-
-  // Calculate BMU average data (excluding current fisher) - only for users who can compare with others
-  const bmuAverageData = useMemo(() => {
-    if (!bmuData || !userFisherId || !canCompareWithOthers) return {};
-    
-    // Group by date and calculate averages excluding current fisher
-    const dateGroups: Record<string, { 
-      totalCpue: number; 
-      totalRpue: number; 
-      totalCost: number; 
-      totalProfit: number;
-      countCpue: number;
-      countRpue: number;
-      countCost: number;
-      countProfit: number;
-    }> = {};
-    
-    bmuData.forEach(record => {
-      // Skip current fisher's data
-      if (record.fisher_id === userFisherId) return;
-      
-      const dateKey = record.date.toString();
-      if (!dateGroups[dateKey]) {
-        dateGroups[dateKey] = {
-          totalCpue: 0,
-          totalRpue: 0,
-          totalCost: 0,
-          totalProfit: 0,
-          countCpue: 0,
-          countRpue: 0,
-          countCost: 0,
-          countProfit: 0,
-        };
-      }
-      
-      if (record.mean_cpue != null) {
-        dateGroups[dateKey].totalCpue += record.mean_cpue;
-        dateGroups[dateKey].countCpue++;
-      }
-      if (record.mean_rpue != null) {
-        dateGroups[dateKey].totalRpue += record.mean_rpue;
-        dateGroups[dateKey].countRpue++;
-      }
-      if (record.mean_cost != null) {
-        dateGroups[dateKey].totalCost += record.mean_cost;
-        dateGroups[dateKey].countCost++;
-      }
-      if (record.mean_profit != null) {
-        dateGroups[dateKey].totalProfit += record.mean_profit;
-        dateGroups[dateKey].countProfit++;
-      }
-    });
-    
-    // Calculate averages
-    const averages: Record<string, { cpue?: number; rpue?: number; cost?: number; profit?: number }> = {};
-    Object.entries(dateGroups).forEach(([date, totals]) => {
-      averages[date] = {
-        cpue: totals.countCpue > 0 ? totals.totalCpue / totals.countCpue : undefined,
-        rpue: totals.countRpue > 0 ? totals.totalRpue / totals.countRpue : undefined,
-        cost: totals.countCost > 0 ? totals.totalCost / totals.countCost : undefined,
-        profit: totals.countProfit > 0 ? totals.totalProfit / totals.countProfit : undefined,
-      };
-    });
-    
-    return averages;
-  }, [bmuData, userFisherId, canCompareWithOthers]);
-
   // Process daily data for chart
   const chartData = useMemo(() => {
     if (!fisherData || fisherData.length === 0) return [];
@@ -172,7 +90,6 @@ export default function IndividualFisherTrends({
     return fisherData
       .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
       .map(record => {
-        const avgData = canCompareWithOthers ? (bmuAverageData[record.date.toString()] || {}) : {};
         return {
           date: new Date(record.date).getTime(),
           dateDisplay: format(new Date(record.date), "MMM dd"),
@@ -183,15 +100,41 @@ export default function IndividualFisherTrends({
           cost: record.mean_cost ?? undefined,
           profit: record.mean_profit ?? undefined,
           priceKg: record.mean_price_kg ?? undefined,
-          // BMU average data - only for users who can compare
-          avgCpue: canCompareWithOthers ? avgData.cpue : undefined,
-          avgRpue: canCompareWithOthers ? avgData.rpue : undefined,
-          avgCost: canCompareWithOthers ? avgData.cost : undefined,
-          avgProfit: canCompareWithOthers ? avgData.profit : undefined,
           bmu: record.BMU,
         };
       });
-  }, [fisherData, bmuAverageData]);
+  }, [fisherData]);
+
+  // Calculate comparison data (fisher's data vs their own average)
+  const comparisonData = useMemo(() => {
+    if (!chartData || chartData.length === 0) return [];
+    
+    // Calculate the fisher's average for the selected metric over the time range
+    const metricKey = selectedMetric === "mean_cpue" ? "cpue" : 
+                     selectedMetric === "mean_rpue" ? "rpue" : 
+                     selectedMetric === "mean_cost" ? "cost" : "profit";
+    
+    const validValues = chartData
+      .map(point => point[metricKey])
+      .filter(value => value !== undefined && value !== null);
+    
+    if (validValues.length === 0) return [];
+    
+    const average = validValues.reduce((sum, val) => sum + val, 0) / validValues.length;
+    
+    // Create comparison data showing difference from average
+    return chartData.map(point => {
+      const value = point[metricKey];
+      const difference = value !== undefined && value !== null ? value - average : undefined;
+      
+      return {
+        ...point,
+        [metricKey]: value, // Keep original value for trends
+        difference: difference, // Difference from average for comparison
+        average: average, // Store average for reference
+      };
+    });
+  }, [chartData, selectedMetric]);
 
   // Calculate summary statistics (excluding NA values)
   const summaryStats = useMemo(() => {
@@ -246,9 +189,9 @@ export default function IndividualFisherTrends({
       const data = payload[0].payload;
       // Get values for both bars
       const metricKey = selectedMetric === "mean_cpue" ? "cpue" : selectedMetric === "mean_rpue" ? "rpue" : selectedMetric === "mean_cost" ? "cost" : "profit";
-      const avgKey = selectedMetric === "mean_cpue" ? "avgCpue" : selectedMetric === "mean_rpue" ? "avgRpue" : selectedMetric === "mean_cost" ? "avgCost" : "avgProfit";
       const yourValue = data[metricKey];
-      const avgValue = data[avgKey];
+      const difference = data.difference;
+      const average = data.average;
       // Metric-specific label
       const metricLabel = selectedMetric === "mean_cpue" ? t('text-cpue') : selectedMetric === "mean_rpue" ? t('text-rpue') : selectedMetric === "mean_cost" ? t('text-costs') : t('text-profit');
       // Format value
@@ -269,28 +212,62 @@ export default function IndividualFisherTrends({
                 </p>
               </div>
             )}
-            {/* BMU Average - only for users who can compare */}
-            {canCompareWithOthers && avgValue !== undefined && avgValue !== null && (
+            {/* Average */}
+            {average !== undefined && (
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 rounded-full" style={{ backgroundColor: '#8693AB' }} />
                 <p className="text-sm font-medium">
-                  Other {fisherBMU} fishers (mean) {metricLabel} <span className="font-semibold">{formatValue(avgValue)}</span>
+                  Your Average {metricLabel} <span className="font-semibold">{formatValue(average)}</span>
+                </p>
+              </div>
+            )}
+            {/* Difference */}
+            {difference !== undefined && (
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full" style={{ backgroundColor: difference > 0 ? '#10b981' : '#ef4444' }} />
+                <p className="text-sm font-medium">
+                  Difference <span className={`font-semibold ${difference > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    {difference > 0 ? '+' : ''}{formatValue(difference)}
+                  </span>
                 </p>
               </div>
             )}
           </div>
-          {data.bmu && (
-            <div className="mt-2 border-t pt-1">
-              <p className="text-xs text-gray-500">{data.bmu}</p>
-            </div>
-          )}
         </div>
       );
     }
     return null;
   };
 
-  if (isLoadingFisherData || (canCompareWithOthers && isLoadingBmuData)) {
+  // Get tab title and description functions
+  const getTabTitle = (tab: string): string => {
+    switch(tab) {
+      case 'trends':
+        return t("text-your-monthly-trends");
+      case 'comparison':
+        return t("text-performance-vs-your-average");
+      default:
+        return t("text-your-monthly-trends");
+    }
+  };
+  
+  const getTabDescription = (tab: string): string => {
+    switch(tab) {
+      case 'trends':
+        return t("text-trends-explanation");
+      case 'comparison':
+        return t("text-comparison-vs-your-average-explanation");
+      default:
+        return t("text-trends-explanation");
+    }
+  };
+
+  // Handle tab change
+  const handleTabChange = (tab: string) => {
+    setActiveTab(tab);
+  };
+
+  if (isLoadingFisherData) {
     return (
       <WidgetCard
         title={t('text-your-monthly-trends')}
@@ -308,131 +285,196 @@ export default function IndividualFisherTrends({
 
   return (
     <WidgetCard
-      title={t('text-your-monthly-trends')}
-      description={canCompareWithOthers ? t('text-compared-with-bmu-average', { bmu: fisherBMU }) : t('text-trends-explanation')}
-      headerClassName="pb-2"
-    >
-      {/* Metric selector buttons - hidden for all users, they should use header metric selector */}
-      {false && (
-        <div className="flex w-full gap-2 mb-4 overflow-x-auto">
-          {METRIC_OPTIONS.map((option) => (
+      title={
+        <div className="flex flex-col sm:flex-row items-start sm:items-center w-full gap-3">
+          <div className="hidden sm:block text-base font-medium text-gray-800 flex-1">
+            <div className="text-center">
+              {getTabTitle(activeTab)}
+            </div>
+            <div className="text-xs text-gray-500 text-center mt-1">
+              {getTabDescription(activeTab)}
+            </div>
+          </div>
+          {/* Show tabs for all users */}
+          <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto sm:flex-shrink-0">
             <button
-              key={option.key}
-              onClick={() => setSelectedMetric(option.key)}
-              className={cn(
-                "px-4 py-2 font-semibold rounded-md transition duration-200 w-full sm:w-auto",
-                selectedMetric === option.key
-                  ? "bg-blue-500 text-white"
-                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-              )}
+              className={`px-4 py-2 text-sm rounded-md transition duration-200 ${activeTab === 'trends' ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'} w-full sm:w-auto`}
+              onClick={() => handleTabChange('trends')}
             >
-              {t(option.label)}
+              {t("text-trends-tab")}
             </button>
-          ))}
+            <button
+              className={`px-4 py-2 text-sm rounded-md transition duration-200 ${activeTab === 'comparison' ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'} w-full sm:w-auto`}
+              onClick={() => handleTabChange('comparison')}
+            >
+              {t("text-comparison-tab")}
+            </button>
+          </div>
         </div>
-      )}
-
-      {/* Chart */}
-      <div className="h-96 w-full pt-9">
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart
-            data={chartData}
-            margin={{ top: 10, right: 50, left: 30, bottom: 0 }}
-            barGap={0}
-            barCategoryGap={0}
-          >
-            <XAxis
-              dataKey="date"
-              tickFormatter={(timestamp) => format(new Date(timestamp), "MMM yyyy")}
-              tickCount={8}
-              minTickGap={5}
-              tickMargin={10}
-              axisLine={false}
-              tick={{ fontSize: 12 }}
-            />
-            <YAxis
-              axisLine={false}
-              tick={(props) => <CustomYAxisTick {...props} selectedMetric={selectedMetric} />}
-              width={50}
-              label={{
-                value: selectedMetric === "mean_cpue" ? t('text-unit-kg-fisher-day') : 
-                       selectedMetric === "mean_rpue" ? t('text-unit-kes-fisher-day') : 
-                       selectedMetric === "mean_cost" ? t('text-unit-kes-fisher-day') : 
-                       selectedMetric === "mean_profit" ? t('text-unit-kes-fisher-day') : 
-                       t('text-unit-kg-fisher-day'),
-                angle: -90,
-                position: 'insideLeft',
-                style: { textAnchor: 'middle', fontSize: 12, fill: '#666' }
-              }}
-            />
-            <CartesianGrid strokeDasharray="3 3" vertical={false} />
-            <Tooltip content={<CustomTooltip />} />
-            {/* Fisher's own data as bars */}
-            <Bar
-              dataKey={selectedMetric === "mean_cpue" ? "cpue" : selectedMetric === "mean_rpue" ? "rpue" : selectedMetric === "mean_cost" ? "cost" : "profit"}
-              fill="#F79F79"
-              name="You"
-              radius={[4, 4, 0, 0]}
-              barSize={18}
-            />
-            {/* BMU Average as bars - only for users who can compare */}
-            {canCompareWithOthers && (
-              <Bar
-                dataKey={selectedMetric === "mean_cpue" ? "avgCpue" : selectedMetric === "mean_rpue" ? "avgRpue" : selectedMetric === "mean_cost" ? "avgCost" : "avgProfit"}
-                fill="#8693AB"
-                name={`Other ${fisherBMU} fishers (mean)`}
-                radius={[4, 4, 0, 0]}
-                barSize={18}
-              />
-            )}
-            {/* Income baseline reference lines (only for RPUE) */}
-            {selectedMetric === "mean_rpue" && (
-              <>
-                <ReferenceLine
-                  y={BASELINE_DATA.INCOME.POVERTY_LINE}
-                  stroke="#ef4444"
-                  strokeDasharray="3 3"
-                  strokeWidth={1.5}
-                  label={{ value: t('text-poverty-line'), position: "right", fill: "#ef4444", fontSize: 11 }}
-                />
-                <ReferenceLine
-                  y={BASELINE_DATA.INCOME.NATIONAL_MINIMUM_WAGE}
-                  stroke="#f59e0b"
-                  strokeDasharray="3 3"
-                  strokeWidth={1.5}
-                  label={{ value: t('text-minimum-wage'), position: "right", fill: "#f59e0b", fontSize: 11 }}
-                />
-                <ReferenceLine
-                  y={BASELINE_DATA.INCOME.LIVING_WAGE}
-                  stroke="#22c55e"
-                  strokeDasharray="3 3"
-                  strokeWidth={1.5}
-                  label={{ value: t('text-living-wage'), position: "right", fill: "#22c55e", fontSize: 11 }}
-                />
-              </>
-            )}
-            {/* Zero line for profit plot */}
-            {selectedMetric === "mean_profit" && (
-              <ReferenceLine
-                y={0}
-                stroke="#9ca3af"
-                strokeDasharray="2 2"
-                strokeWidth={1.2}
-                label={{ value: '0', position: "right", fill: "#9ca3af", fontSize: 11 }}
-              />
-            )}
-            {/* Legend */}
-            {canCompareWithOthers && (
-              <Legend 
-                verticalAlign="bottom" 
-                height={36}
-                iconType="rect"
-                wrapperStyle={{ paddingTop: '10px' }}
-              />
-            )}
-          </BarChart>
-        </ResponsiveContainer>
+      }
+      className="h-full"
+    >
+      {/* Mobile-only title - shows on small screens */}
+      <div className="sm:hidden text-center mb-4">
+        <div className="text-base font-medium text-gray-800">
+          {getTabTitle(activeTab)}
+        </div>
+        <div className="text-xs text-gray-500 mt-1">
+          {getTabDescription(activeTab)}
+        </div>
       </div>
+      
+      {/* Trends Chart */}
+      {activeTab === 'trends' && (
+        <SimpleBar>
+          <div className="h-96 w-full pt-9">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart
+                data={chartData}
+                margin={{ top: 10, right: 50, left: 30, bottom: 0 }}
+                barGap={0}
+                barCategoryGap={0}
+              >
+                <XAxis
+                  dataKey="date"
+                  tickFormatter={(timestamp) => format(new Date(timestamp), "MMM yyyy")}
+                  tickCount={8}
+                  minTickGap={5}
+                  tickMargin={10}
+                  axisLine={false}
+                  tick={{ fontSize: 12 }}
+                />
+                <YAxis
+                  axisLine={false}
+                  tick={(props) => <CustomYAxisTick {...props} selectedMetric={selectedMetric} />}
+                  width={50}
+                  label={{
+                    value: selectedMetric === "mean_cpue" ? t('text-unit-kg-fisher-day') : 
+                           selectedMetric === "mean_rpue" ? t('text-unit-kes-fisher-day') : 
+                           selectedMetric === "mean_cost" ? t('text-unit-kes-fisher-day') : 
+                           selectedMetric === "mean_profit" ? t('text-unit-kes-fisher-day') : 
+                           t('text-unit-kg-fisher-day'),
+                    angle: -90,
+                    position: 'insideLeft',
+                    style: { textAnchor: 'middle', fontSize: 12, fill: '#666' }
+                  }}
+                />
+                <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                <Tooltip content={<CustomTooltip />} />
+                {/* Fisher's own data as bars */}
+                <Bar
+                  dataKey={selectedMetric === "mean_cpue" ? "cpue" : selectedMetric === "mean_rpue" ? "rpue" : selectedMetric === "mean_cost" ? "cost" : "profit"}
+                  fill="#F79F79"
+                  name="You"
+                  radius={[4, 4, 0, 0]}
+                  barSize={18}
+                />
+                {/* Income baseline reference lines (only for RPUE) */}
+                {selectedMetric === "mean_rpue" && (
+                  <>
+                    <ReferenceLine
+                      y={BASELINE_DATA.INCOME.POVERTY_LINE}
+                      stroke="#ef4444"
+                      strokeDasharray="3 3"
+                      strokeWidth={1.5}
+                      label={{ value: t('text-poverty-line'), position: "right", fill: "#ef4444", fontSize: 11 }}
+                    />
+                    <ReferenceLine
+                      y={BASELINE_DATA.INCOME.NATIONAL_MINIMUM_WAGE}
+                      stroke="#f59e0b"
+                      strokeDasharray="3 3"
+                      strokeWidth={1.5}
+                      label={{ value: t('text-minimum-wage'), position: "right", fill: "#f59e0b", fontSize: 11 }}
+                    />
+                    <ReferenceLine
+                      y={BASELINE_DATA.INCOME.LIVING_WAGE}
+                      stroke="#22c55e"
+                      strokeDasharray="3 3"
+                      strokeWidth={1.5}
+                      label={{ value: t('text-living-wage'), position: "right", fill: "#22c55e", fontSize: 11 }}
+                    />
+                  </>
+                )}
+                {/* Zero line for profit plot */}
+                {selectedMetric === "mean_profit" && (
+                  <ReferenceLine
+                    y={0}
+                    stroke="#9ca3af"
+                    strokeDasharray="2 2"
+                    strokeWidth={1.2}
+                    label={{ value: '0', position: "right", fill: "#9ca3af", fontSize: 11 }}
+                  />
+                )}
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </SimpleBar>
+      )}
+      
+      {/* Comparison Chart */}
+      {activeTab === 'comparison' && (
+        <SimpleBar>
+          <div className="h-96 w-full pt-9">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart
+                data={comparisonData}
+                margin={{ top: 10, right: 50, left: 30, bottom: 0 }}
+                barGap={0}
+                barCategoryGap={0}
+              >
+                <XAxis
+                  dataKey="date"
+                  tickFormatter={(timestamp) => format(new Date(timestamp), "MMM yyyy")}
+                  tickCount={8}
+                  minTickGap={5}
+                  tickMargin={10}
+                  axisLine={false}
+                  tick={{ fontSize: 12 }}
+                />
+                <YAxis
+                  axisLine={false}
+                  tick={(props) => <CustomYAxisTick {...props} selectedMetric={selectedMetric} />}
+                  width={50}
+                  label={{
+                    value: selectedMetric === "mean_cpue" ? t('text-unit-kg-fisher-day') : 
+                           selectedMetric === "mean_rpue" ? t('text-unit-kes-fisher-day') : 
+                           selectedMetric === "mean_cost" ? t('text-unit-kes-fisher-day') : 
+                           selectedMetric === "mean_profit" ? t('text-unit-kes-fisher-day') : 
+                           t('text-unit-kg-fisher-day'),
+                    angle: -90,
+                    position: 'insideLeft',
+                    style: { textAnchor: 'middle', fontSize: 12, fill: '#666' }
+                  }}
+                />
+                <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                <Tooltip content={<CustomTooltip />} />
+                {/* Difference from average */}
+                <Bar
+                  dataKey="difference"
+                  fill="#10b981"
+                  name="Difference from Average"
+                  radius={[4, 4, 0, 0]}
+                  barSize={18}
+                >
+                  {comparisonData.map((entry, index) => (
+                    <Cell 
+                      key={`cell-${index}`} 
+                      fill={entry.difference && entry.difference > 0 ? '#10b981' : '#ef4444'} 
+                    />
+                  ))}
+                </Bar>
+                {/* Zero reference line */}
+                <ReferenceLine
+                  y={0}
+                  stroke="#000"
+                  strokeWidth={1}
+                  label={{ value: '0', position: "right", fill: "#000", fontSize: 11 }}
+                />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </SimpleBar>
+      )}
     </WidgetCard>
   );
 } 
