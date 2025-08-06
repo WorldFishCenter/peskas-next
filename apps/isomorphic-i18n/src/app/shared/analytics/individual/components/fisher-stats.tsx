@@ -400,7 +400,7 @@ export default function IndividualFisherStats({
                     fill="#F79F79"
                     radius={[2, 2, 0, 0]}
                     maxBarSize={8}
-                    minPointSize={3}
+                    minPointSize={0}
                     activeBar={{ stroke: '#e67e22', strokeWidth: 1 }}
                     label={{
                       position: 'top',
@@ -417,7 +417,7 @@ export default function IndividualFisherStats({
                       fill={isRevenueMetric ? "rgba(245, 158, 11, 0.5)" : "rgba(59, 130, 246, 0.5)"}
                       radius={[2, 2, 0, 0]}
                       maxBarSize={8}
-                      minPointSize={3}
+                      minPointSize={0}
                       activeBar={{ stroke: '#333', strokeWidth: 1 }}
                       label={{
                         position: 'top',

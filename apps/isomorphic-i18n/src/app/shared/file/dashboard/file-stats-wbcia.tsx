@@ -495,7 +495,7 @@ export function FileStatWBCIAGrid({ className, lang }: { className?: string; lan
                   fill="rgba(178, 216, 216, 0.75)"
                   radius={[2, 2, 0, 0]}
                   maxBarSize={8}
-                  minPointSize={3}
+                  minPointSize={0}
                   activeBar={{ stroke: '#333', strokeWidth: 1 }}
                   shape={(props: any) => CustomBar(props, metricInfo?.category)}
                   label={{
