@@ -181,7 +181,8 @@ export default function CatchCompositionPage({ params }: PageProps) {
       <div className="grid grid-cols-1 gap-5 xl:gap-6">
         
         {/* Individual Fisher Performance Integration for Administrator-Fishers */}
-        {shouldShowUnifiedDashboard && (
+        
+        {/* {shouldShowUnifiedDashboard && (
           <div className="bg-gradient-to-r from-blue-100 to-indigo-50 rounded-xl border border-blue-100 shadow-sm">
             <Collapse
               defaultOpen={false}
@@ -217,7 +218,7 @@ export default function CatchCompositionPage({ params }: PageProps) {
                 </button>
               )}
             >
-              {/* Only render charts when collapse is open to prevent 0x0 dimension warnings */}
+              
               {isCollapseOpen && (
                 <div className="space-y-6 pt-6">
                   <div className="grid grid-cols-12 gap-5 xl:gap-6">
@@ -264,7 +265,7 @@ export default function CatchCompositionPage({ params }: PageProps) {
               )}
             </Collapse>
           </div>
-        )}
+        )} */}
 
         {/* BMU-level charts for users who can see BMU data */}
         {canSeeBMUData && bmus.length > 0 && (

@@ -80,7 +80,7 @@ export default function FileDashboard({ lang }: { lang?: string }) {
         )}
 
         {/* Individual Fisher Performance Integration for Administrator-Fishers */}
-        {shouldShowUnifiedDashboard && (
+        {/* {shouldShowUnifiedDashboard && (
           <div className="bg-gradient-to-r from-blue-100 to-indigo-50 rounded-xl border border-blue-100 shadow-sm">
             <Collapse
               defaultOpen={false}
@@ -114,14 +114,15 @@ export default function FileDashboard({ lang }: { lang?: string }) {
               )}
             >
               <div className="space-y-6 pt-6">
-                {/* Individual Fisher Performance Statistics */}
+               
                 <IndividualFisherStats lang={lang} />
-                {/* Individual Fisher Performance Trends */}
+               
                 <IndividualFisherTrends lang={lang} />
               </div>
             </Collapse>
           </div>
-        )}
+        )} */}
+        
 
         <div className="grid grid-cols-12 gap-5 xl:gap-6">
           <div className="col-span-12 md:col-span-9">

@@ -83,7 +83,7 @@ export default function IndividualFisherGearPerformance({
     };
   }, [i18n]);
   
-  const { userFisherId, isIiaUser, shouldShowIndividualData } = useUserPermissions();
+  const { userFisherId, isIiaUser, isAdminFisher, shouldShowIndividualData } = useUserPermissions();
   const [selectedTimeRange] = useAtom(selectedTimeRangeAtom);
   
   // Calculate date range based on selected time range
@@ -95,9 +95,8 @@ export default function IndividualFisherGearPerformance({
   
   const { fisherData, isLoadingFisherData } = useIndividualData(dateRange);
   
-  // Use global metric selector for IIA users, local state for others
+  // All users who see individual charts use global header metric selector
   const [globalSelectedMetric, setGlobalSelectedMetric] = useAtom(selectedMetricAtom);
-  const [localSelectedMetric, setLocalSelectedMetric] = useState<MetricType>("fisher_cpue");
   
   // Map global metrics to local MetricType
   const mapGlobalToLocal = (globalMetric: string): MetricType => {
@@ -120,10 +119,9 @@ export default function IndividualFisherGearPerformance({
     }
   };
   
-  const selectedMetric = isIiaUser ? mapGlobalToLocal(globalSelectedMetric) : localSelectedMetric;
-  const setSelectedMetric = isIiaUser 
-    ? (metric: MetricType) => setGlobalSelectedMetric(mapLocalToGlobal(metric))
-    : setLocalSelectedMetric;
+  // All users use global header selector
+  const selectedMetric = mapGlobalToLocal(globalSelectedMetric);
+  const setSelectedMetric = (metric: MetricType) => setGlobalSelectedMetric(mapLocalToGlobal(metric));
 
   // Get fisher's BMU
   const fisherBMU = useMemo(() => {
@@ -284,7 +282,7 @@ export default function IndividualFisherGearPerformance({
             t={t}
             METRIC_OPTIONS={METRIC_OPTIONS}
             bmuName={fisherBMU}
-            isIiaUser={isIiaUser}
+            isIiaUser={true}
           />
         </WidgetCard>
       </div>

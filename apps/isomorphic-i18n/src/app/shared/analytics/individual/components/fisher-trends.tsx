@@ -70,16 +70,12 @@ export default function IndividualFisherTrends({
 }) {
   const { t, i18n } = useTranslation(lang || 'en');
   const [selectedTimeRange] = useAtom(selectedTimeRangeAtom);
-  const { userFisherId, isIiaUser, shouldShowIndividualData } = useUserPermissions();
+  const { userFisherId, isIiaUser, isAdminFisher, shouldShowIndividualData } = useUserPermissions();
   
-  // Use global metric selector for IIA users, local state for others
+  // All users who see individual charts use global header metric selector
   const [globalSelectedMetric, setGlobalSelectedMetric] = useAtom(selectedMetricAtom);
-  const [localSelectedMetric, setLocalSelectedMetric] = useState<string>('mean_cpue');
-  
-  const selectedMetric = isIiaUser ? globalSelectedMetric : localSelectedMetric;
-  const setSelectedMetric = isIiaUser 
-    ? (metric: string) => setGlobalSelectedMetric(metric as MetricKey)
-    : setLocalSelectedMetric;
+  const selectedMetric = globalSelectedMetric;
+  const setSelectedMetric = (metric: string) => setGlobalSelectedMetric(metric as MetricKey);
 
   // Calculate date range based on selected time range
   const dateRange = useMemo(() => {
@@ -316,8 +312,8 @@ export default function IndividualFisherTrends({
       description={t('text-compared-with-bmu-average', { bmu: fisherBMU })}
       headerClassName="pb-2"
     >
-      {/* Metric selector buttons - only show for non-IIA users */}
-      {!isIiaUser && (
+      {/* Metric selector buttons - hidden for all users, they should use header metric selector */}
+      {false && (
         <div className="flex w-full gap-2 mb-4 overflow-x-auto">
           {METRIC_OPTIONS.map((option) => (
             <button
