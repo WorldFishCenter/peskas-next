@@ -40,6 +40,14 @@ export default function IndividualFishCompositionComparison({
     return months.sort().reverse()[0];
   }, [filteredData]);
 
+  // Get available fish categories from data
+  const availableFishCategories = useMemo(() => {
+    if (!allData.length) return FISH_CATEGORIES;
+    
+    const availableCategories = new Set(allData.map(item => item.fish_category));
+    return FISH_CATEGORIES.filter(cat => availableCategories.has(cat.value));
+  }, [allData]);
+
   // Clean aggregation logic, no debug logs
   const chartData = useMemo(() => {
     if (!filteredData.length) return [];
@@ -63,7 +71,7 @@ export default function IndividualFishCompositionComparison({
     const othersRow: Record<string, any> = { label: "Other BMU fishers" };
     let youTotalPct = 0;
     let othersTotalPct = 0;
-    FISH_CATEGORIES.forEach(cat => {
+    availableFishCategories.forEach(cat => {
       const key = normalize(cat.value);
       const youPct = youSum > 0 ? ((youTotals[key] || 0) / youSum * 100) : 0;
       youRow[cat.value] = +youPct.toFixed(2);
@@ -77,19 +85,19 @@ export default function IndividualFishCompositionComparison({
       }
     });
     if (youTotalPct !== 100) {
-      const maxKey = FISH_CATEGORIES.reduce((max, cat) => youRow[cat.value] > youRow[max] ? cat.value : max, FISH_CATEGORIES[0].value);
+      const maxKey = availableFishCategories.reduce((max, cat) => youRow[cat.value] > youRow[max] ? cat.value : max, availableFishCategories[0].value);
       youRow[maxKey] += +(100 - youTotalPct).toFixed(2);
     }
     if (canCompareWithOthers && othersTotalPct !== 100) {
-      const maxKey = FISH_CATEGORIES.reduce((max, cat) => othersRow[cat.value] > othersRow[max] ? cat.value : max, FISH_CATEGORIES[0].value);
+      const maxKey = availableFishCategories.reduce((max, cat) => othersRow[cat.value] > othersRow[max] ? cat.value : max, availableFishCategories[0].value);
       othersRow[maxKey] += +(100 - othersTotalPct).toFixed(2);
     }
     // Return only user's row if they can't compare, otherwise return both
     return canCompareWithOthers ? [youRow, othersRow] : [youRow];
-  }, [filteredData, userFisherId, canCompareWithOthers]);
+  }, [filteredData, userFisherId, canCompareWithOthers, availableFishCategories]);
 
-  // Legend and color mapping
-  const categoryDisplays = FISH_CATEGORIES.map(cat => ({
+  // Legend and color mapping - only available categories
+  const categoryDisplays = availableFishCategories.map(cat => ({
     id: cat.value,
     name: cat.label,
     color: generateFishCategoryColor(cat.label),

@@ -137,7 +137,7 @@ export default function IndividualFishCompositionUnified({
       const displayMonth = new Date(monthKey + '-01').toLocaleString('default', { month: 'short', year: 'numeric' });
       const row: Record<string, any> = { month: displayMonth };
       
-      FISH_CATEGORIES.forEach(cat => {
+      availableFishCategories.forEach(cat => {
         const key = normalize(cat.value);
         row[`you_${cat.value}`] = vals.youTotals[key] || 0;
         if (canCompareWithOthers) {
@@ -151,16 +151,22 @@ export default function IndividualFishCompositionUnified({
       }
       return row;
     }).sort((a, b) => new Date(a.month).getTime() - new Date(b.month).getTime());
-  }, [allData, userFisherId, canCompareWithOthers]);
+  }, [allData, userFisherId, canCompareWithOthers, availableFishCategories]);
 
-  // Category displays for area chart legend
+  // Category displays for area chart legend - only show available categories
   const categoryDisplays = useMemo(() => 
-    FISH_CATEGORIES.map(cat => ({
+    availableFishCategories.map(cat => ({
       id: cat.value,
       name: cat.label,
       color: generateFishCategoryColor(cat.label),
-    })), []
+    })), [availableFishCategories]
   );
+
+  // Get color for selected fish category
+  const selectedCategoryColor = useMemo(() => {
+    const selectedCat = FISH_CATEGORIES.find(cat => cat.value === selectedCategory);
+    return selectedCat ? generateFishCategoryColor(selectedCat.label) : "#F79F79";
+  }, [selectedCategory]);
 
   // Get appropriate tab title and description
   const getTabTitle = (tab: string): string => {
@@ -199,7 +205,7 @@ export default function IndividualFishCompositionUnified({
           <div className="space-y-1.5">
             {data.you !== undefined && data.you !== null && (
               <div className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full" style={{ backgroundColor: '#F79F79' }} />
+                <div className="w-2 h-2 rounded-full" style={{ backgroundColor: selectedCategoryColor }} />
                 <p className="text-sm font-medium">
                   You <span className="font-semibold">{data.you.toFixed(2)} kg</span>
                 </p>
@@ -207,7 +213,7 @@ export default function IndividualFishCompositionUnified({
             )}
             {canCompareWithOthers && data.others !== undefined && data.others !== null && (
               <div className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full" style={{ backgroundColor: '#8693AB' }} />
+                <div className="w-2 h-2 rounded-full" style={{ backgroundColor: `${selectedCategoryColor}80` }} />
                 <p className="text-sm font-medium">
                   {`Other ${bmuName ? bmuName + ' ' : ''}fishers (mean)`} <span className="font-semibold">{data.others.toFixed(2)} kg</span>
                 </p>
@@ -347,7 +353,7 @@ export default function IndividualFishCompositionUnified({
                 <Tooltip content={<BarChartTooltip />} />
                 <Bar
                   dataKey="you"
-                  fill="#F79F79"
+                  fill={selectedCategoryColor}
                   name="You"
                   radius={[4, 4, 0, 0]}
                   barSize={18}
@@ -355,7 +361,7 @@ export default function IndividualFishCompositionUnified({
                 {canCompareWithOthers && (
                   <Bar
                     dataKey="others"
-                    fill="#8693AB"
+                    fill={`${selectedCategoryColor}80`}
                     name={`Other ${bmuName ? bmuName + ' ' : ''}fishers (mean)`}
                     radius={[4, 4, 0, 0]}
                     barSize={18}
@@ -452,8 +458,8 @@ export default function IndividualFishCompositionUnified({
                     return null;
                   }}
                 />
-                {/* Render areas for each fish category - You */}
-                {FISH_CATEGORIES.map((cat, index) => (
+                {/* Render areas for each available fish category - You */}
+                {availableFishCategories.map((cat, index) => (
                   <Area
                     key={`you_${cat.value}`}
                     type="monotone"
@@ -466,8 +472,8 @@ export default function IndividualFishCompositionUnified({
                     name={`You: ${cat.label}`}
                   />
                 ))}
-                {/* Render areas for each fish category - Others (if comparison enabled) */}
-                {canCompareWithOthers && FISH_CATEGORIES.map((cat, index) => (
+                {/* Render areas for each available fish category - Others (if comparison enabled) */}
+                {canCompareWithOthers && availableFishCategories.map((cat, index) => (
                   <Area
                     key={`others_${cat.value}`}
                     type="monotone"
