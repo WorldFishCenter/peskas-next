@@ -13,6 +13,7 @@ import { getClientLanguage } from "@/app/i18n/language-link";
 import { api } from "@/trpc/react";
 import { useUserPermissions } from "../../analytics/core/hooks/use-user-permissions";
 import { bmusAtom } from "@/app/components/filter-selector";
+import { useIndividualData } from "../../analytics/individual/hooks/use-individual-data";
 
 type FileStatsCIAType = {
   className?: string;
@@ -23,6 +24,7 @@ interface ChartPoint {
   bmu: string;
   value: number | null;
   index: number;
+  isIndividual?: boolean; // Flag to identify individual fisher data
 }
 
 interface StatData {
@@ -87,10 +89,23 @@ export function FileStatWBCIAGrid({ className, lang }: { className?: string; lan
   }, [i18n]);
   
   // Get user permissions
-  const { userBMU } = useUserPermissions();
+  const { userBMU, shouldShowIndividualData, userFisherId } = useUserPermissions();
   
   // Ensure bmus is always an array
   const safeBmus = bmus || [];
+  
+  // Calculate date range for individual data
+  const dateRange = useMemo(() => {
+    const endDate = new Date();
+    const startDate = new Date();
+    startDate.setMonth(startDate.getMonth() - 3); // Always get last 3 months
+    return { startDate, endDate };
+  }, []);
+  
+  // Fetch individual fisher data if user has fisher permissions (use same data source as BMU component)
+  const { fisherData } = useIndividualData(
+    shouldShowIndividualData && userFisherId ? dateRange : { startDate: null, endDate: new Date() }
+  );
   
   // Fetch monthly data to get latest month values per BMU
   const { data: monthlyData, isLoading, error: queryError } = api.aggregatedCatch.monthly.useQuery(
@@ -173,24 +188,70 @@ export function FileStatWBCIAGrid({ className, lang }: { className?: string; lan
             bmuValues.push({
               bmu: bmu,
               value: value,
-              index: index
+              index: index,
+              isIndividual: false
             });
           }
         });
         
-        // Sort by value descending and take top 10
+        // Add individual fisher data if available - process same way as BMU component
+        if (shouldShowIndividualData && userFisherId && fisherData && fisherData.length > 0) {
+          // Process individual data to get the latest/previous month value (same logic as BMU data)
+          const currentDate = new Date();
+          const currentYear = currentDate.getFullYear();
+          const currentMonth = currentDate.getMonth(); // 0-indexed
+          
+          // Calculate previous month date
+          const previousMonth = currentMonth === 0 ? 11 : currentMonth - 1;
+          const previousYear = currentMonth === 0 ? currentYear - 1 : currentYear;
+          
+          // Find records from previous month or latest available
+          const previousMonthRecords = fisherData.filter(record => {
+            const recordDate = new Date(record.date);
+            const recordYear = recordDate.getFullYear();
+            const recordMonth = recordDate.getMonth();
+            return recordYear === previousYear && recordMonth === previousMonth;
+          });
+          
+          // If no previous month data, use latest records
+          const relevantRecords = previousMonthRecords.length > 0 
+            ? previousMonthRecords 
+            : fisherData.slice(-30); // Last 30 days as fallback
+          
+          if (relevantRecords.length > 0) {
+            // Calculate average for the metric field from the relevant records
+            const validRecords = relevantRecords.filter(record => {
+              const fieldValue = (record as any)[metric.field];
+              return fieldValue !== null && fieldValue !== undefined;
+            });
+            
+            if (validRecords.length > 0) {
+              const sum = validRecords.reduce((sum, record) => sum + (record as any)[metric.field], 0);
+              const individualValue = sum / validRecords.length;
+              
+              bmuValues.push({
+                bmu: `You`,
+                value: individualValue,
+                index: bmuValues.length,
+                isIndividual: true
+              });
+            }
+          }
+        }
+        
+        // Sort by value descending and take top 10 (plus individual if present)
         const sortedValues = bmuValues
           .sort((a, b) => (b.value || 0) - (a.value || 0))
-          .slice(0, 10);
+          .slice(0, shouldShowIndividualData && userFisherId ? 11 : 10); // Allow one extra for individual data
         
-        // Calculate average for display
-        const validValues = bmuValues.filter(v => v.value !== null && v.value !== undefined);
-        const avgValue = validValues.length > 0
-          ? validValues.reduce((sum, v) => sum + (v.value || 0), 0) / validValues.length
+        // Calculate average for display (excluding individual data)
+        const bmuOnlyValues = bmuValues.filter(v => !v.isIndividual && v.value !== null && v.value !== undefined);
+        const avgValue = bmuOnlyValues.length > 0
+          ? bmuOnlyValues.reduce((sum, v) => sum + (v.value || 0), 0) / bmuOnlyValues.length
           : 0;
         
         // Find user's BMU value
-        const userBMUData = bmuValues.find(v => v.bmu === userBMU);
+        const userBMUData = bmuValues.find(v => v.bmu === userBMU && !v.isIndividual);
         
         return {
           id: metric.id,
@@ -206,7 +267,7 @@ export function FileStatWBCIAGrid({ className, lang }: { className?: string; lan
       console.error("Error transforming data:", error);
       return null;
     }
-  }, [monthlyData, metrics, safeBmus, userBMU]);
+  }, [monthlyData, metrics, safeBmus, userBMU, shouldShowIndividualData, userFisherId, fisherData]);
 
   // Update state based on processed data
   useEffect(() => {
@@ -287,7 +348,14 @@ export function FileStatWBCIAGrid({ className, lang }: { className?: string; lan
     // Determine fill color based on BMU and metric category
     const isRevenueMetric = metricCategory === 'revenue';
     const baseColor = isRevenueMetric ? "rgba(245, 158, 11, 0.5)" : "rgba(59, 130, 246, 0.5)"; // amber vs blue - more opaque
-    const fill = payload?.bmu === userBMU ? "#fc3468" : baseColor;
+    
+    // Different colors for different data types
+    let fill = baseColor;
+    if (payload?.isIndividual) {
+      fill = "#F79F79"; // Coral/orange for individual performance (consistent with other components)
+    } else if (payload?.bmu === userBMU) {
+      fill = "#fc3468"; // Pink for user's BMU
+    }
     
     return (
       <rect 
@@ -369,7 +437,7 @@ export function FileStatWBCIAGrid({ className, lang }: { className?: string; lan
             <ResponsiveContainer width="100%" height="100%">
               <BarChart 
                 data={stat.chart}
-                margin={{ top: 15, right: 8, bottom: 25, left: 30 }}
+                margin={{ top: 15, right: 8, bottom: 25, left: 8 }}
                 barGap={2}
                 onMouseMove={(state) => handleMouseMove(state, stat.id)}
                 onClick={(data) => handleBarClick(data, stat.id)}
@@ -378,7 +446,26 @@ export function FileStatWBCIAGrid({ className, lang }: { className?: string; lan
                 <XAxis 
                   dataKey="bmu" 
                   hide={false}
-                  tick={{ fontSize: 10, fill: '#666' }}
+                  tick={(props) => {
+                    const { x, y, payload } = props;
+                    const isUserData = payload.value === 'You' || payload.value === userBMU;
+                    return (
+                      <g transform={`translate(${x},${y})`}>
+                        <text
+                          x={0}
+                          y={0}
+                          dy={16}
+                          textAnchor="end"
+                          fill="#666"
+                          fontSize={10}
+                          fontWeight={isUserData ? 'bold' : 'normal'}
+                          transform="rotate(-45)"
+                        >
+                          {payload.value}
+                        </text>
+                      </g>
+                    );
+                  }}
                   angle={-45}
                   textAnchor="end"
                   height={30}
@@ -387,10 +474,10 @@ export function FileStatWBCIAGrid({ className, lang }: { className?: string; lan
                 <YAxis 
                   hide={false}
                   domain={[0, (dataMax: number) => dataMax * 1.1]}
-                  tick={{ fontSize: 11, fill: '#64748b' }}
+                  tick={{ fontSize: 10, fill: '#64748b' }}
                   tickLine={{ stroke: '#cbd5e1' }}
                   axisLine={{ stroke: '#cbd5e1', strokeWidth: 1 }}
-                  width={40}
+                  width={25}
                   tickCount={4}
                   tickFormatter={(value) => {
                     if (value >= 1000) {
@@ -408,7 +495,7 @@ export function FileStatWBCIAGrid({ className, lang }: { className?: string; lan
                   fill="rgba(178, 216, 216, 0.75)"
                   radius={[2, 2, 0, 0]}
                   maxBarSize={8}
-                  minPointSize={3}
+                  minPointSize={0}
                   activeBar={{ stroke: '#333', strokeWidth: 1 }}
                   shape={(props: any) => CustomBar(props, metricInfo?.category)}
                   label={{

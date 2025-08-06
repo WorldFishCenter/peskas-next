@@ -13,20 +13,17 @@ import { getClientLanguage } from "@/app/i18n/language-link";
 import { api } from "@/trpc/react";
 import { useUserPermissions } from "../../analytics/core/hooks/use-user-permissions";
 import { bmusAtom } from "@/app/components/filter-selector";
-import { useIndividualData } from "../../analytics/individual/hooks/use-individual-data";
 
-type FileStatsType = {
+type FileStatsAdminType = {
   className?: string;
   lang?: string;
-  bmu?: string;
 };
 
 interface ChartPoint {
   month: string;
-  value: number | null; // BMU value
-  individualValue?: number | null; // Individual fisher value for grouped bars
+  starredValue: number | null; // Starred BMU value
+  selectedAverage: number | null; // Average of selected BMUs
   index: number;
-  isIndividual?: boolean; // Flag to identify individual fisher data
 }
 
 interface StatData {
@@ -35,7 +32,7 @@ interface StatData {
   metric: string;
   unit: string;
   chart: ChartPoint[];
-  userBMUValue?: number | null;
+  starredBMU?: string;
   monthName?: string;
 }
 
@@ -59,7 +56,7 @@ const LoadingState = () => {
   );
 };
 
-export function FileStatGrid({ className, lang, bmu }: { className?: string; lang?: string; bmu?: string }) {
+export function FileStatGridAdmin({ className, lang }: { className?: string; lang?: string }) {
   // Use client language instead of lang prop
   const clientLang = getClientLanguage();
   const { t, i18n } = useTranslation(clientLang, "common");
@@ -70,7 +67,7 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
   const [statsData, setStatsData] = useState<StatData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [hoveredMonth, setHoveredMonth] = useState<{[key: string]: { month: string; value: number | null }}>({});
+  const [hoveredMonth, setHoveredMonth] = useState<{[key: string]: { month: string; starredValue: number | null; selectedAverage: number | null }}>({});
   
   // Listen for language changes
   useEffect(() => {
@@ -89,13 +86,14 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
     };
   }, [i18n]);
   
-  // Get user permissions
-  const { userBMU, shouldShowIndividualData, userFisherId, referenceBMU } = useUserPermissions();
+  // Get user permissions and selected BMUs
+  const { referenceBMU, userBMU, isAdmin } = useUserPermissions();
+  const [selectedBMUs] = useAtom(bmusAtom);
   
-  // Use effective BMU (reference or user's BMU)
-  const effectiveBMU = referenceBMU || userBMU;
+  // Use reference BMU as the starred BMU
+  const starredBMU = referenceBMU || userBMU;
   
-  // Calculate date range for individual data
+  // Calculate date range
   const dateRange = useMemo(() => {
     const endDate = new Date();
     const startDate = new Date();
@@ -103,19 +101,25 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
     return { startDate, endDate };
   }, []);
   
-  // Fetch individual fisher data if user has fisher permissions (use same data source as other components)
-  const { fisherData } = useIndividualData(
-    shouldShowIndividualData && userFisherId ? dateRange : { startDate: null, endDate: new Date() }
-  );
-  
-  // Fetch monthly data for the effective BMU
-  const { data: monthlyData, isLoading, error: queryError } = api.aggregatedCatch.monthly.useQuery(
-    { bmus: effectiveBMU ? [effectiveBMU] : [] },
+  // Fetch monthly data for the starred BMU
+  const { data: starredBMUData, isLoading: isLoadingStarred } = api.aggregatedCatch.monthly.useQuery(
+    { bmus: starredBMU ? [starredBMU] : [] },
     {
       retry: 3,
       retryDelay: 1000,
       staleTime: 1000 * 60 * 5,
-      enabled: !!effectiveBMU,
+      enabled: !!starredBMU && isAdmin,
+    }
+  );
+  
+  // Fetch monthly data for all selected BMUs
+  const { data: selectedBMUsData, isLoading: isLoadingSelected } = api.aggregatedCatch.monthly.useQuery(
+    { bmus: selectedBMUs.length > 0 ? selectedBMUs : [] },
+    {
+      retry: 3,
+      retryDelay: 1000,
+      staleTime: 1000 * 60 * 5,
+      enabled: selectedBMUs.length > 0 && isAdmin,
     }
   );
 
@@ -132,80 +136,72 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
 
   // Process data - get the latest 3 months
   const processedData = useMemo(() => {
-    if (!monthlyData || !effectiveBMU) return null;
+    if (!starredBMUData || !selectedBMUsData || !starredBMU || selectedBMUs.length === 0) return null;
     
     try {
-      // Sort data by date and get latest 3 months
-      const sortedData = monthlyData
-        .filter(record => record.landing_site === effectiveBMU)
+      // Process starred BMU data
+      const starredSortedData = starredBMUData
+        .filter(record => record.landing_site === starredBMU)
         .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
         .slice(0, 3)
-        .reverse(); // Reverse to show chronological order (oldest to newest)
+        .reverse(); // Reverse to show chronological order
       
-      if (sortedData.length === 0) return null;
+      if (starredSortedData.length === 0) return null;
+      
+      // Process selected BMUs data and calculate averages
+      const selectedBMUsGrouped = selectedBMUsData
+        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+        .slice(0, 3 * selectedBMUs.length) // Get 3 months for each BMU
+        .reduce((acc, record) => {
+          const dateStr = record.date.toISOString().split('T')[0];
+          if (!acc[dateStr]) {
+            acc[dateStr] = [];
+          }
+          acc[dateStr].push(record);
+          return acc;
+        }, {} as Record<string, any[]>);
       
       return metrics.map(metric => {
-        // Collect values for this metric from the 3 months
-        const monthValues: ChartPoint[] = [];
+        // Collect values for this metric from the starred BMU
+        const starredMonthValues: ChartPoint[] = [];
         
-        sortedData.forEach((record, index) => {
-          const value = (record as any)[metric.field];
-          if (value !== null && value !== undefined) {
-            const date = new Date(record.date);
-            const monthName = date.toLocaleString('default', { month: 'short' });
-            monthValues.push({
-              month: monthName,
-              value: value,
-              index: index,
-              isIndividual: false
-            });
+        starredSortedData.forEach((record, index) => {
+          const starredValue = (record as any)[metric.field];
+          const date = new Date(record.date);
+          const monthName = date.toLocaleString('default', { month: 'short' });
+          const dateStr = record.date.toISOString().split('T')[0];
+          
+          // Calculate average for selected BMUs for this same date
+          let selectedAverage: number | null = null;
+          if (selectedBMUsGrouped[dateStr]) {
+            const validValues = selectedBMUsGrouped[dateStr]
+              .map((r: any) => (r as any)[metric.field])
+              .filter((v: any) => v !== null && v !== undefined);
+            
+            if (validValues.length > 0) {
+              selectedAverage = validValues.reduce((sum: number, val: number) => sum + val, 0) / validValues.length;
+            }
           }
+          
+          starredMonthValues.push({
+            month: monthName,
+            starredValue: starredValue !== null && starredValue !== undefined ? starredValue : null,
+            selectedAverage: selectedAverage,
+            index: index,
+          });
         });
         
-        // Add individual fisher data if available - create grouped data structure
-        if (shouldShowIndividualData && userFisherId && fisherData && fisherData.length > 0) {
-          // Group individual data by month for the same months as BMU data
-          const individualMonthlyData: Record<string, { sum: number; count: number }> = {};
-          
-          fisherData.forEach(record => {
-            const recordDate = new Date(record.date);
-            const monthKey = recordDate.toLocaleString('default', { month: 'short' });
-            
-            // Only include months that match our BMU months
-            if (monthValues.some(mv => mv.month === monthKey)) {
-              if (!individualMonthlyData[monthKey]) {
-                individualMonthlyData[monthKey] = { sum: 0, count: 0 };
-              }
-              
-              const fieldValue = (record as any)[metric.field];
-              if (fieldValue !== null && fieldValue !== undefined) {
-                individualMonthlyData[monthKey].sum += fieldValue;
-                individualMonthlyData[monthKey].count++;
-              }
-            }
-          });
-          
-          // Update monthValues to include individual data for grouped bars
-          monthValues.forEach(monthValue => {
-            const individualData = individualMonthlyData[monthValue.month];
-            if (individualData && individualData.count > 0) {
-              (monthValue as any).individualValue = individualData.sum / individualData.count;
-            }
-          });
-        }
-        
-        // Get the latest month value for display instead of average
-        const latestMonth = monthValues.length > 0 ? monthValues[monthValues.length - 1] : null;
-        const latestValue = latestMonth?.value || 0;
-        const latestMonthName = latestMonth?.month || '';
+        // Get the latest month value for display
+        const latestMonth = starredMonthValues.length > 0 ? starredMonthValues[starredMonthValues.length - 1] : null;
+        const latestValue = latestMonth?.starredValue || 0;
         
         return {
           id: metric.id,
           title: metric.title,
           metric: Math.round(latestValue).toLocaleString(),
           unit: metric.unit,
-          chart: monthValues,
-          userBMUValue: null,
+          chart: starredMonthValues,
+          starredBMU: starredBMU,
           monthName: t('text-last-3-months')
         };
       });
@@ -213,28 +209,22 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
       console.error("Error transforming data:", error);
       return null;
     }
-  }, [monthlyData, metrics, effectiveBMU, shouldShowIndividualData, userFisherId, fisherData]);
+  }, [starredBMUData, selectedBMUsData, metrics, starredBMU, selectedBMUs, t]);
 
   // Update state based on processed data
   useEffect(() => {
+    const isLoading = isLoadingStarred || isLoadingSelected;
     setLoading(isLoading);
-    
-    if (queryError) {
-      console.error("API error:", queryError);
-      setError("Failed to load statistics data");
-      setLoading(false);
-      return;
-    }
     
     if (!isLoading && processedData) {
       setStatsData(processedData);
       setError(null);
       setLoading(false);
-    } else if (!isLoading && !processedData && effectiveBMU) {
+    } else if (!isLoading && !processedData && starredBMU && selectedBMUs.length > 0) {
       setError("No statistics data available");
       setLoading(false);
     }
-  }, [processedData, isLoading, queryError, effectiveBMU]);
+  }, [processedData, isLoadingStarred, isLoadingSelected, starredBMU, selectedBMUs]);
 
   // Handlers
   const handleBarClick = useCallback((data: any, metricId: string) => {
@@ -242,11 +232,12 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
     
     const entry = data.activePayload[0];
     const month = entry.payload.month;
-    const value = entry.payload.value;
+    const starredValue = entry.payload.starredValue;
+    const selectedAverage = entry.payload.selectedAverage;
     
     setHoveredMonth(prev => ({
       ...prev,
-      [metricId]: { month, value }
+      [metricId]: { month, starredValue, selectedAverage }
     }));
   }, []);
 
@@ -254,11 +245,12 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
     if (state.activePayload && state.activePayload.length > 0) {
       const entry = state.activePayload[0];
       const month = entry.payload.month;
-      const value = entry.payload.value;
+      const starredValue = entry.payload.starredValue;
+      const selectedAverage = entry.payload.selectedAverage;
       
       setHoveredMonth(prev => ({
         ...prev,
-        [metricId]: { month, value }
+        [metricId]: { month, starredValue, selectedAverage }
       }));
     }
   }, []);
@@ -271,6 +263,10 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
     });
   }, []);
 
+  // Don't render for non-admin users
+  if (!isAdmin) {
+    return null;
+  }
 
   if (loading) return <LoadingState />;
   if (error) return <div className="min-w-[292px] w-full p-4 text-center text-gray-500">{error}</div>;
@@ -289,7 +285,7 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
           title=""
           metric={<></>}
           rounded="lg"
-className={cn(
+          className={cn(
             "@container text-[15px]",
             "min-w-[260px] w-full max-w-full flex-1 p-0 overflow-hidden",
             // Apply color scheme based on category
@@ -309,19 +305,6 @@ className={cn(
                 {stat.monthName}
               </Text>
             </div>
-            
-            {/* <div className="flex items-baseline justify-between mt-2">
-              <div className="flex items-baseline gap-2">
-                <Text className="text-l font-bold text-gray-900">
-                  {hoveredMonth[stat.id] 
-                    ? (hoveredMonth[stat.id].value === null ? "N/A" : Math.round(hoveredMonth[stat.id].value!).toLocaleString())
-                    : "Hover to see values"}
-                </Text>
-                <span className="text-xs font-bold text-gray-500">
-                  {hoveredMonth[stat.id] ? hoveredMonth[stat.id].month : ""}
-                </span>
-              </div>
-            </div> */}
           </div>
           
           {/* Legend for grouped bars */}
@@ -331,12 +314,12 @@ className={cn(
                 "w-1.5 h-1.5 rounded-full",
                 isRevenueMetric ? "bg-amber-500" : "bg-blue-500"
               )} />
-              <span>{effectiveBMU}</span>
+              <span>{stat.starredBMU}</span>
             </div>
-            {shouldShowIndividualData && userFisherId && stat.chart.some(point => point.individualValue !== undefined) && (
+            {selectedBMUs.length > 0 && (
               <div className="flex items-center gap-1">
-                <div className="w-1.5 h-1.5 rounded-full bg-[#F79F79]" />
-                <span>You</span>
+                <div className="w-1.5 h-1.5 rounded-full bg-gray-500" />
+                <span>Other BMUs</span>
               </div>
             )}
           </div>
@@ -349,7 +332,6 @@ className={cn(
               <BarChart 
                 data={stat.chart}
                 margin={{ top: 15, right: 8, bottom: 0, left: 8 }}
-                barGap={2}
                 onMouseMove={(state) => handleMouseMove(state, stat.id)}
                 onClick={(data) => handleBarClick(data, stat.id)}
                 className="[&_.recharts-cartesian-grid]:hidden"
@@ -359,7 +341,6 @@ className={cn(
                   hide={false}
                   tick={(props) => {
                     const { x, y, payload } = props;
-                    const isUserData = payload.value === 'You' || payload.value === effectiveBMU;
                     return (
                       <g transform={`translate(${x},${y})`}>
                         <text
@@ -369,7 +350,7 @@ className={cn(
                           textAnchor="middle"
                           fill="#666"
                           fontSize={10}
-                          fontWeight={isUserData ? 'bold' : 'normal'}
+                          fontWeight="normal"
                         >
                           {payload.value}
                         </text>
@@ -399,11 +380,11 @@ className={cn(
                   content={<></>}
                   isAnimationActive={false}
                 />
-                {/* BMU Data Bars */}
+                {/* Starred BMU Data Bars */}
                 <Bar
-                  dataKey="value"
-                  name={effectiveBMU}
-                  fill={isRevenueMetric ? "rgba(245, 158, 11, 0.5)" : "rgba(59, 130, 246, 0.5)"}
+                  dataKey="starredValue"
+                  name={`${stat.starredBMU} (starred)`}
+                  fill={isRevenueMetric ? "rgba(245, 158, 11, 0.8)" : "rgba(59, 130, 246, 0.8)"}
                   radius={[2, 2, 0, 0]}
                   maxBarSize={8}
                   minPointSize={0}
@@ -412,27 +393,25 @@ className={cn(
                     position: 'top',
                     fontSize: 8,
                     fill: '#666',
-                    formatter: (value: number) => Math.round(value).toLocaleString()
+                    formatter: (value: number) => value ? Math.round(value).toLocaleString() : ''
                   }}
                 />
-                {/* Individual Fisher Data Bars - only if data exists */}
-                {shouldShowIndividualData && userFisherId && stat.chart.some(point => point.individualValue !== undefined) && (
-                  <Bar
-                    dataKey="individualValue"
-                    name="You"
-                    fill="#F79F79"
-                    radius={[2, 2, 0, 0]}
-                    maxBarSize={8}
-                    minPointSize={0}
-                    activeBar={{ stroke: '#e67e22', strokeWidth: 1 }}
-                    label={{
-                      position: 'top',
-                      fontSize: 8,
-                      fill: '#666',
-                      formatter: (value: number) => Math.round(value).toLocaleString()
-                    }}
-                  />
-                )}
+                {/* Selected BMUs Average Data Bars */}
+                <Bar
+                  dataKey="selectedAverage"
+                  name="Selected BMUs (avg)"
+                  fill="rgba(107, 114, 128, 0.8)"
+                  radius={[2, 2, 0, 0]}
+                  maxBarSize={8}
+                  minPointSize={0}
+                  activeBar={{ stroke: '#374151', strokeWidth: 1 }}
+                  label={{
+                    position: 'top',
+                    fontSize: 8,
+                    fill: '#666',
+                    formatter: (value: number) => value ? Math.round(value).toLocaleString() : ''
+                  }}
+                />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -443,7 +422,7 @@ className={cn(
   );
 }
 
-export default function FileStats({ className, lang, bmu }: FileStatsType) {
+export default function FileStatsAdmin({ className, lang }: FileStatsAdminType) {
   const {
     sliderEl,
     sliderPrevBtn,
@@ -468,7 +447,7 @@ export default function FileStats({ className, lang, bmu }: FileStatsType) {
           ref={sliderEl}
           className="custom-scrollbar-x grid grid-flow-col gap-5 overflow-x-auto scroll-smooth 2xl:gap-6 3xl:gap-8"
         >
-          <FileStatGrid className="min-w-[292px]" lang={lang} bmu={bmu} />
+          <FileStatGridAdmin className="min-w-[292px]" lang={lang} />
         </div>
       </div>
       <Button

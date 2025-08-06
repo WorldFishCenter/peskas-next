@@ -3,9 +3,11 @@ import WidgetCard from "@components/cards/widget-card";
 import { BarChart, Bar, ResponsiveContainer, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from "recharts";
 import { useAtom } from "jotai";
 import { selectedTimeRangeAtom } from "@/app/components/filter-selector";
+import { useTranslation } from "@/app/i18n/client";
 import { getTimeRangeStartDate } from "../../core/utils/time-range-filter";
 import { FISH_CATEGORIES } from "./composition-chart";
 import FishCategorySelector from "../../charts/domain/fish-category-selector";
+import { useUserPermissions } from "../../core/hooks/use-user-permissions";
 
 const FISH_GROUPS = [
   "Octopus", "Parrotfish", "Rabbitfish", "Pelagics", "Scavengers", "Goatfish", "Lobster", "Ray", "Rest Of Catch", "Shark"
@@ -28,7 +30,9 @@ export default function IndividualFishCompositionChart({
   description?: string;
   bmuName?: string;
 }) {
+  const { t } = useTranslation("common");
   const [selectedTimeRange] = useAtom(selectedTimeRangeAtom);
+  const { canCompareWithOthers } = useUserPermissions();
   // 1. Get time range
   const endDate = new Date();
   let startDate = getTimeRangeStartDate(selectedTimeRange, endDate);
@@ -39,7 +43,7 @@ export default function IndividualFishCompositionChart({
     return allData.filter(item => item.fish_category === selectedCategory);
   }, [allData, selectedCategory]);
 
-  // 3. Group by month and aggregate for 'you' and mean of 'others'
+  // 3. Group by month and aggregate for 'you' and optionally mean of 'others'
   const chartData = useMemo(() => {
     if (!filtered.length) return [];
     const grouped: Record<string, { you: number; others: number; fullDate: string } > = {};
@@ -49,20 +53,24 @@ export default function IndividualFishCompositionChart({
       const date = new Date(item.date);
       const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
       if (!grouped[monthKey]) grouped[monthKey] = { you: 0, others: 0, fullDate: date.toISOString() };
-      if (!othersCount[monthKey]) othersCount[monthKey] = new Set();
-      if (!othersSum[monthKey]) othersSum[monthKey] = 0;
+      
       if (item.fisher_id === userFisherId) {
         grouped[monthKey].you += item.mean_catch_kg || 0;
-      } else {
+      } else if (canCompareWithOthers) {
+        // Only process others data if user can compare with others
+        if (!othersCount[monthKey]) othersCount[monthKey] = new Set();
+        if (!othersSum[monthKey]) othersSum[monthKey] = 0;
         othersSum[monthKey] += item.mean_catch_kg || 0;
         othersCount[monthKey].add(item.fisher_id);
       }
     });
-    // Calculate mean for others
-    Object.keys(grouped).forEach(monthKey => {
-      const count = othersCount[monthKey]?.size || 0;
-      grouped[monthKey].others = count > 0 ? othersSum[monthKey] / count : 0;
-    });
+    // Calculate mean for others only if user can compare
+    if (canCompareWithOthers) {
+      Object.keys(grouped).forEach(monthKey => {
+        const count = othersCount[monthKey]?.size || 0;
+        grouped[monthKey].others = count > 0 ? othersSum[monthKey] / count : 0;
+      });
+    }
     // Convert to array for chart
     return Object.entries(grouped).map(([monthKey, vals]) => {
       const [year, month] = monthKey.split('-');
@@ -72,7 +80,7 @@ export default function IndividualFishCompositionChart({
         ...vals,
       };
     }).sort((a, b) => new Date(a.fullDate).getTime() - new Date(b.fullDate).getTime());
-  }, [filtered, userFisherId, selectedTimeRange]);
+  }, [filtered, userFisherId, selectedTimeRange, canCompareWithOthers]);
 
   // Find selected category option for dropdown
   const selectedCategoryOption = FISH_CATEGORIES.find(c => c.value === selectedCategory);
@@ -94,8 +102,8 @@ export default function IndividualFishCompositionChart({
                 </p>
               </div>
             )}
-            {/* Others Mean */}
-            {data.others !== undefined && data.others !== null && (
+            {/* Others Mean - only show if user can compare */}
+            {canCompareWithOthers && data.others !== undefined && data.others !== null && (
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 rounded-full" style={{ backgroundColor: '#8693AB' }} />
                 <p className="text-sm font-medium">
@@ -144,7 +152,7 @@ export default function IndividualFishCompositionChart({
               tick={{ fontSize: 12 }}
               width={50}
               label={{
-                value: 'Avg. catch (kg/fisher/month)',
+                value: t('text-unit-kg-fisher-day'),
                 angle: -90,
                 position: 'insideLeft',
                 style: { textAnchor: 'middle', fontSize: 12, fill: '#666' }
@@ -159,14 +167,20 @@ export default function IndividualFishCompositionChart({
               radius={[4, 4, 0, 0]}
               barSize={18}
             />
-            <Bar
-              dataKey="others"
-              fill="#8693AB"
-              name={`Other ${bmuName ? bmuName + ' ' : ''}fishers (mean)`}
-              radius={[4, 4, 0, 0]}
-              barSize={18}
-            />
-            <Legend verticalAlign="bottom" height={36} iconType="rect" wrapperStyle={{ paddingTop: '10px' }} />
+            {/* Only show others bar if user can compare */}
+            {canCompareWithOthers && (
+              <Bar
+                dataKey="others"
+                fill="#8693AB"
+                name={`Other ${bmuName ? bmuName + ' ' : ''}fishers (mean)`}
+                radius={[4, 4, 0, 0]}
+                barSize={18}
+              />
+            )}
+            {/* Only show legend if there are multiple bars */}
+            {canCompareWithOthers && (
+              <Legend verticalAlign="bottom" height={36} iconType="rect" wrapperStyle={{ paddingTop: '10px' }} />
+            )}
           </BarChart>
         </ResponsiveContainer>
       </div>

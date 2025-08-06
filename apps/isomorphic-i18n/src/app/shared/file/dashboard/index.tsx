@@ -7,6 +7,7 @@ import type { DefaultSession } from "next-auth";
 import type { TBmu } from "@repo/nosql/schema/bmu";
 import FileStats from "@/app/shared/file/dashboard/file-stats";
 import FileStatsWBCIA from "@/app/shared/file/dashboard/file-stats-wbcia";
+import FileStatsAdmin from "@/app/shared/file/dashboard/file-stats-admin";
 import GearTreemap from "../../analytics/gear/components/gear-treemap";
 import CatchRadarChart from "../../analytics/bmu/components/bmu-radar-chart";
 import BMURanking from "../../analytics/bmu/components/bmu-ranking";
@@ -37,7 +38,7 @@ export default function FileDashboard({ lang }: { lang?: string }) {
   const [selectedMetric, setSelectedMetric] = useAtom(selectedMetricAtom);
   const [activeTab, setActiveTab] = useState("trends");
   const { t } = useTranslation("common");
-  const { referenceBMU, userBMU, isIiaUser, userFisherId, isWbciaUser, shouldShowUnifiedDashboard, isAdminFisher } = useUserPermissions();
+  const { referenceBMU, userBMU, isIiaUser, userFisherId, isWbciaUser, shouldShowUnifiedDashboard, isAdminFisher, isAdmin } = useUserPermissions();
 
   // Use reference BMU if available or fall back to user's BMU
   const effectiveBMU = referenceBMU || userBMU;
@@ -59,10 +60,15 @@ export default function FileDashboard({ lang }: { lang?: string }) {
         <div className="grid grid-cols-1 gap-5 xl:gap-6">
           {/* Individual fisher stats cards */}
           <IndividualFisherStats lang={lang} />
-          {/* Individual fisher daily trends */}
-          <IndividualFisherTrends lang={lang} />
-          {/* Individual gear performance */}
-          <IndividualFisherGearPerformance lang={lang} />
+          {/* Horizontal layout: Fisher trends (7/12) and gear performance (5/12) */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 xl:gap-6">
+            <div className="lg:col-span-8 col-span-1">
+              <IndividualFisherTrends lang={lang} />
+            </div>
+            <div className="lg:col-span-4 col-span-1">
+              <IndividualFisherGearPerformance lang={lang} />
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -72,15 +78,17 @@ export default function FileDashboard({ lang }: { lang?: string }) {
   return (
     <div className="w-full">
       <div className="grid grid-cols-1 gap-5 xl:gap-6">
-        {/* Use WBCIA version of FileStats for WBCIA users, regular version for others */}
-        {isWbciaUser ? (
+        {/* Use admin version for admin users, WBCIA version for WBCIA users, regular version for others */}
+        {isAdmin ? (
+          <FileStatsAdmin lang={lang} />
+        ) : isWbciaUser ? (
           <FileStatsWBCIA lang={lang} />
         ) : (
           <FileStats lang={lang} bmu={effectiveBMU} />
         )}
 
         {/* Individual Fisher Performance Integration for Administrator-Fishers */}
-        {shouldShowUnifiedDashboard && (
+        {/* {shouldShowUnifiedDashboard && (
           <div className="bg-gradient-to-r from-blue-100 to-indigo-50 rounded-xl border border-blue-100 shadow-sm">
             <Collapse
               defaultOpen={false}
@@ -114,14 +122,15 @@ export default function FileDashboard({ lang }: { lang?: string }) {
               )}
             >
               <div className="space-y-6 pt-6">
-                {/* Individual Fisher Performance Statistics */}
+               
                 <IndividualFisherStats lang={lang} />
-                {/* Individual Fisher Performance Trends */}
+               
                 <IndividualFisherTrends lang={lang} />
               </div>
             </Collapse>
           </div>
-        )}
+        )} */}
+        
 
         <div className="grid grid-cols-12 gap-5 xl:gap-6">
           <div className="col-span-12 md:col-span-9">

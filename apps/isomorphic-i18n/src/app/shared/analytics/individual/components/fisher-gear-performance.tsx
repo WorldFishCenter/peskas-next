@@ -8,7 +8,8 @@ import WidgetCard from "@components/cards/widget-card";
 import { api } from "@/trpc/react";
 import { getClientLanguage } from "@/app/i18n/language-link";
 import { useAtom } from 'jotai';
-import { selectedTimeRangeAtom } from "@/app/components/filter-selector";
+import { selectedTimeRangeAtom, selectedMetricAtom } from "@/app/components/filter-selector";
+import { MetricKey } from "../../charts/utils/chart-types";
 import { getTimeRangeStartDate } from "../../core/utils/time-range-filter";
 import GearPerformanceBarChart from "./gear-performance-chart";
 import GearPerformanceCard from "./gear-performance-card";
@@ -82,7 +83,7 @@ export default function IndividualFisherGearPerformance({
     };
   }, [i18n]);
   
-  const { userFisherId, isIiaUser, shouldShowIndividualData } = useUserPermissions();
+  const { userFisherId, isIiaUser, isAdminFisher, shouldShowIndividualData, canCompareWithOthers, canSeeBMUData } = useUserPermissions();
   const [selectedTimeRange] = useAtom(selectedTimeRangeAtom);
   
   // Calculate date range based on selected time range
@@ -93,7 +94,34 @@ export default function IndividualFisherGearPerformance({
   }, [selectedTimeRange]);
   
   const { fisherData, isLoadingFisherData } = useIndividualData(dateRange);
-  const [selectedMetric, setSelectedMetric] = useState<MetricType>("fisher_cpue");
+  
+  // All users who see individual charts use global header metric selector
+  const [globalSelectedMetric, setGlobalSelectedMetric] = useAtom(selectedMetricAtom);
+  
+  // Map global metrics to local MetricType
+  const mapGlobalToLocal = (globalMetric: string): MetricType => {
+    switch(globalMetric) {
+      case 'mean_cpue': return 'fisher_cpue';
+      case 'mean_rpue': return 'fisher_rpue';
+      case 'mean_cost': return 'fisher_cost';
+      case 'mean_profit': return 'fisher_cost'; // Fallback to cost for profit since it's not in local type
+      default: return 'fisher_cpue';
+    }
+  };
+  
+  // Map local metrics to global
+  const mapLocalToGlobal = (localMetric: MetricType): MetricKey => {
+    switch(localMetric) {
+      case 'fisher_cpue': return 'mean_cpue';
+      case 'fisher_rpue': return 'mean_rpue';
+      case 'fisher_cost': return 'mean_cost';
+      default: return 'mean_cpue';
+    }
+  };
+  
+  // All users use global header selector
+  const selectedMetric = mapGlobalToLocal(globalSelectedMetric);
+  const setSelectedMetric = (metric: MetricType) => setGlobalSelectedMetric(mapLocalToGlobal(metric));
 
   // Get fisher's BMU
   const fisherBMU = useMemo(() => {
@@ -107,10 +135,10 @@ export default function IndividualFisherGearPerformance({
     { enabled: isIiaUser && !!userFisherId }
   );
 
-  // Fetch BMU average gear stats (excluding current fisher)
+  // Fetch BMU average gear stats (excluding current fisher) - only for users who can compare with others
   const { data: bmuGearData, isLoading: isLoadingBmuGear } = api.individualGearData.bmuAverage.useQuery(
     { BMU: fisherBMU || '', excludeFisherId: userFisherId || '', startDate: dateRange.startDate?.toISOString(), endDate: dateRange.endDate?.toISOString() },
-    { enabled: isIiaUser && !!userFisherId && !!fisherBMU }
+    { enabled: isIiaUser && !!userFisherId && !!fisherBMU && canCompareWithOthers }
   );
 
   // Aggregate gear data by gear type for the selected time range
@@ -141,7 +169,7 @@ export default function IndividualFisherGearPerformance({
   }, [fisherGearData]);
 
   const aggregatedBmuGearPerformance = useMemo(() => {
-    if (!bmuGearData) return [];
+    if (!bmuGearData || !canCompareWithOthers) return [];
     // Group by gear and average
     const grouped = bmuGearData.reduce((acc: any, record: any) => {
       const gear = record.gear;
@@ -162,45 +190,39 @@ export default function IndividualFisherGearPerformance({
       avgCost: stats.sumCost / stats.count,
       avgProfit: stats.sumProfit / stats.count,
     }));
-  }, [bmuGearData]);
+  }, [bmuGearData, canCompareWithOthers]);
 
-  // Prepare chart data: one bar per gear
+  // Prepare chart data: one bar per gear - conditional BMU comparison for users who can compare
   const chartData = useMemo(() => {
     return aggregatedGearPerformanceData.map(fisherGear => {
-      const bmuGear = aggregatedBmuGearPerformance.find(bg => bg.gear === fisherGear.gear);
+      const bmuGear = canCompareWithOthers ? aggregatedBmuGearPerformance.find(bg => bg.gear === fisherGear.gear) : null;
+      const yourValue = selectedMetric === "fisher_cpue" ? fisherGear.avgCpue :
+                       selectedMetric === "fisher_rpue" ? fisherGear.avgRpue :
+                       selectedMetric === "fisher_cost" ? fisherGear.avgCost :
+                       fisherGear.avgProfit;
+      const bmuAverageValue = canCompareWithOthers && bmuGear ? (
+        selectedMetric === "fisher_cpue" ? bmuGear.avgCpue :
+        selectedMetric === "fisher_rpue" ? bmuGear.avgRpue :
+        selectedMetric === "fisher_cost" ? bmuGear.avgCost :
+        bmuGear.avgProfit
+      ) : 0;
+      
       return {
         name: capitalizeGearType(fisherGear.gear),
-        yourValue: selectedMetric === "fisher_cpue" ? fisherGear.avgCpue :
-                  selectedMetric === "fisher_rpue" ? fisherGear.avgRpue :
-                  selectedMetric === "fisher_cost" ? fisherGear.avgCost :
-                  fisherGear.avgProfit,
-        bmuAverage: bmuGear ? (
-          selectedMetric === "fisher_cpue" ? bmuGear.avgCpue :
-          selectedMetric === "fisher_rpue" ? bmuGear.avgRpue :
-          selectedMetric === "fisher_cost" ? bmuGear.avgCost :
-          bmuGear.avgProfit
-        ) : 0,
-        difference: (selectedMetric === "fisher_cpue" ? fisherGear.avgCpue :
-                    selectedMetric === "fisher_rpue" ? fisherGear.avgRpue :
-                    selectedMetric === "fisher_cost" ? fisherGear.avgCost :
-                    fisherGear.avgProfit)
-                  - (bmuGear ? (
-                      selectedMetric === "fisher_cpue" ? bmuGear.avgCpue :
-                      selectedMetric === "fisher_rpue" ? bmuGear.avgRpue :
-                      selectedMetric === "fisher_cost" ? bmuGear.avgCost :
-                      bmuGear.avgProfit
-                    ) : 0),
+        yourValue,
+        bmuAverage: bmuAverageValue,
+        difference: canCompareWithOthers ? yourValue - bmuAverageValue : 0,
         trips: fisherGear.trips,
       };
     });
-  }, [aggregatedGearPerformanceData, aggregatedBmuGearPerformance, selectedMetric]);
+  }, [aggregatedGearPerformanceData, aggregatedBmuGearPerformance, selectedMetric, canCompareWithOthers]);
 
   // Only render for users who should see individual data (IIA users or admin-fishers)
   if (!shouldShowIndividualData || !userFisherId) {
     return null;
   }
 
-  if (isLoadingFisherGear || isLoadingBmuGear) {
+  if (isLoadingFisherGear || (canCompareWithOthers && isLoadingBmuGear)) {
     return (
       <WidgetCard
         title={t('text-your-gear-performance')}
@@ -229,46 +251,29 @@ export default function IndividualFisherGearPerformance({
     );
   }
 
-  // Metric selector options (match trends)
+  // Metric selector options (match trends) - use translation keys for units
   const METRIC_OPTIONS = [
-    { key: 'fisher_cpue', label: 'text-cpue', color: '#3b82f6', unit: 'kg/trip' },
-    { key: 'fisher_rpue', label: 'text-rpue', color: '#10b981', unit: 'KES/trip' },
-    { key: 'fisher_cost', label: 'text-costs', color: '#f59e0b', unit: 'KES/trip' },
-    { key: 'netProfit', label: 'text-profit', color: '#f97316', unit: 'KES/trip' },
+    { key: 'fisher_cpue', label: 'text-cpue', color: '#3b82f6', unit: t('text-unit-kg-fisher-day') },
+    { key: 'fisher_rpue', label: 'text-rpue', color: '#10b981', unit: t('text-unit-kes-fisher-day') },
+    { key: 'fisher_cost', label: 'text-costs', color: '#f59e0b', unit: t('text-unit-kes-fisher-day') },
+    { key: 'netProfit', label: 'text-profit', color: '#f97316', unit: t('text-unit-kes-fisher-day') },
   ];
 
-  // Final refactor: two separate elements, one WidgetCard for the chart, one column for the gear cards
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 w-full">
-      {/* Chart section in its own WidgetCard */}
-      <div className="lg:col-span-9 col-span-1">
-        <WidgetCard
-          title={t('text-your-gear-performance')}
-          description={t('text-gear-performance-description')}
-          headerClassName="pb-2"
-        >
-          <GearPerformanceBarChart
-            data={chartData}
-            selectedMetric={selectedMetric}
-            setSelectedMetric={(metric: string) => setSelectedMetric(metric as MetricType)}
-            t={t}
-            METRIC_OPTIONS={METRIC_OPTIONS}
-            bmuName={fisherBMU}
-          />
-        </WidgetCard>
-      </div>
-      {/* Cards section: plain stacked cards, not in a WidgetCard */}
-      <div className="lg:col-span-3 col-span-1 flex flex-col gap-6">
-        {chartData.map((gear) => (
-          <GearPerformanceCard
-            key={gear.name}
-            gear={gear}
-            selectedMetric={selectedMetric}
-            t={t}
-            bmuName={fisherBMU}
-          />
-        ))}
-      </div>
-    </div>
+    <WidgetCard
+      title={t('text-your-gear-performance')}
+      description={canCompareWithOthers ? t('text-gear-performance-description') : t('text-gear-performance-description')}
+      headerClassName="pb-2"
+    >
+      <GearPerformanceBarChart
+        data={chartData}
+        selectedMetric={selectedMetric}
+        setSelectedMetric={(metric: string) => setSelectedMetric(metric as MetricType)}
+        t={t}
+        METRIC_OPTIONS={METRIC_OPTIONS}
+        bmuName={canCompareWithOthers ? fisherBMU : null}
+        canCompareWithOthers={canCompareWithOthers}
+      />
+    </WidgetCard>
   );
 } 

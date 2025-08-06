@@ -438,31 +438,33 @@ export default function FishCompositionAreaChart({
                 {getDescription()}
               </div>
             </div>
-            {/* Mode Toggle Buttons */}
-            <div className="flex gap-2 w-full sm:w-auto">
-              <button
-                className={cn(
-                  "px-4 py-2 text-sm rounded-md transition duration-200 w-full sm:w-auto",
-                  chartMode === 'absolute' 
-                    ? 'bg-blue-500 text-white' 
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                )}
-                onClick={() => handleModeToggle('absolute')}
-              >
-                {t("text-absolute-values") || "Absolute"}
-              </button>
-              <button
-                className={cn(
-                  "px-4 py-2 text-sm rounded-md transition duration-200 w-full sm:w-auto",
-                  chartMode === 'percent' 
-                    ? 'bg-blue-500 text-white' 
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                )}
-                onClick={() => handleModeToggle('percent')}
-              >
-                {t("text-percent-values") || "Percent"}
-              </button>
-            </div>
+            {/* Mode Toggle Buttons - only show for non-IIA users */}
+            {!isIiaUser && (
+              <div className="flex gap-2 w-full sm:w-auto">
+                <button
+                  className={cn(
+                    "px-4 py-2 text-sm rounded-md transition duration-200 w-full sm:w-auto",
+                    chartMode === 'absolute' 
+                      ? 'bg-blue-500 text-white' 
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  )}
+                  onClick={() => handleModeToggle('absolute')}
+                >
+                  {t("text-absolute-values") || "Absolute"}
+                </button>
+                <button
+                  className={cn(
+                    "px-4 py-2 text-sm rounded-md transition duration-200 w-full sm:w-auto",
+                    chartMode === 'percent' 
+                      ? 'bg-blue-500 text-white' 
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  )}
+                  onClick={() => handleModeToggle('percent')}
+                >
+                  {t("text-percent-values") || "Percent"}
+                </button>
+              </div>
+            )}
           </div>
         )
       }
@@ -508,7 +510,7 @@ export default function FishCompositionAreaChart({
                      tickFormatter={formatYAxisValue}
                      domain={chartMode === 'percent' ? [0, 1] : [0, 'dataMax']}
                      label={{ 
-                       value: chartMode === 'absolute' ? 'Catch (kg)' : 'Percentage (%)',
+                       value: chartMode === 'absolute' ? t('text-unit-kg-fisher-day') : 'Percentage (%)',
                        angle: -90,
                        position: 'insideLeft',
                        style: { textAnchor: 'middle', fontSize: 12, fill: '#666' }

@@ -6,6 +6,7 @@ import SimpleBar from "@ui/simplebar";
 import { generateFishCategoryColor } from "../../charts/utils/chart-utils";
 import { useAtom } from "jotai";
 import { selectedTimeRangeAtom } from "@/app/components/filter-selector";
+import { useUserPermissions } from "../../core/hooks/use-user-permissions";
 
 export default function IndividualFishCompositionComparison({
   allData,
@@ -22,6 +23,7 @@ export default function IndividualFishCompositionComparison({
 }) {
   const [selectedTimeRange] = useAtom(selectedTimeRangeAtom);
   const [visibilityState, setVisibilityState] = useState<Record<string, { opacity: number }>>({});
+  const { canCompareWithOthers } = useUserPermissions();
   const endDate = new Date();
   let startDate = new Date(0); // No longer needed, filtering is done in component
 
@@ -38,6 +40,14 @@ export default function IndividualFishCompositionComparison({
     return months.sort().reverse()[0];
   }, [filteredData]);
 
+  // Get available fish categories from data
+  const availableFishCategories = useMemo(() => {
+    if (!allData.length) return FISH_CATEGORIES;
+    
+    const availableCategories = new Set(allData.map(item => item.fish_category));
+    return FISH_CATEGORIES.filter(cat => availableCategories.has(cat.value));
+  }, [allData]);
+
   // Clean aggregation logic, no debug logs
   const chartData = useMemo(() => {
     if (!filteredData.length) return [];
@@ -51,7 +61,8 @@ export default function IndividualFishCompositionComparison({
       if (item.fisher_id === userFisherId) {
         youTotals[key] = (youTotals[key] || 0) + (item.mean_catch_kg || 0);
         youSum += item.mean_catch_kg || 0;
-      } else {
+      } else if (canCompareWithOthers) {
+        // Only process others data if user can compare with others
         othersTotals[key] = (othersTotals[key] || 0) + (item.mean_catch_kg || 0);
         othersSum += item.mean_catch_kg || 0;
       }
@@ -60,36 +71,43 @@ export default function IndividualFishCompositionComparison({
     const othersRow: Record<string, any> = { label: "Other BMU fishers" };
     let youTotalPct = 0;
     let othersTotalPct = 0;
-    FISH_CATEGORIES.forEach(cat => {
+    availableFishCategories.forEach(cat => {
       const key = normalize(cat.value);
       const youPct = youSum > 0 ? ((youTotals[key] || 0) / youSum * 100) : 0;
-      const othersPct = othersSum > 0 ? ((othersTotals[key] || 0) / othersSum * 100) : 0;
       youRow[cat.value] = +youPct.toFixed(2);
-      othersRow[cat.value] = +othersPct.toFixed(2);
       youTotalPct += youPct;
-      othersTotalPct += othersPct;
+      
+      // Only process others percentages if user can compare
+      if (canCompareWithOthers) {
+        const othersPct = othersSum > 0 ? ((othersTotals[key] || 0) / othersSum * 100) : 0;
+        othersRow[cat.value] = +othersPct.toFixed(2);
+        othersTotalPct += othersPct;
+      }
     });
     if (youTotalPct !== 100) {
-      const maxKey = FISH_CATEGORIES.reduce((max, cat) => youRow[cat.value] > youRow[max] ? cat.value : max, FISH_CATEGORIES[0].value);
+      const maxKey = availableFishCategories.reduce((max, cat) => youRow[cat.value] > youRow[max] ? cat.value : max, availableFishCategories[0].value);
       youRow[maxKey] += +(100 - youTotalPct).toFixed(2);
     }
-    if (othersTotalPct !== 100) {
-      const maxKey = FISH_CATEGORIES.reduce((max, cat) => othersRow[cat.value] > othersRow[max] ? cat.value : max, FISH_CATEGORIES[0].value);
+    if (canCompareWithOthers && othersTotalPct !== 100) {
+      const maxKey = availableFishCategories.reduce((max, cat) => othersRow[cat.value] > othersRow[max] ? cat.value : max, availableFishCategories[0].value);
       othersRow[maxKey] += +(100 - othersTotalPct).toFixed(2);
     }
-    return [youRow, othersRow];
-  }, [filteredData, userFisherId]);
+    // Return only user's row if they can't compare, otherwise return both
+    return canCompareWithOthers ? [youRow, othersRow] : [youRow];
+  }, [filteredData, userFisherId, canCompareWithOthers, availableFishCategories]);
 
-  // Legend and color mapping
-  const categoryDisplays = FISH_CATEGORIES.map(cat => ({
+  // Legend and color mapping - only available categories
+  const categoryDisplays = availableFishCategories.map(cat => ({
     id: cat.value,
     name: cat.label,
     color: generateFishCategoryColor(cat.label),
   }));
   // Row labels for the chart
-  const rowLabels = [
+  const rowLabels = canCompareWithOthers ? [
     { label: "You" },
     { label: `Other ${bmuName ? bmuName + ' ' : ''}fishers (mean, avg. per month)` }
+  ] : [
+    { label: "You" }
   ];
 
   // Interactive legend logic
@@ -178,44 +196,55 @@ export default function IndividualFishCompositionComparison({
 
   return (
     <WidgetCard title={title} description={description} headerClassName="pb-2">
-      <SimpleBar className="h-full">
-        <div className="p-4 md:p-6 h-full">
-          <div className="w-full" style={{ height: "220px" }}>
-            <ResponsiveContainer width="100%" height="100%" minHeight={384}>
-              <BarChart
-                data={chartData.map((row, i) => ({ ...row, label: rowLabels[i]?.label || row.label }))}
-                layout="vertical"
-                margin={{ top: 20, right: 30, left: 60, bottom: 20 }}
-                barCategoryGap={8}
-              >
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis type="number" tick={{ fontSize: 12 }} domain={[0, 100]} unit="%" 
-                 label={{
-                   value: 'Avg. catch composition (% per month)',
-                   position: 'insideBottom',
-                   offset: -10,
-                   style: { textAnchor: 'middle', fontSize: 12, fill: '#666' }
-                 }}
+      <SimpleBar>
+        <div className="h-96 w-full pt-9">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart
+              data={chartData.map((row, i) => ({ ...row, label: rowLabels[i]?.label || row.label }))}
+              layout="vertical"
+              margin={{ top: 20, right: 30, left: 20, bottom: 60 }}
+              barCategoryGap={8}
+            >
+              <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+              <XAxis 
+                type="number" 
+                tick={{ fontSize: 12 }} 
+                domain={[0, 100]} 
+                tickFormatter={(value) => `${value}%`}
+                label={{
+                  value: 'Avg. catch composition (% per month)',
+                  position: 'insideBottom',
+                  offset: -5,
+                  style: { textAnchor: 'middle', fontSize: 12, fill: '#666' }
+                }}
+                axisLine={false}
+              />
+              <YAxis 
+                type="category" 
+                dataKey="label" 
+                tick={{ fontSize: 12 }} 
+                width={canCompareWithOthers ? 140 : 80}
+                axisLine={false}
+              />
+              <Tooltip content={<CustomTooltip />} />
+              {categoryDisplays.map(category => (
+                <Bar
+                  key={category.id}
+                  dataKey={category.id}
+                  name={category.name}
+                  stackId="stack"
+                  fill={category.color}
+                  isAnimationActive={false}
+                  fillOpacity={visibilityState[category.id]?.opacity ?? 1}
+                  hide={visibilityState[category.id]?.opacity === 0.2}
+                  radius={[0, 2, 2, 0]}
                 />
-                <YAxis type="category" dataKey="label" tick={{ fontSize: 12 }} width={180} />
-                <Tooltip content={<CustomTooltip />} />
-                {categoryDisplays.map(category => (
-                  <Bar
-                    key={category.id}
-                    dataKey={category.id}
-                    name={category.name}
-                    stackId="a"
-                    fill={category.color}
-                    isAnimationActive={false}
-                    fillOpacity={visibilityState[category.id]?.opacity ?? 1}
-                    hide={visibilityState[category.id]?.opacity === 0.2}
-                  />
-                ))}
-                <Legend verticalAlign="bottom" height={36} iconType="rect" wrapperStyle={{ paddingTop: '10px' }} content={<CustomLegend />} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
+              ))}
+            </BarChart>
+          </ResponsiveContainer>
         </div>
+        {/* Move legend outside of chart container */}
+        <CustomLegend />
       </SimpleBar>
     </WidgetCard>
   );

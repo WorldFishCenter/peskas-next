@@ -7,24 +7,28 @@ import { FISH_CATEGORIES } from "./composition-chart";
 import { generateFishCategoryColor } from "../../charts/utils/chart-utils";
 import cn from "@utils/class-names";
 import { useTranslation } from "@/app/i18n/client";
+import { useUserPermissions } from "../../core/hooks/use-user-permissions";
 
 export default function IndividualFishCompositionAreaChart({
   allData,
   userFisherId,
   title,
   description,
-  bmuName = ""
+  bmuName = "",
+  isIiaUser = false
 }: {
   allData: any[];
   userFisherId: string;
   title?: string;
   description?: string;
   bmuName?: string;
+  isIiaUser?: boolean;
 }) {
   const [selectedTimeRange] = useAtom(selectedTimeRangeAtom);
   const [chartMode, setChartMode] = useState<'absolute' | 'percent'>('absolute');
   const [visibilityState, setVisibilityState] = useState<Record<string, { opacity: number }>>({});
   const { t } = useTranslation("common");
+  const { canCompareWithOthers } = useUserPermissions();
 
   // Group data by month and aggregate for 'You' and 'Others'
   const chartData = useMemo(() => {
@@ -40,7 +44,8 @@ export default function IndividualFishCompositionAreaChart({
       if (item.fisher_id === userFisherId) {
         grouped[monthKey].youTotals[key] = (grouped[monthKey].youTotals[key] || 0) + (item.mean_catch_kg || 0);
         grouped[monthKey].youSum += item.mean_catch_kg || 0;
-      } else {
+      } else if (canCompareWithOthers) {
+        // Only process others data if user can compare with others
         grouped[monthKey].othersTotals[key] = (grouped[monthKey].othersTotals[key] || 0) + (item.mean_catch_kg || 0);
         grouped[monthKey].othersSum += item.mean_catch_kg || 0;
       }
@@ -52,13 +57,18 @@ export default function IndividualFishCompositionAreaChart({
       FISH_CATEGORIES.forEach(cat => {
         const key = normalize(cat.value);
         row[`you_${cat.value}`] = vals.youTotals[key] || 0;
-        row[`others_${cat.value}`] = vals.othersTotals[key] || 0;
+        // Only add others data if user can compare
+        if (canCompareWithOthers) {
+          row[`others_${cat.value}`] = vals.othersTotals[key] || 0;
+        }
       });
       row.youSum = vals.youSum;
-      row.othersSum = vals.othersSum;
+      if (canCompareWithOthers) {
+        row.othersSum = vals.othersSum;
+      }
       return row;
     }).sort((a, b) => new Date(a.month).getTime() - new Date(b.month).getTime());
-  }, [allData, userFisherId]);
+  }, [allData, userFisherId, canCompareWithOthers]);
 
   // Legend and color mapping
   const categoryDisplays = FISH_CATEGORIES.map(cat => ({
@@ -91,7 +101,7 @@ export default function IndividualFishCompositionAreaChart({
     if (active && payload && payload.length) {
       // Group entries by 'You' and 'Other BMU fishers', only show non-zero values
       const youEntries = payload.filter((entry: any) => entry.name.startsWith('You:') && entry.value > 0);
-      const othersEntries = payload.filter((entry: any) => entry.name.startsWith(`Other ${bmuName ? bmuName + ' ' : ''}fishers`) && entry.value > 0);
+      const othersEntries = canCompareWithOthers ? payload.filter((entry: any) => entry.name.startsWith(`Other ${bmuName ? bmuName + ' ' : ''}fishers`) && entry.value > 0) : [];
       if (youEntries.length === 0 && othersEntries.length === 0) return null;
       return (
         <div className="bg-white p-3 border border-gray-200 rounded-md shadow-md">
@@ -163,30 +173,33 @@ export default function IndividualFishCompositionAreaChart({
 
   return (
     <WidgetCard title={title} description={description} headerClassName="pb-2">
-      <div className="flex gap-2 mb-4">
-        <button
-          className={cn(
-            "px-4 py-2 text-sm rounded-md transition duration-200 w-full sm:w-auto",
-            chartMode === 'absolute' 
-              ? 'bg-blue-500 text-white' 
-              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-          )}
-          onClick={() => setChartMode('absolute')}
-        >
-                                  {t('text-average-values')}
-        </button>
-        <button
-          className={cn(
-            "px-4 py-2 text-sm rounded-md transition duration-200 w-full sm:w-auto",
-            chartMode === 'percent' 
-              ? 'bg-blue-500 text-white' 
-              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-          )}
-          onClick={() => setChartMode('percent')}
-        >
-          {t('text-percent-values')}
-        </button>
-      </div>
+      {/* Toggle buttons - only show for non-IIA users */}
+      {!isIiaUser && (
+        <div className="flex gap-2 mb-4">
+          <button
+            className={cn(
+              "px-4 py-2 text-sm rounded-md transition duration-200 w-full sm:w-auto",
+              chartMode === 'absolute' 
+                ? 'bg-blue-500 text-white' 
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            )}
+            onClick={() => setChartMode('absolute')}
+          >
+                                    {t('text-average-values')}
+          </button>
+          <button
+            className={cn(
+              "px-4 py-2 text-sm rounded-md transition duration-200 w-full sm:w-auto",
+              chartMode === 'percent' 
+                ? 'bg-blue-500 text-white' 
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            )}
+            onClick={() => setChartMode('percent')}
+          >
+            {t('text-percent-values')}
+          </button>
+        </div>
+      )}
       <div className="w-full h-[400px]">
                       <ResponsiveContainer width="100%" height="100%" minHeight={384}>
           <AreaChart
@@ -200,11 +213,16 @@ export default function IndividualFishCompositionAreaChart({
               unit={chartMode === 'percent' ? '%' : ' kg'}
               domain={chartMode === 'percent' ? [0, 100] : ['auto', 'auto']}
               label={chartMode === 'absolute' ? {
-                value: 'Avg. catch (kg/fisher/month)',
+                value: t('text-unit-kg-fisher-day'),
                 angle: -90,
                 position: 'insideLeft',
                 style: { textAnchor: 'middle', fontSize: 12, fill: '#666' }
-              } : undefined}
+              } : {
+                value: 'Percentage (%)',
+                angle: -90,
+                position: 'insideLeft',
+                style: { textAnchor: 'middle', fontSize: 12, fill: '#666' }
+              }}
             />
             <Tooltip content={<CustomTooltip />} />
             {/* You areas */}

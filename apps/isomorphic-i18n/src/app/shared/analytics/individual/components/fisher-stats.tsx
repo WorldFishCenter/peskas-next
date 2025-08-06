@@ -1,18 +1,34 @@
 "use client";
 
 import { Text } from "rizzui";
+import { BarChart, Bar, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { useTranslation } from "@/app/i18n/client";
 import { useIndividualData } from "../hooks/use-individual-data";
 import useUserPermissions from "../../core/hooks/use-user-permissions";
 import cn from "@utils/class-names";
 import { PiTrendUp, PiTrendDown, PiEquals } from "react-icons/pi";
 import { api } from "@/trpc/react";
-import { useMemo, useEffect, useState } from "react";
+import { useMemo, useEffect, useState, useCallback } from "react";
 import { getClientLanguage } from "@/app/i18n/language-link";
 import { BASELINE_DATA } from "../../charts/utils/site-config";
-import { useAtom } from 'jotai';
-import { selectedTimeRangeAtom } from "@/app/components/filter-selector";
-import { getTimeRangeStartDate } from "../../core/utils/time-range-filter";
+import MetricCard from "@components/cards/metric-card";
+
+interface ChartPoint {
+  month: string;
+  value: number | null;
+  index: number;
+  bmuValue?: number | null; // For comparison when permissions allow
+}
+
+interface StatData {
+  id: string;
+  title: string;
+  metric: string;
+  unit: string;
+  chart: ChartPoint[];
+  monthName?: string;
+  category: 'catch' | 'revenue';
+}
 
 export default function IndividualFisherStats({ 
   lang, 
@@ -26,19 +42,22 @@ export default function IndividualFisherStats({
   // Use client language instead of lang prop
   const clientLang = getClientLanguage();
   const { t, i18n } = useTranslation(clientLang);
-  const [selectedTimeRange] = useAtom(selectedTimeRangeAtom);
   
-  // Calculate date range based on selected time range
+  // Always use a fixed date range for stats (latest 3 months) - independent of time range filter
   const dateRange = useMemo(() => {
     const endDate = new Date();
-    const startDate = getTimeRangeStartDate(selectedTimeRange, endDate);
+    const startDate = new Date();
+    startDate.setMonth(startDate.getMonth() - 3); // Always get last 3 months
     return { startDate, endDate };
-  }, [selectedTimeRange]);
+  }, []);
   
   const { fisherPerformanceSummary, isLoadingFisherSummary, fisherData } = useIndividualData(dateRange);
   
   // Track current language with state
   const [currentLang, setCurrentLang] = useState(clientLang);
+  
+  // State for chart interactions (similar to CIA file-stats.tsx)
+  const [hoveredMonth, setHoveredMonth] = useState<{[key: string]: { month: string; value: number | null }}>({});
   
   // Listen for language changes
   useEffect(() => {
@@ -57,7 +76,15 @@ export default function IndividualFisherStats({
     };
   }, [i18n]);
   
-  const { userFisherId, isIiaUser, shouldShowIndividualData } = useUserPermissions();
+  const { userFisherId, isIiaUser, shouldShowIndividualData, canCompareWithOthers, canSeeBMUData } = useUserPermissions();
+  
+  // Define metrics similar to CIA file-stats.tsx with monthly API field mapping
+  const metrics = useMemo(() => [
+    { id: 'cpue', field: 'mean_cpue', title: t('text-cpue'), unit: t('text-unit-kg-fisher-day'), category: 'catch' as const },
+    { id: 'rpue', field: 'mean_rpue', title: t('text-rpue'), unit: t('text-unit-kes-fisher-day'), category: 'revenue' as const },
+    { id: 'cost', field: 'mean_cost', title: t('text-costs'), unit: t('text-unit-kes-fisher-day'), category: 'revenue' as const },
+    { id: 'profit', field: 'mean_profit', title: t('text-net-profit'), unit: t('text-unit-kes-fisher-day'), category: 'revenue' as const }
+  ] as const, [t]);
 
   // Get fisher's BMU from their data
   const fisherBMU = useMemo(() => {
@@ -65,388 +92,347 @@ export default function IndividualFisherStats({
     return fisherData[0]?.BMU;
   }, [fisherData]);
 
-  // Fetch all data for the fisher's BMU to calculate averages
+  // Fetch all data for the fisher's BMU to calculate averages - only for users who can compare
   const { data: bmuData, isLoading: isLoadingBmuData } = api.individualData.all.useQuery(
     { bmus: fisherBMU ? [fisherBMU] : [] },
-    { enabled: !!fisherBMU }
+    { enabled: !!fisherBMU && canCompareWithOthers }
   );
 
-  // Calculate BMU averages (excluding current fisher)
-  const bmuAverages = useMemo(() => {
-    if (!bmuData || !userFisherId) return null;
+  // Process data - get the latest 3 months (similar to CIA file-stats.tsx)
+  const processedData = useMemo(() => {
+    if (!fisherData || fisherData.length === 0) return null;
     
-    const otherFishersData = bmuData.filter(record => record.fisher_id !== userFisherId);
-    if (otherFishersData.length === 0) return null;
+    try {
+      // Sort data by date and get latest 3 months
+      const sortedData = fisherData
+        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+        .slice(0, 90) // Get more days to ensure we have 3 full months
+        .reverse(); // Reverse to show chronological order (oldest to newest)
+      
+      if (sortedData.length === 0) return null;
+      
+      // Group by month
+      const monthlyGroups: Record<string, any[]> = {};
+      sortedData.forEach(record => {
+        const date = new Date(record.date);
+        const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+        const monthName = date.toLocaleString('default', { month: 'short' });
+        
+        if (!monthlyGroups[monthKey]) {
+          monthlyGroups[monthKey] = [];
+        }
+        monthlyGroups[monthKey].push({ ...record, monthName });
+      });
+      
+      // Get latest 3 months
+      const latestMonths = Object.keys(monthlyGroups)
+        .sort((a, b) => b.localeCompare(a))
+        .slice(0, 3)
+        .reverse();
+      
+      if (latestMonths.length === 0) return null;
+      
+      return metrics.map(metric => {
+        // Collect values for this metric from the 3 months
+        const monthValues: ChartPoint[] = [];
+        
+        latestMonths.forEach((monthKey, index) => {
+          const monthRecords = monthlyGroups[monthKey];
+          if (monthRecords && monthRecords.length > 0) {
+            // Calculate average for this month
+            const validRecords = monthRecords.filter(record => {
+              const value = (record as any)[metric.field];
+              return value !== null && value !== undefined;
+            });
+            
+            if (validRecords.length > 0) {
+              const monthSum = validRecords.reduce((sum, record) => sum + (record as any)[metric.field], 0);
+              const monthAvg = monthSum / validRecords.length;
+              const monthName = validRecords[0].monthName;
+              
+              monthValues.push({
+                month: monthName,
+                value: monthAvg,
+                index: index
+              });
+            }
+          }
+        });
+        
+        // Add BMU comparison data for the same months if user can compare
+        if (canCompareWithOthers && bmuData) {
+          // Group BMU data by month and calculate averages (excluding current fisher)
+          const bmuMonthlyGroups: Record<string, any[]> = {};
+          bmuData
+            .filter(record => record.fisher_id !== userFisherId)
+            .forEach(record => {
+              const date = new Date(record.date);
+              const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+              
+              if (latestMonths.includes(monthKey)) {
+                if (!bmuMonthlyGroups[monthKey]) {
+                  bmuMonthlyGroups[monthKey] = [];
+                }
+                bmuMonthlyGroups[monthKey].push(record);
+              }
+            });
+          
+          // Add BMU values to chart points
+          monthValues.forEach(monthValue => {
+            const correspondingMonthKey = latestMonths[monthValue.index];
+            const bmuRecords = bmuMonthlyGroups[correspondingMonthKey] || [];
+            
+            const validBmuRecords = bmuRecords.filter(record => {
+              const value = (record as any)[metric.field];
+              return value !== null && value !== undefined;
+            });
+            
+            if (validBmuRecords.length > 0) {
+              const bmuSum = validBmuRecords.reduce((sum, record) => sum + (record as any)[metric.field], 0);
+              const bmuAvg = bmuSum / validBmuRecords.length;
+              monthValue.bmuValue = bmuAvg;
+            }
+          });
+        }
+        
+        // Get the latest month value for display
+        const latestMonth = monthValues.length > 0 ? monthValues[monthValues.length - 1] : null;
+        const latestValue = latestMonth?.value || 0;
+        const latestMonthName = latestMonth?.month || '';
+        
+        return {
+          id: metric.id,
+          title: metric.title,
+          metric: Math.round(latestValue).toLocaleString(),
+          unit: metric.unit,
+          chart: monthValues,
+          monthName: t('text-your-performance-last-3-months'),
+          category: metric.category
+        };
+      });
+    } catch (error) {
+      console.error("Error transforming data:", error);
+      return null;
+    }
+  }, [fisherData, metrics, canCompareWithOthers, bmuData, userFisherId, t]);
 
-    const cpueValues = otherFishersData.filter(d => d.mean_cpue != null).map(d => d.mean_cpue);
-    const rpueValues = otherFishersData.filter(d => d.mean_rpue != null).map(d => d.mean_rpue);
-    const costValues = otherFishersData.filter(d => d.mean_cost != null).map(d => d.mean_cost);
-    const profitValues = otherFishersData.filter(d => d.mean_profit != null).map(d => d.mean_profit);
+  // Chart interaction handlers (similar to CIA file-stats.tsx)
+  const handleBarClick = useCallback((data: any, metricId: string) => {
+    if (!data || !data.activePayload || data.activePayload.length === 0) return;
+    
+    const entry = data.activePayload[0];
+    const month = entry.payload.month;
+    const value = entry.payload.value;
+    
+    setHoveredMonth(prev => ({
+      ...prev,
+      [metricId]: { month, value }
+    }));
+  }, []);
 
-    return {
-      avgCpue: cpueValues.length > 0 ? cpueValues.reduce((a, b) => a + b, 0) / cpueValues.length : 0,
-      avgRpue: rpueValues.length > 0 ? rpueValues.reduce((a, b) => a + b, 0) / rpueValues.length : 0,
-      avgCost: costValues.length > 0 ? costValues.reduce((a, b) => a + b, 0) / costValues.length : 0,
-      avgProfit: profitValues.length > 0 ? profitValues.reduce((a, b) => a + b, 0) / profitValues.length : 0,
-    };
-  }, [bmuData, userFisherId]);
+  const handleMouseMove = useCallback((state: any, metricId: string) => {
+    if (state.activePayload && state.activePayload.length > 0) {
+      const entry = state.activePayload[0];
+      const month = entry.payload.month;
+      const value = entry.payload.value;
+      
+      setHoveredMonth(prev => ({
+        ...prev,
+        [metricId]: { month, value }
+      }));
+    }
+  }, []);
 
-  // Calculate net profit BMU average - MUST be before any conditional returns
-  const bmuNetProfit = useMemo(() => {
-    if (!bmuAverages) return null;
-    return bmuAverages.avgProfit;
-  }, [bmuAverages]);
-
-  const summary = fisherPerformanceSummary?.[0] || {};
-
-  // Helper function to format currency with KES and commas
-  const formatCurrency = (val: number) => {
-    return `KES ${val.toLocaleString('en-US', { 
-      minimumFractionDigits: 2, 
-      maximumFractionDigits: 2 
-    })}`;
-  };
-
-  // Helper function to format numbers with commas
-  const formatNumber = (val: number, decimals: number = 2) => {
-    return val.toLocaleString('en-US', { 
-      minimumFractionDigits: decimals, 
-      maximumFractionDigits: decimals 
+  const handleMouseLeave = useCallback((metricId: string) => {
+    setHoveredMonth(prev => {
+      const newState = { ...prev };
+      delete newState[metricId];
+      return newState;
     });
-  };
-
-  const getPerformanceStatus = (fisherValue: number, bmuAvg: number | null, metric: string) => {
-    // For net profit, compare with BMU average if available
-    if (metric === 'profit' && bmuAvg !== null && bmuAvg !== 0) {
-      const percentDiff = ((fisherValue - bmuAvg) / Math.abs(bmuAvg)) * 100;
-      if (percentDiff > 5) return 'up';
-      if (percentDiff < -5) return 'down';
-      return 'neutral';
-    }
-    
-    // For net profit without BMU average, use absolute value logic
-    if (metric === 'profit') {
-      if (fisherValue > 100) return 'up';
-      if (fisherValue < -100) return 'down';
-      return 'neutral';
-    }
-    
-    if (!bmuAvg || bmuAvg === 0) return 'neutral';
-    const percentDiff = ((fisherValue - bmuAvg) / bmuAvg) * 100;
-    
-    // For cost, lower is better (reversed logic)
-    if (metric === 'cost') {
-      if (percentDiff < -5) return 'up';  // More than 5% lower is good
-      if (percentDiff > 5) return 'down';  // More than 5% higher is bad
-      return 'neutral';
-    }
-    
-    // For other metrics (CPUE, RPUE), higher is better
-    if (percentDiff > 5) return 'up';  // More than 5% higher is good
-    if (percentDiff < -5) return 'down';  // More than 5% lower is bad
-    return 'neutral';
-  };
+  }, []);
 
   // Only render for users who should see individual data (IIA users or admin-fishers)
   if (!shouldShowIndividualData || !userFisherId) {
     return null;
   }
 
-  if (isLoadingFisherSummary || isLoadingBmuData) {
+  // Loading state (similar to CIA file-stats.tsx)
+  if (isLoadingFisherSummary || (canCompareWithOthers && isLoadingBmuData)) {
     return (
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
         {[...Array(4)].map((_, i) => (
-          <div key={i} className="animate-pulse rounded-lg border border-gray-200 bg-white p-6">
-            <div className="space-y-3">
-              <div className="h-4 w-20 bg-gray-200 rounded" />
-              <div className="h-8 w-32 bg-gray-200 rounded" />
-              <div className="h-3 w-24 bg-gray-200 rounded" />
-            </div>
-          </div>
+          <MetricCard
+            key={i}
+            title=""
+            metric=""
+            rounded="lg"
+            chart={
+              <div className="h-24 w-24 @[16.25rem]:h-28 @[16.25rem]:w-32 @xs:h-32 @xs:w-36 flex items-center justify-center">
+                <div className="flex flex-col items-center gap-2">
+                  <div className="w-8 h-8 border-4 border-gray-200 border-t-gray-500 rounded-full animate-spin" />
+                  <span className="text-sm text-gray-500">Loading...</span>
+                </div>
+              </div>
+            }
+            chartClassName="flex flex-col w-auto h-auto text-center justify-center"
+            className="min-w-[292px] w-full max-w-full flex flex-col items-center justify-center"
+          />
         ))}
       </div>
     );
   }
-
-  const stats = [
-    {
-      title: t('text-cpue'),
-      value: summary.avg_cpue || 0,
-      bmuAvg: bmuAverages?.avgCpue || 0,
-      format: (val: number) => `${formatNumber(val)} kg/trip`,
-      trend: getPerformanceStatus(summary.avg_cpue || 0, bmuAverages?.avgCpue || 0, 'cpue'),
-      color: 'blue' as const,
-      metric: 'cpue',
-      description: t('text-average-catch-per-trip'),
-    },
-    {
-      title: t('text-rpue'),
-      value: summary.avg_rpue || 0,
-      bmuAvg: bmuAverages?.avgRpue || 0,
-      format: formatCurrency,
-      trend: getPerformanceStatus(summary.avg_rpue || 0, bmuAverages?.avgRpue || 0, 'rpue'),
-      color: 'green' as const,
-      metric: 'rpue',
-      description: t('text-average-revenue-per-trip'),
-    },
-    {
-      title: t('text-cost'),
-      value: summary.avg_cost || 0,
-      bmuAvg: bmuAverages?.avgCost || 0,
-      format: formatCurrency,
-      trend: getPerformanceStatus(summary.avg_cost || 0, bmuAverages?.avgCost || 0, 'cost'),
-      color: 'purple' as const,
-      metric: 'cost',
-      description: t('text-average-cost-per-trip'),
-    },
-    {
-      title: t('text-net-profit'),
-      value: summary.avg_profit || 0,
-      bmuAvg: bmuNetProfit,
-      format: formatCurrency,
-      trend: getPerformanceStatus(summary.avg_profit || 0, bmuNetProfit, 'profit'),
-      color: 'orange' as const,
-      metric: 'profit',
-      description: t('text-average-profit-per-trip'),
-    },
-  ];
-
-  const getTrendIcon = (trend: string, metric?: string) => {
-    // For cost metric, colors are reversed (up is bad, down is good)
-    const isGoodTrend = metric === 'cost' 
-      ? trend === 'down' 
-      : trend === 'up';
-    
-    switch (trend) {
-      case 'up':
-        return <PiTrendUp className={cn("h-5 w-5", isGoodTrend ? "text-green-500" : "text-red-500")} />;
-      case 'down':
-        return <PiTrendDown className={cn("h-5 w-5", !isGoodTrend ? "text-green-500" : "text-red-500")} />;
-      default:
-        return <PiEquals className="h-5 w-5 text-gray-500" />;
-    }
-  };
-
-  const getCardColors = (color: string) => {
-    const colors = {
-      blue: 'border-blue-200 bg-blue-50',
-      green: 'border-green-200 bg-green-50',
-      purple: 'border-purple-200 bg-purple-50',
-      orange: 'border-orange-200 bg-orange-50',
-    };
-    return colors[color as keyof typeof colors] || colors.blue;
-  };
-
-  // Calculate daily income from RPUE (assuming one trip per day)
-  const dailyIncome = summary.avg_rpue || 0;
   
-  // Income comparison helpers
-  const incomeComparisons = [
-    { 
-      label: t('text-poverty-line'), 
-      value: BASELINE_DATA.INCOME.POVERTY_LINE,
-      color: dailyIncome >= BASELINE_DATA.INCOME.POVERTY_LINE ? 'green' : 'red'
-    },
-    { 
-      label: t('text-minimum-wage'), 
-      value: BASELINE_DATA.INCOME.NATIONAL_MINIMUM_WAGE,
-      color: dailyIncome >= BASELINE_DATA.INCOME.NATIONAL_MINIMUM_WAGE ? 'green' : 'orange'
-    },
-    { 
-      label: t('text-living-wage'), 
-      value: BASELINE_DATA.INCOME.LIVING_WAGE,
-      color: dailyIncome >= BASELINE_DATA.INCOME.LIVING_WAGE ? 'green' : 'orange'
-    }
-  ];
+  if (!processedData) {
+    return (
+      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="min-w-[292px] w-full p-4 text-center text-gray-500">No data available</div>
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-5">
-      {/* Income baseline indicators */}
-      {/* <WidgetCard
-        title={t('text-income-indicators')}
-        description={t('text-daily-income-comparison')}
-        headerClassName="pb-3"
-      >
-        <div className="grid grid-cols-3 gap-4">
-          {incomeComparisons.map((comparison, index) => (
-            <div key={index} className="text-center">
-              <Text className="text-xs text-gray-500 mb-1">{comparison.label}</Text>
-              <Text className="text-sm font-medium">{formatCurrency(comparison.value)}</Text>
-              <div className="mt-2">
-                <div className={cn(
-                  "w-3 h-3 rounded-full mx-auto",
-                  comparison.color === 'green' ? "bg-green-500" : 
-                  comparison.color === 'orange' ? "bg-orange-500" : 
-                  "bg-red-500"
-                )} />
-                <Text className="text-xs mt-1">
-                  {comparison.color === 'green' ? t('text-above') : t('text-below')}
+    <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+      {processedData.map((stat) => {
+        // Find the metric info to get the category
+        const isRevenueMetric = stat.category === 'revenue';
+        
+        return (
+          <MetricCard
+            key={stat.id}
+            title=""
+            metric={<></>}
+            rounded="lg"
+            className={cn(
+              "@container text-[15px]",
+              "min-w-[260px] w-full max-w-full flex-1 p-0 overflow-hidden",
+              // Apply color scheme based on category
+              isRevenueMetric 
+                ? "bg-amber-50/60" 
+                : "bg-blue-50/60"
+            )}
+          >
+            <div className="p-4 pb-2">
+              <div className="flex flex-col gap-1">
+                <div className="flex items-baseline gap-1">
+                  <Text className="text-m font-medium text-gray-700">{stat.title}</Text>
+                  <Text className="text-xs text-gray-400">({stat.unit})</Text>
+                </div>
+                <Text className="text-xs text-gray-500">
+                  {stat.monthName}
                 </Text>
               </div>
             </div>
-          ))}
-        </div>
-        <div className="mt-4 pt-4 border-t">
-          <Text className="text-sm text-gray-600 text-center">
-            {t('text-your-daily-income')}: <span className="font-semibold">{formatCurrency(dailyIncome)}</span>
-          </Text>
-        </div>
-      </WidgetCard> */}
-
-      {/* Stats cards */}
-      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
-        {stats.map((stat, index) => {
-          const percentDiff = stat.bmuAvg !== null && stat.bmuAvg !== 0
-            ? ((stat.value - stat.bmuAvg) / stat.bmuAvg * 100)
-            : null;
-
-          // Consistent performance logic
-          let isBetter = false;
-          if (stat.metric === 'cost') {
-            isBetter = percentDiff !== null && percentDiff < 0; // Lower cost is better
-          } else {
-            isBetter = percentDiff !== null && percentDiff > 0; // Higher is better
-          }
-
-          // Consistent trend for arrow
-          let trend: 'up' | 'down' | 'neutral' = 'neutral';
-          if (percentDiff !== null) {
-            if (percentDiff > 2) trend = stat.metric === 'cost' ? 'down' : 'up';
-            else if (percentDiff < -2) trend = stat.metric === 'cost' ? 'up' : 'down';
-            else trend = 'neutral';
-          }
-
-          // Card border color
-          let borderColor = 'border-gray-200';
-          if (trend === 'up' && isBetter) borderColor = 'border-green-200';
-          else if (trend === 'down' && !isBetter) borderColor = 'border-red-200';
-
-          // Progress bar fill: 50% at average, 100% at double average, 0% at zero (or double worse)
-          let barFill = 50;
-          if (stat.bmuAvg && stat.bmuAvg !== 0) {
-            let ratio = stat.value / stat.bmuAvg;
-            if (stat.metric === 'cost') ratio = stat.bmuAvg / stat.value; // Invert for cost
-            barFill = Math.max(0, Math.min(100, ratio * 50));
-          }
-
-          return (
-            <div
-              key={index}
-              className={cn(
-                "rounded-lg border p-5 relative bg-white shadow-sm hover:shadow-md transition-shadow",
-                borderColor
-              )}
+            
+            {/* Legend for individual data */}
+            {canCompareWithOthers && stat.chart.some(point => point.bmuValue !== undefined) && (
+              <div className="flex items-center gap-3 text-2xs px-4 pb-2">
+                <div className="flex items-center gap-1">
+                  <div className={cn(
+                    "w-1.5 h-1.5 rounded-full",
+                    isRevenueMetric ? "bg-amber-500" : "bg-blue-500"
+                  )} />
+                  <span>{fisherBMU} Avg</span>
+                </div>
+              </div>
+            )}
+            
+            <div 
+              className="h-32 w-full bg-gray-50/50 transition-colors duration-200 hover:bg-gray-100/60"
+              onMouseLeave={() => handleMouseLeave(stat.id)}
             >
-              {/* Header with title and trend */}
-              <div className="flex items-start justify-between mb-3">
-                <div className="flex-1">
-                  <Text className="text-sm font-medium text-gray-700">
-                    {stat.title}
-                  </Text>
-                  <Text className="text-xs text-gray-500 mt-0.5">
-                    {stat.description}
-                  </Text>
-                </div>
-                <div className="ml-2">
-                  {trend === 'up' && <PiTrendUp className="h-5 w-5 text-green-500" />}
-                  {trend === 'down' && <PiTrendDown className="h-5 w-5 text-red-500" />}
-                  {trend === 'neutral' && <PiEquals className="h-5 w-5 text-gray-500" />}
-                </div>
-              </div>
-              {/* Main value */}
-              <div className="mb-4">
-                <Text className="text-2xl font-bold text-gray-900">
-                  {stat.format(stat.value)}
-                </Text>
-                <Text className="text-xs text-gray-500 mt-1">
-                  {t('text-your-average')}
-                </Text>
-              </div>
-              {/* BMU comparison with visual indicator */}
-              {stat.bmuAvg !== null && (
-                <div className="space-y-2">
-                  {/* Comparison bar */}
-                  <div className="relative">
-                    <div className="flex items-center justify-between text-xs mb-1">
-                      <Text className="text-gray-500">{fisherBMU} {t('text-average')}:</Text>
-                      <Text className="font-medium text-gray-700">
-                        {stat.format(stat.bmuAvg)}
-                      </Text>
-                    </div>
-                    {/* Visual comparison indicator */}
-                    {percentDiff !== null && (
-                      <div className="mt-2">
-                        <div className="flex items-center gap-2">
-                          <Text className={cn(
-                            "text-sm font-semibold",
-                            isBetter ? "text-green-600" : percentDiff === 0 ? "text-gray-600" : "text-red-600"
-                          )}>
-                            {percentDiff > 0 ? '+' : ''}{percentDiff.toFixed(1)}%
-                          </Text>
-                          <Text className={cn(
-                            "text-xs",
-                            isBetter ? "text-green-600" : percentDiff === 0 ? "text-gray-500" : "text-red-600"
-                          )}>
-                            {isBetter ? (stat.metric === 'cost' ? t('text-lower-than-average') : t('text-higher-than-average')) : 
-                             percentDiff === 0 ? t('text-same-as-average') : 
-                             (stat.metric === 'cost' ? t('text-higher-than-average') : t('text-lower-than-average'))}
-                          </Text>
-                        </div>
-                        {/* Diverging progress bar showing relative performance */}
-                        <div className="mt-2 h-1.5 bg-gray-200 rounded-full overflow-hidden relative flex items-center">
-                          {/* Center reference line and label */}
-                          <div className="absolute left-1/2 top-0 bottom-0 w-1 bg-gray-800 z-20" style={{height: '150%'}} />
-                          <div className="absolute left-1/2 -top-4 z-30 text-xs font-semibold text-gray-800 select-none" style={{transform: 'translateX(-50%)'}}>
-                            Avg
-                          </div>
-                          {/* Diverging fill logic */}
-                          {percentDiff !== null && stat.metric === 'cost' && percentDiff < 0 && (
-                            <div
-                              className="h-full bg-green-500 transition-all duration-500 z-0 rounded-l-full"
-                              style={{
-                                width: `${Math.min(Math.abs(percentDiff), 100) / 2}%`,
-                                marginLeft: `${50 - Math.min(Math.abs(percentDiff), 100) / 2}%`,
-                              }}
-                            />
-                          )}
-                          {percentDiff !== null && stat.metric === 'cost' && percentDiff > 0 && (
-                            <div
-                              className="h-full bg-red-500 transition-all duration-500 z-0 rounded-r-full"
-                              style={{
-                                width: `${Math.min(percentDiff, 100) / 2}%`,
-                                marginLeft: '50%',
-                              }}
-                            />
-                          )}
-                          {/* Default diverging fill for other metrics */}
-                          {percentDiff !== null && stat.metric !== 'cost' && percentDiff < 0 && (
-                            <div
-                              className="h-full bg-red-500 transition-all duration-500 z-0 rounded-l-full"
-                              style={{
-                                width: `${Math.min(Math.abs(percentDiff), 100) / 2}%`,
-                                marginLeft: `${50 - Math.min(Math.abs(percentDiff), 100) / 2}%`,
-                              }}
-                            />
-                          )}
-                          {percentDiff !== null && stat.metric !== 'cost' && percentDiff > 0 && (
-                            <div
-                              className="h-full bg-green-500 transition-all duration-500 z-0 rounded-r-full"
-                              style={{
-                                width: `${Math.min(percentDiff, 100) / 2}%`,
-                                marginLeft: '50%',
-                              }}
-                            />
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart 
+                  data={stat.chart}
+                  margin={{ top: 15, right: 8, bottom: 0, left: 8 }}
+                  barGap={2}
+                  onMouseMove={(state) => handleMouseMove(state, stat.id)}
+                  onClick={(data) => handleBarClick(data, stat.id)}
+                  className="[&_.recharts-cartesian-grid]:hidden"
+                >
+                  <XAxis 
+                    dataKey="month" 
+                    hide={false}
+                    tick={(props) => {
+                      const { x, y, payload } = props;
+                      return (
+                        <g transform={`translate(${x},${y})`}>
+                          <text
+                            x={0}
+                            y={0}
+                            dy={16}
+                            textAnchor="middle"
+                            fill="#666"
+                            fontSize={10}
+                            fontWeight="bold"
+                          >
+                            {payload.value}
+                          </text>
+                        </g>
+                      );
+                    }}
+                    textAnchor="middle"
+                    height={30}
+                    interval={0}
+                  />
+                  <YAxis 
+                    hide={false}
+                    domain={[0, (dataMax: number) => dataMax * 1.1]}
+                    tick={{ fontSize: 10, fill: '#64748b' }}
+                    tickLine={{ stroke: '#cbd5e1' }}
+                    axisLine={{ stroke: '#cbd5e1', strokeWidth: 1 }}
+                    width={25}
+                    tickCount={4}
+                    tickFormatter={(value) => {
+                      if (value >= 1000) {
+                        return `${(value / 1000).toFixed(0)}k`;
+                      }
+                      return value.toFixed(0);
+                    }}
+                  />
+                  <Tooltip 
+                    content={<></>}
+                    isAnimationActive={false}
+                  />
+                  {/* Individual Fisher Data Bars */}
+                  <Bar
+                    dataKey="value"
+                    name="You"
+                    fill="#F79F79"
+                    radius={[2, 2, 0, 0]}
+                    maxBarSize={8}
+                    minPointSize={0}
+                    activeBar={{ stroke: '#e67e22', strokeWidth: 1 }}
+                    label={{
+                      position: 'top',
+                      fontSize: 8,
+                      fill: '#666',
+                      formatter: (value: number) => Math.round(value).toLocaleString()
+                    }}
+                  />
+                  {/* BMU Average Bars - only if user can compare and data exists */}
+                  {canCompareWithOthers && stat.chart.some(point => point.bmuValue !== undefined) && (
+                    <Bar
+                      dataKey="bmuValue"
+                      name={`${fisherBMU} Average`}
+                      fill={isRevenueMetric ? "rgba(245, 158, 11, 0.5)" : "rgba(59, 130, 246, 0.5)"}
+                      radius={[2, 2, 0, 0]}
+                      maxBarSize={8}
+                      minPointSize={0}
+                      activeBar={{ stroke: '#333', strokeWidth: 1 }}
+                      label={{
+                        position: 'top',
+                        fontSize: 8,
+                        fill: '#666',
+                        formatter: (value: number) => Math.round(value).toLocaleString()
+                      }}
+                    />
+                  )}
+                </BarChart>
+              </ResponsiveContainer>
             </div>
-          );
-        })}
-      </div>
+          </MetricCard>
+        );
+      })}
     </div>
   );
 } 

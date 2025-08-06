@@ -8,19 +8,26 @@ interface MetricSelectorProps {
   selectedMetric: MetricKey;
   onMetricChange: (metric: MetricKey) => void;
   selectedMetricOption: MetricOption | undefined;
+  isIiaUser?: boolean;
 }
 
 export default function MetricSelector({
   selectedMetric,
   onMetricChange,
   selectedMetricOption,
+  isIiaUser = false,
 }: MetricSelectorProps) {
   const [isOpen, setIsOpen] = useState(false);
   const { t } = useTranslation("common");
 
+  // Filter out area-based metrics for IIA users (they don't make sense for individual fishers)
+  const availableMetrics = isIiaUser 
+    ? METRIC_OPTIONS.filter((m) => !["mean_effort", "mean_cpua", "mean_rpua"].includes(m.value))
+    : METRIC_OPTIONS;
+
   const groupedMetrics = {
-    catch: METRIC_OPTIONS.filter((m) => m.category === "catch"),
-    revenue: METRIC_OPTIONS.filter((m) => m.category === "revenue"),
+    catch: availableMetrics.filter((m) => m.category === "catch"),
+    revenue: availableMetrics.filter((m) => m.category === "revenue"),
   };
 
   // Helper function to get the unit translation key
