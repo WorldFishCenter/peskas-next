@@ -89,22 +89,33 @@ export default function CatchCompositionPage({ params }: PageProps) {
     return individualFishDistribution[0]?.landing_site;
   }, [individualFishDistribution, shouldShowIndividualData]);
 
-  // Fetch all individual fish distribution for the BMU (for peers comparison)
+  // Fetch all individual fish distribution for the BMU (for peers comparison) - only if user can compare
   const { data: allBmuIndividualData, isLoading: isLoadingBmuData } = api.individualData.individualFishDistributionByBMU.useQuery(
     {
       bmu: bmuName || "",
       startDate: memoStartDate,
       endDate: memoEndDate,
     },
-    { enabled: shouldShowIndividualData && !!bmuName }
+    { enabled: shouldShowIndividualData && !!bmuName && canSeeBMUData }
   );
 
 
 
 
 
+  // Process individual data for pure IIA users (no BMU comparison)
+  const individualOnlyData = useMemo(() => {
+    if (!shouldShowIndividualData || !individualFishDistribution || canSeeBMUData) return null;
+    
+    // For pure IIA users, create a simplified data structure with only their own data
+    return individualFishDistribution.map(item => ({
+      ...item,
+      fisher_id: userFisherId
+    }));
+  }, [individualFishDistribution, shouldShowIndividualData, canSeeBMUData, userFisherId]);
+
   // Loading state for individual data users
-  const isLoadingIndividualCharts = shouldShowIndividualData && (isLoadingIndividualFishDistribution || isLoadingBmuData);
+  const isLoadingIndividualCharts = shouldShowIndividualData && (isLoadingIndividualFishDistribution || (canSeeBMUData && isLoadingBmuData));
 
   // If user is pure IIA, show only individual fisher dashboard (like homepage)
   if (isIiaUser && userFisherId && !isAdminFisher) {
@@ -113,7 +124,7 @@ export default function CatchCompositionPage({ params }: PageProps) {
         <div className="grid grid-cols-1 gap-5 xl:gap-6">
           <div className="grid grid-cols-12 gap-5 xl:gap-6">
             <div className="col-span-12">
-              {isLoadingIndividualCharts || !allBmuIndividualData ? (
+              {isLoadingIndividualCharts || (!allBmuIndividualData && !individualOnlyData) ? (
                 <div className="h-96 w-full flex items-center justify-center">
                   <div className="flex flex-col items-center gap-2">
                     <div className="w-8 h-8 border-4 border-gray-200 border-t-gray-500 rounded-full animate-spin" />
@@ -122,18 +133,18 @@ export default function CatchCompositionPage({ params }: PageProps) {
                 </div>
               ) : (
                 <IndividualFishCompositionChart
-                  allData={allBmuIndividualData}
+                  allData={allBmuIndividualData || individualOnlyData || []}
                   userFisherId={userFisherId || ""}
                   selectedCategory={selectedCategory}
                   setSelectedCategory={setSelectedCategory}
                   bmuName={bmuName || ""}
                   title={t("text-your-monthly-trends")}
-                  description={t("text-compared-with-bmu-average", { bmu: bmuName })}
+                  description={t("text-trends-explanation")}
                 />
               )}
             </div>
             <div className="col-span-12">
-              {isLoadingIndividualCharts || !allBmuIndividualData ? (
+              {isLoadingIndividualCharts || (!allBmuIndividualData && !individualOnlyData) ? (
                 <div className="h-96 w-full flex items-center justify-center">
                   <div className="flex flex-col items-center gap-2">
                     <div className="w-8 h-8 border-4 border-gray-200 border-t-gray-500 rounded-full animate-spin" />
@@ -142,7 +153,7 @@ export default function CatchCompositionPage({ params }: PageProps) {
                 </div>
               ) : (
                 <IndividualFishCompositionComparison
-                  allData={allBmuIndividualData}
+                  allData={allBmuIndividualData || individualOnlyData || []}
                   userFisherId={userFisherId || ""}
                   bmuName={bmuName || ""}
                   title={t("text-fish-composition-comparison")}
@@ -151,7 +162,7 @@ export default function CatchCompositionPage({ params }: PageProps) {
               )}
             </div>
             <div className="col-span-12">
-              {isLoadingIndividualCharts || !allBmuIndividualData ? (
+              {isLoadingIndividualCharts || (!allBmuIndividualData && !individualOnlyData) ? (
                 <div className="h-96 w-full flex items-center justify-center">
                   <div className="flex flex-col items-center gap-2">
                     <div className="w-8 h-8 border-4 border-gray-200 border-t-gray-500 rounded-full animate-spin" />
@@ -160,7 +171,7 @@ export default function CatchCompositionPage({ params }: PageProps) {
                 </div>
               ) : (
                 <IndividualFishCompositionAreaChart
-                  allData={allBmuIndividualData}
+                  allData={allBmuIndividualData || individualOnlyData || []}
                   userFisherId={userFisherId || ""}
                   bmuName={bmuName || ""}
                   title={t("text-fish-composition-area-chart-title")}

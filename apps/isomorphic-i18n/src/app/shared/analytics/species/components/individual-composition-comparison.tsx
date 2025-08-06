@@ -6,6 +6,7 @@ import SimpleBar from "@ui/simplebar";
 import { generateFishCategoryColor } from "../../charts/utils/chart-utils";
 import { useAtom } from "jotai";
 import { selectedTimeRangeAtom } from "@/app/components/filter-selector";
+import { useUserPermissions } from "../../core/hooks/use-user-permissions";
 
 export default function IndividualFishCompositionComparison({
   allData,
@@ -22,6 +23,7 @@ export default function IndividualFishCompositionComparison({
 }) {
   const [selectedTimeRange] = useAtom(selectedTimeRangeAtom);
   const [visibilityState, setVisibilityState] = useState<Record<string, { opacity: number }>>({});
+  const { canCompareWithOthers } = useUserPermissions();
   const endDate = new Date();
   let startDate = new Date(0); // No longer needed, filtering is done in component
 
@@ -51,7 +53,8 @@ export default function IndividualFishCompositionComparison({
       if (item.fisher_id === userFisherId) {
         youTotals[key] = (youTotals[key] || 0) + (item.mean_catch_kg || 0);
         youSum += item.mean_catch_kg || 0;
-      } else {
+      } else if (canCompareWithOthers) {
+        // Only process others data if user can compare with others
         othersTotals[key] = (othersTotals[key] || 0) + (item.mean_catch_kg || 0);
         othersSum += item.mean_catch_kg || 0;
       }
@@ -63,22 +66,27 @@ export default function IndividualFishCompositionComparison({
     FISH_CATEGORIES.forEach(cat => {
       const key = normalize(cat.value);
       const youPct = youSum > 0 ? ((youTotals[key] || 0) / youSum * 100) : 0;
-      const othersPct = othersSum > 0 ? ((othersTotals[key] || 0) / othersSum * 100) : 0;
       youRow[cat.value] = +youPct.toFixed(2);
-      othersRow[cat.value] = +othersPct.toFixed(2);
       youTotalPct += youPct;
-      othersTotalPct += othersPct;
+      
+      // Only process others percentages if user can compare
+      if (canCompareWithOthers) {
+        const othersPct = othersSum > 0 ? ((othersTotals[key] || 0) / othersSum * 100) : 0;
+        othersRow[cat.value] = +othersPct.toFixed(2);
+        othersTotalPct += othersPct;
+      }
     });
     if (youTotalPct !== 100) {
       const maxKey = FISH_CATEGORIES.reduce((max, cat) => youRow[cat.value] > youRow[max] ? cat.value : max, FISH_CATEGORIES[0].value);
       youRow[maxKey] += +(100 - youTotalPct).toFixed(2);
     }
-    if (othersTotalPct !== 100) {
+    if (canCompareWithOthers && othersTotalPct !== 100) {
       const maxKey = FISH_CATEGORIES.reduce((max, cat) => othersRow[cat.value] > othersRow[max] ? cat.value : max, FISH_CATEGORIES[0].value);
       othersRow[maxKey] += +(100 - othersTotalPct).toFixed(2);
     }
-    return [youRow, othersRow];
-  }, [filteredData, userFisherId]);
+    // Return only user's row if they can't compare, otherwise return both
+    return canCompareWithOthers ? [youRow, othersRow] : [youRow];
+  }, [filteredData, userFisherId, canCompareWithOthers]);
 
   // Legend and color mapping
   const categoryDisplays = FISH_CATEGORIES.map(cat => ({
@@ -87,9 +95,11 @@ export default function IndividualFishCompositionComparison({
     color: generateFishCategoryColor(cat.label),
   }));
   // Row labels for the chart
-  const rowLabels = [
+  const rowLabels = canCompareWithOthers ? [
     { label: "You" },
     { label: `Other ${bmuName ? bmuName + ' ' : ''}fishers (mean, avg. per month)` }
+  ] : [
+    { label: "You" }
   ];
 
   // Interactive legend logic
