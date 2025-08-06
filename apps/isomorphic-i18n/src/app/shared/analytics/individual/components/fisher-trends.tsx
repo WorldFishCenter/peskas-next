@@ -233,9 +233,22 @@ export default function IndividualFisherTrends({
             {/* Difference */}
             {difference !== undefined && (
               <div className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full" style={{ backgroundColor: difference > 0 ? '#10b981' : '#ef4444' }} />
+                <div className="w-2 h-2 rounded-full" style={{ 
+                  backgroundColor: (() => {
+                    // For costs, lower is better (green), higher is worse (red)
+                    const isCostMetric = selectedMetric === "mean_cost";
+                    return isCostMetric 
+                      ? (difference > 0 ? '#ef4444' : '#10b981')  // Inverted for costs
+                      : (difference > 0 ? '#10b981' : '#ef4444'); // Normal for others
+                  })()
+                }} />
                 <p className="text-sm font-medium">
-                  {selectedMetric === "mean_rpue" ? t('text-difference-from-minimum-wage') : "Difference"} <span className={`font-semibold ${difference > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  {selectedMetric === "mean_rpue" ? t('text-difference-from-minimum-wage') : "Difference"} <span className={`font-semibold ${(() => {
+                    const isCostMetric = selectedMetric === "mean_cost";
+                    return isCostMetric 
+                      ? (difference > 0 ? 'text-red-600' : 'text-green-600')   // Inverted for costs
+                      : (difference > 0 ? 'text-green-600' : 'text-red-600');  // Normal for others
+                  })()}`}>
                     {difference > 0 ? '+' : ''}{formatValue(difference)}
                   </span>
                 </p>
@@ -465,12 +478,22 @@ export default function IndividualFisherTrends({
                   radius={[4, 4, 0, 0]}
                   barSize={18}
                 >
-                  {comparisonData.map((entry, index) => (
-                    <Cell 
-                      key={`cell-${index}`} 
-                      fill={entry.difference && entry.difference > 0 ? '#10b981' : '#ef4444'} 
-                    />
-                  ))}
+                  {comparisonData.map((entry, index) => {
+                    // For costs, lower is better (green), higher is worse (red)
+                    // For all other metrics, higher is better (green), lower is worse (red)
+                    const isCostMetric = selectedMetric === "mean_cost";
+                    const isPositiveDifference = entry.difference && entry.difference > 0;
+                    const fillColor = isCostMetric 
+                      ? (isPositiveDifference ? '#ef4444' : '#10b981') // Inverted for costs
+                      : (isPositiveDifference ? '#10b981' : '#ef4444'); // Normal for others
+                    
+                    return (
+                      <Cell 
+                        key={`cell-${index}`} 
+                        fill={fillColor} 
+                      />
+                    );
+                  })}
                 </Bar>
                 {/* Zero reference line */}
                 <ReferenceLine
