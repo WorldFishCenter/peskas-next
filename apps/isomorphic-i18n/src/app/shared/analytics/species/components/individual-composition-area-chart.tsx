@@ -13,13 +13,15 @@ export default function IndividualFishCompositionAreaChart({
   userFisherId,
   title,
   description,
-  bmuName = ""
+  bmuName = "",
+  isIiaUser = false
 }: {
   allData: any[];
   userFisherId: string;
   title?: string;
   description?: string;
   bmuName?: string;
+  isIiaUser?: boolean;
 }) {
   const [selectedTimeRange] = useAtom(selectedTimeRangeAtom);
   const [chartMode, setChartMode] = useState<'absolute' | 'percent'>('absolute');
@@ -163,30 +165,33 @@ export default function IndividualFishCompositionAreaChart({
 
   return (
     <WidgetCard title={title} description={description} headerClassName="pb-2">
-      <div className="flex gap-2 mb-4">
-        <button
-          className={cn(
-            "px-4 py-2 text-sm rounded-md transition duration-200 w-full sm:w-auto",
-            chartMode === 'absolute' 
-              ? 'bg-blue-500 text-white' 
-              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-          )}
-          onClick={() => setChartMode('absolute')}
-        >
-                                  {t('text-average-values')}
-        </button>
-        <button
-          className={cn(
-            "px-4 py-2 text-sm rounded-md transition duration-200 w-full sm:w-auto",
-            chartMode === 'percent' 
-              ? 'bg-blue-500 text-white' 
-              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-          )}
-          onClick={() => setChartMode('percent')}
-        >
-          {t('text-percent-values')}
-        </button>
-      </div>
+      {/* Toggle buttons - only show for non-IIA users */}
+      {!isIiaUser && (
+        <div className="flex gap-2 mb-4">
+          <button
+            className={cn(
+              "px-4 py-2 text-sm rounded-md transition duration-200 w-full sm:w-auto",
+              chartMode === 'absolute' 
+                ? 'bg-blue-500 text-white' 
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            )}
+            onClick={() => setChartMode('absolute')}
+          >
+                                    {t('text-average-values')}
+          </button>
+          <button
+            className={cn(
+              "px-4 py-2 text-sm rounded-md transition duration-200 w-full sm:w-auto",
+              chartMode === 'percent' 
+                ? 'bg-blue-500 text-white' 
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            )}
+            onClick={() => setChartMode('percent')}
+          >
+            {t('text-percent-values')}
+          </button>
+        </div>
+      )}
       <div className="w-full h-[400px]">
                       <ResponsiveContainer width="100%" height="100%" minHeight={384}>
           <AreaChart
@@ -200,11 +205,16 @@ export default function IndividualFishCompositionAreaChart({
               unit={chartMode === 'percent' ? '%' : ' kg'}
               domain={chartMode === 'percent' ? [0, 100] : ['auto', 'auto']}
               label={chartMode === 'absolute' ? {
-                value: 'Avg. catch (kg/fisher/month)',
+                value: t('text-unit-kg-fisher-day'),
                 angle: -90,
                 position: 'insideLeft',
                 style: { textAnchor: 'middle', fontSize: 12, fill: '#666' }
-              } : undefined}
+              } : {
+                value: 'Percentage (%)',
+                angle: -90,
+                position: 'insideLeft',
+                style: { textAnchor: 'middle', fontSize: 12, fill: '#666' }
+              }}
             />
             <Tooltip content={<CustomTooltip />} />
             {/* You areas */}

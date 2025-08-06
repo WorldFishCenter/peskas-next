@@ -21,21 +21,15 @@ import cn from "@utils/class-names";
 import { api } from "@/trpc/react";
 import { BASELINE_DATA } from "../../charts/utils/site-config";
 import { useAtom } from 'jotai';
-import { selectedTimeRangeAtom } from "@/app/components/filter-selector";
+import { selectedTimeRangeAtom, selectedMetricAtom } from "@/app/components/filter-selector";
+import { MetricKey } from "../../charts/utils/chart-types";
 import { getTimeRangeStartDate } from "../../core/utils/time-range-filter";
 
-// Custom Y-axis tick component for consistent styling
+// Custom Y-axis tick component for consistent styling (without units since they're now in axis label)
 function CustomYAxisTick({ x = 0, y = 0, payload = { value: 0 }, selectedMetric }: any) {
-  let formattedValue = Number.isInteger(payload.value) && payload.value > 999
+  const formattedValue = Number.isInteger(payload.value) && payload.value > 999
     ? payload.value.toLocaleString()
     : payload.value.toFixed(1);
-    
-  // Add units based on metric
-  if (selectedMetric === "mean_cpue") {
-    formattedValue = `${formattedValue} kg`;
-  } else if (selectedMetric === "mean_rpue" || selectedMetric === "mean_cost" || selectedMetric === "mean_profit") {
-    formattedValue = `KES ${formattedValue}`;
-  }
     
   return (
     <g transform={`translate(${x},${y})`}>
@@ -77,7 +71,15 @@ export default function IndividualFisherTrends({
   const { t, i18n } = useTranslation(lang || 'en');
   const [selectedTimeRange] = useAtom(selectedTimeRangeAtom);
   const { userFisherId, isIiaUser, shouldShowIndividualData } = useUserPermissions();
-  const [selectedMetric, setSelectedMetric] = useState<string>('mean_cpue');
+  
+  // Use global metric selector for IIA users, local state for others
+  const [globalSelectedMetric, setGlobalSelectedMetric] = useAtom(selectedMetricAtom);
+  const [localSelectedMetric, setLocalSelectedMetric] = useState<string>('mean_cpue');
+  
+  const selectedMetric = isIiaUser ? globalSelectedMetric : localSelectedMetric;
+  const setSelectedMetric = isIiaUser 
+    ? (metric: string) => setGlobalSelectedMetric(metric as MetricKey)
+    : setLocalSelectedMetric;
 
   // Calculate date range based on selected time range
   const dateRange = useMemo(() => {
@@ -314,23 +316,25 @@ export default function IndividualFisherTrends({
       description={t('text-compared-with-bmu-average', { bmu: fisherBMU })}
       headerClassName="pb-2"
     >
-      {/* Metric selector buttons */}
-      <div className="flex w-full gap-2 mb-4 overflow-x-auto">
-        {METRIC_OPTIONS.map((option) => (
-          <button
-            key={option.key}
-            onClick={() => setSelectedMetric(option.key)}
-            className={cn(
-              "px-4 py-2 font-semibold rounded-md transition duration-200 w-full sm:w-auto",
-              selectedMetric === option.key
-                ? "bg-blue-500 text-white"
-                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-            )}
-          >
-            {t(option.label)}
-          </button>
-        ))}
-      </div>
+      {/* Metric selector buttons - only show for non-IIA users */}
+      {!isIiaUser && (
+        <div className="flex w-full gap-2 mb-4 overflow-x-auto">
+          {METRIC_OPTIONS.map((option) => (
+            <button
+              key={option.key}
+              onClick={() => setSelectedMetric(option.key)}
+              className={cn(
+                "px-4 py-2 font-semibold rounded-md transition duration-200 w-full sm:w-auto",
+                selectedMetric === option.key
+                  ? "bg-blue-500 text-white"
+                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+              )}
+            >
+              {t(option.label)}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Chart */}
       <div className="h-96 w-full pt-9">
@@ -354,6 +358,16 @@ export default function IndividualFisherTrends({
               axisLine={false}
               tick={(props) => <CustomYAxisTick {...props} selectedMetric={selectedMetric} />}
               width={50}
+              label={{
+                value: selectedMetric === "mean_cpue" ? t('text-unit-kg-fisher-day') : 
+                       selectedMetric === "mean_rpue" ? t('text-unit-kes-fisher-day') : 
+                       selectedMetric === "mean_cost" ? t('text-unit-kes-fisher-day') : 
+                       selectedMetric === "mean_profit" ? t('text-unit-kes-fisher-day') : 
+                       t('text-unit-kg-fisher-day'),
+                angle: -90,
+                position: 'insideLeft',
+                style: { textAnchor: 'middle', fontSize: 12, fill: '#666' }
+              }}
             />
             <CartesianGrid strokeDasharray="3 3" vertical={false} />
             <Tooltip content={<CustomTooltip />} />

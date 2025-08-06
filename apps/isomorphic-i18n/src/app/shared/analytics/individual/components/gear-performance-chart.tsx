@@ -24,6 +24,7 @@ export type GearPerformanceBarChartProps = {
   t: (key: string) => string;
   METRIC_OPTIONS: Array<{ key: string; label: string; color: string; unit: string }>;
   bmuName?: string | null;
+  isIiaUser?: boolean;
 };
 
 const GearPerformanceBarChart: React.FC<GearPerformanceBarChartProps> = ({
@@ -33,6 +34,7 @@ const GearPerformanceBarChart: React.FC<GearPerformanceBarChartProps> = ({
   t,
   METRIC_OPTIONS,
   bmuName,
+  isIiaUser = false,
 }) => {
   // Sort data: descending for most metrics, ascending for 'fisher_cost'
   const sortedData = React.useMemo(() => {
@@ -43,23 +45,25 @@ const GearPerformanceBarChart: React.FC<GearPerformanceBarChartProps> = ({
   }, [data, selectedMetric]);
   return (
     <>
-      {/* Metric selector buttons */}
-      <div className="flex w-full gap-2 mb-4 overflow-x-auto">
-        {METRIC_OPTIONS.map((option) => (
-          <button
-            key={option.key}
-            onClick={() => setSelectedMetric(option.key)}
-            className={cn(
-              "px-4 py-2 font-semibold rounded-md transition duration-200 w-full sm:w-auto",
-              selectedMetric === option.key
-                ? "bg-blue-500 text-white"
-                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-            )}
-          >
-            {t(option.label)}
-          </button>
-        ))}
-      </div>
+      {/* Metric selector buttons - only show for non-IIA users */}
+      {!isIiaUser && (
+        <div className="flex w-full gap-2 mb-4 overflow-x-auto">
+          {METRIC_OPTIONS.map((option) => (
+            <button
+              key={option.key}
+              onClick={() => setSelectedMetric(option.key)}
+              className={cn(
+                "px-4 py-2 font-semibold rounded-md transition duration-200 w-full sm:w-auto",
+                selectedMetric === option.key
+                  ? "bg-blue-500 text-white"
+                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+              )}
+            >
+              {t(option.label)}
+            </button>
+          ))}
+        </div>
+      )}
       <div className="h-[600px] w-full">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart

@@ -261,15 +261,29 @@ function HeaderMetricSelector({ isMobile = false }: { isMobile?: boolean }) {
   
   const clientLang = getClientLanguage();
   const { t } = useTranslation(clientLang, "common");
+  const { isIiaUser } = useUserPermissions();
   
   const selectedMetricOption = METRIC_OPTIONS.find(
     (m) => m.value === selectedMetric
   );
   
+  // Filter out area-based metrics for IIA users (they don't make sense for individual fishers)
+  const availableMetrics = isIiaUser 
+    ? METRIC_OPTIONS.filter((m) => !["mean_effort", "mean_cpua", "mean_rpua"].includes(m.value))
+    : METRIC_OPTIONS;
+  
   const groupedMetrics = {
-    catch: METRIC_OPTIONS.filter((m) => m.category === "catch"),
-    revenue: METRIC_OPTIONS.filter((m) => m.category === "revenue"),
+    catch: availableMetrics.filter((m) => m.category === "catch"),
+    revenue: availableMetrics.filter((m) => m.category === "revenue"),
   };
+
+  // Auto-switch IIA users to a valid metric if they have an invalid one selected
+  useEffect(() => {
+    if (isIiaUser && ["mean_effort", "mean_cpua", "mean_rpua"].includes(selectedMetric)) {
+      // Switch to the first available metric (mean_cpue)
+      setSelectedMetric("mean_cpue");
+    }
+  }, [isIiaUser, selectedMetric, setSelectedMetric]);
 
   const getDisplayLabel = (option: any) => {
       switch(option.value) {
@@ -396,8 +410,8 @@ function HeaderMenuRight({ lang, isCatchCompositionPage }: { lang?: string; isCa
   return (
     <div className="ms-auto flex shrink-0 items-center gap-1 text-gray-700 xs:gap-1 md:gap-2 xl:gap-3">
       {/* <ReferenceBMU /> */}
-      {/* Only show HeaderMetricSelector if not IIA user and not on catch composition page - hidden on mobile as it's in left section */}
-      {!isIiaUser && !isCatchCompositionPage && (
+      {/* Show HeaderMetricSelector for all users except on catch composition page - hidden on mobile as it's in left section */}
+      {!isCatchCompositionPage && (
         <div className="hidden sm:block">
           <HeaderMetricSelector />
         </div>
@@ -458,10 +472,10 @@ export default function Header({ lang }: { lang?: string }) {
             <Logo iconOnly={true} />
           </LanguageLink>
           {/* Mobile controls */}
-          {!isCatchCompositionPage && !isIiaUser && (
+          {!isCatchCompositionPage && (
             <div className="flex items-center gap-1 sm:hidden">
               <HeaderMetricSelector isMobile={true} />
-              <FilterSelector />
+              {!isIiaUser && <FilterSelector />}
             </div>
           )}
         </div>

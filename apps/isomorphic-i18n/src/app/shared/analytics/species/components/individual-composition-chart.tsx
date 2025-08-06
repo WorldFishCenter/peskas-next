@@ -3,6 +3,7 @@ import WidgetCard from "@components/cards/widget-card";
 import { BarChart, Bar, ResponsiveContainer, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from "recharts";
 import { useAtom } from "jotai";
 import { selectedTimeRangeAtom } from "@/app/components/filter-selector";
+import { useTranslation } from "@/app/i18n/client";
 import { getTimeRangeStartDate } from "../../core/utils/time-range-filter";
 import { FISH_CATEGORIES } from "./composition-chart";
 import FishCategorySelector from "../../charts/domain/fish-category-selector";
@@ -28,6 +29,7 @@ export default function IndividualFishCompositionChart({
   description?: string;
   bmuName?: string;
 }) {
+  const { t } = useTranslation("common");
   const [selectedTimeRange] = useAtom(selectedTimeRangeAtom);
   // 1. Get time range
   const endDate = new Date();
@@ -144,7 +146,7 @@ export default function IndividualFishCompositionChart({
               tick={{ fontSize: 12 }}
               width={50}
               label={{
-                value: 'Avg. catch (kg/fisher/month)',
+                value: t('text-unit-kg-fisher-day'),
                 angle: -90,
                 position: 'insideLeft',
                 style: { textAnchor: 'middle', fontSize: 12, fill: '#666' }

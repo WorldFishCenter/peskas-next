@@ -165,6 +165,7 @@ export default function CatchCompositionPage({ params }: PageProps) {
                   bmuName={bmuName || ""}
                   title={t("text-fish-composition-area-chart-title")}
                   description={t("text-fish-composition-area-chart-desc")}
+                  isIiaUser={isIiaUser}
                 />
               )}
             </div>
@@ -288,6 +289,7 @@ export default function CatchCompositionPage({ params }: PageProps) {
               <FishCompositionAreaChart
                 lang={lang}
                 bmu={effectiveBMU}
+                isIiaUser={isIiaUser}
               />
             </div>
           </div>

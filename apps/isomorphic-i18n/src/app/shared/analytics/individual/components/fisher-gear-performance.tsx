@@ -8,7 +8,8 @@ import WidgetCard from "@components/cards/widget-card";
 import { api } from "@/trpc/react";
 import { getClientLanguage } from "@/app/i18n/language-link";
 import { useAtom } from 'jotai';
-import { selectedTimeRangeAtom } from "@/app/components/filter-selector";
+import { selectedTimeRangeAtom, selectedMetricAtom } from "@/app/components/filter-selector";
+import { MetricKey } from "../../charts/utils/chart-types";
 import { getTimeRangeStartDate } from "../../core/utils/time-range-filter";
 import GearPerformanceBarChart from "./gear-performance-chart";
 import GearPerformanceCard from "./gear-performance-card";
@@ -93,7 +94,36 @@ export default function IndividualFisherGearPerformance({
   }, [selectedTimeRange]);
   
   const { fisherData, isLoadingFisherData } = useIndividualData(dateRange);
-  const [selectedMetric, setSelectedMetric] = useState<MetricType>("fisher_cpue");
+  
+  // Use global metric selector for IIA users, local state for others
+  const [globalSelectedMetric, setGlobalSelectedMetric] = useAtom(selectedMetricAtom);
+  const [localSelectedMetric, setLocalSelectedMetric] = useState<MetricType>("fisher_cpue");
+  
+  // Map global metrics to local MetricType
+  const mapGlobalToLocal = (globalMetric: string): MetricType => {
+    switch(globalMetric) {
+      case 'mean_cpue': return 'fisher_cpue';
+      case 'mean_rpue': return 'fisher_rpue';
+      case 'mean_cost': return 'fisher_cost';
+      case 'mean_profit': return 'fisher_cost'; // Fallback to cost for profit since it's not in local type
+      default: return 'fisher_cpue';
+    }
+  };
+  
+  // Map local metrics to global
+  const mapLocalToGlobal = (localMetric: MetricType): MetricKey => {
+    switch(localMetric) {
+      case 'fisher_cpue': return 'mean_cpue';
+      case 'fisher_rpue': return 'mean_rpue';
+      case 'fisher_cost': return 'mean_cost';
+      default: return 'mean_cpue';
+    }
+  };
+  
+  const selectedMetric = isIiaUser ? mapGlobalToLocal(globalSelectedMetric) : localSelectedMetric;
+  const setSelectedMetric = isIiaUser 
+    ? (metric: MetricType) => setGlobalSelectedMetric(mapLocalToGlobal(metric))
+    : setLocalSelectedMetric;
 
   // Get fisher's BMU
   const fisherBMU = useMemo(() => {
@@ -229,12 +259,12 @@ export default function IndividualFisherGearPerformance({
     );
   }
 
-  // Metric selector options (match trends)
+  // Metric selector options (match trends) - use translation keys for units
   const METRIC_OPTIONS = [
-    { key: 'fisher_cpue', label: 'text-cpue', color: '#3b82f6', unit: 'kg/trip' },
-    { key: 'fisher_rpue', label: 'text-rpue', color: '#10b981', unit: 'KES/trip' },
-    { key: 'fisher_cost', label: 'text-costs', color: '#f59e0b', unit: 'KES/trip' },
-    { key: 'netProfit', label: 'text-profit', color: '#f97316', unit: 'KES/trip' },
+    { key: 'fisher_cpue', label: 'text-cpue', color: '#3b82f6', unit: t('text-unit-kg-fisher-day') },
+    { key: 'fisher_rpue', label: 'text-rpue', color: '#10b981', unit: t('text-unit-kes-fisher-day') },
+    { key: 'fisher_cost', label: 'text-costs', color: '#f59e0b', unit: t('text-unit-kes-fisher-day') },
+    { key: 'netProfit', label: 'text-profit', color: '#f97316', unit: t('text-unit-kes-fisher-day') },
   ];
 
   // Final refactor: two separate elements, one WidgetCard for the chart, one column for the gear cards
@@ -254,6 +284,7 @@ export default function IndividualFisherGearPerformance({
             t={t}
             METRIC_OPTIONS={METRIC_OPTIONS}
             bmuName={fisherBMU}
+            isIiaUser={isIiaUser}
           />
         </WidgetCard>
       </div>
