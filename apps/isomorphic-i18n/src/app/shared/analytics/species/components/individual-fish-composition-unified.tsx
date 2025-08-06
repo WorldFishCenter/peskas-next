@@ -55,10 +55,18 @@ export default function IndividualFishCompositionUnified({
     onTabChange?.(tab);
   };
   
+  // Get available fish categories from data
+  const availableFishCategories = useMemo(() => {
+    if (!allData.length) return FISH_CATEGORIES;
+    
+    const availableCategories = new Set(allData.map(item => item.fish_category));
+    return FISH_CATEGORIES.filter(cat => availableCategories.has(cat.value));
+  }, [allData]);
+
   // Find selected category option for dropdown
   const selectedCategoryOption = useMemo(() => 
-    FISH_CATEGORIES.find(c => c.value === selectedCategory), 
-    [selectedCategory]
+    availableFishCategories.find(c => c.value === selectedCategory), 
+    [selectedCategory, availableFishCategories]
   );
 
   // Process data for bar chart (monthly trends)
@@ -238,10 +246,29 @@ export default function IndividualFishCompositionUnified({
     }
   }, [activeTab]);
 
+  // Ensure selected category is available in the data
+  useEffect(() => {
+    if (availableFishCategories.length > 0 && !availableFishCategories.find(cat => cat.value === selectedCategory)) {
+      // If selected category is not available, select the first available category
+      setSelectedCategory(availableFishCategories[0].value);
+    }
+  }, [availableFishCategories, selectedCategory, setSelectedCategory]);
+
   return (
     <WidgetCard
       title={
         <div className="flex flex-col sm:flex-row items-start sm:items-center w-full gap-3">
+          {/* Fish category selector - top left */}
+          {localActiveTab === 'bar-chart' && (
+            <div className="flex items-center">
+              <FishCategorySelector
+                selectedCategory={selectedCategory}
+                onCategoryChange={setSelectedCategory}
+                selectedCategoryOption={selectedCategoryOption}
+                fishCategories={availableFishCategories}
+              />
+            </div>
+          )}
           <div className="hidden sm:block text-base font-medium text-gray-800 flex-1">
             <div className="text-center">
               {getTabTitle(localActiveTab)}
@@ -287,15 +314,6 @@ export default function IndividualFishCompositionUnified({
         </div>
       </div>
 
-      {/* Fish category selector - shared across both charts */}
-      <div className="mb-4">
-        <FishCategorySelector
-          selectedCategory={selectedCategory}
-          onCategoryChange={setSelectedCategory}
-          selectedCategoryOption={selectedCategoryOption}
-          fishCategories={FISH_CATEGORIES}
-        />
-      </div>
 
       {/* Bar Chart Tab */}
       {localActiveTab === 'bar-chart' && (
