@@ -230,6 +230,7 @@ export default function BMURanking({
     userBMU,
     referenceBMU,
     isCiaUser,
+    isAiaUser,
     isAdmin,
     getAccessibleBMUs,
     hasRestrictedAccess,
@@ -438,9 +439,9 @@ export default function BMURanking({
     }
   }, [rawData, selectedMetric, selectedTimeRange, effectiveBMU, referenceBMU, hasRestrictedAccess, getAccessibleBMUs, shouldShowIndividualData, isMetricCompatibleWithIndividualData, fisherData, userFisherId, t, isLoadingFisherData]);
 
-  // If in CIA mode, don't render the ranking as it doesn't make sense to show a comparison
+  // If in CIA or AIA mode, don't render the ranking as it doesn't make sense to show a comparison
   // ranking with just one BMU
-  if (isCiaUser) {
+  if (isCiaUser || isAiaUser) {
     return null;
   }
 

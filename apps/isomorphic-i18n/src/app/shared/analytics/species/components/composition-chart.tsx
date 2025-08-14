@@ -322,6 +322,7 @@ export default function FishCompositionChart({
   const {
     userBMU,
     isCiaUser,
+    isAiaUser,
     isWbciaUser,
     isAdmin,
     getAccessibleBMUs,
@@ -534,7 +535,7 @@ export default function FishCompositionChart({
     });
     
     visibilityInitialized.current = true;
-  }, [localActiveTab, canCompareWithOthers, siteColors, effectiveBMU]);
+  }, [localActiveTab, canCompareWithOthers, siteColors, effectiveBMU, visibilityState]);
 
   // Process main data when monthlyData changes
   useEffect(() => {
@@ -650,35 +651,40 @@ export default function FishCompositionChart({
         {}
       );
       
-      // Add special colors for averages - only include historical_average for CIA users
-      newSiteColors["average"] = "#64748b"; // Standard average color
-      if (isCiaUser) {
-        newSiteColors["historical_average"] = "#94a3b8"; // Only add for CIA users
+      // Add special colors for averages - only include average for multi-BMU users, historical_average only for CIA users
+      if (!(isCiaUser || isAiaUser)) {
+        newSiteColors["average"] = "#64748b"; // Standard average color - only for multi-BMU users
+      }
+      if (isCiaUser || isAiaUser) {
+        newSiteColors["historical_average"] = "#94a3b8"; // Only add for CIA and AIA users
       }
       
       setSiteColors(newSiteColors);
 
       // Calculate average value for each date point
-      sortedData.forEach(dataPoint => {
-        const values: number[] = [];
-        
-        // Get all non-zero values for the average calculation
-        uniqueSites.forEach(site => {
-          // Use optional access pattern with nullish coalescing for TypeScript safety
-          const value = dataPoint[site] ?? undefined;
-          if (value !== undefined && value > 0) {
-            values.push(value as number);
+      // For CIA and AIA users, don't calculate multi-BMU average since they only have access to one BMU
+      if (!(isCiaUser || isAiaUser)) {
+        sortedData.forEach(dataPoint => {
+          const values: number[] = [];
+          
+          // Get all non-zero values for the average calculation
+          uniqueSites.forEach(site => {
+            // Use optional access pattern with nullish coalescing for TypeScript safety
+            const value = dataPoint[site] ?? undefined;
+            if (value !== undefined && value > 0) {
+              values.push(value as number);
+            }
+          });
+          
+          // Calculate the average
+          if (values.length > 0) {
+            dataPoint.average = parseFloat((values.reduce((sum, val) => sum + val, 0) / values.length).toFixed(2));
+          } else {
+            // Use undefined instead of 0 to show gaps in the chart
+            dataPoint.average = undefined;
           }
         });
-        
-        // Calculate the average
-        if (values.length > 0) {
-          dataPoint.average = parseFloat((values.reduce((sum, val) => sum + val, 0) / values.length).toFixed(2));
-        } else {
-          // Use undefined instead of 0 to show gaps in the chart
-          dataPoint.average = undefined;
-        }
-      });
+      }
       
       // Set visibility state based on user's BMU
       const initialVisibility = uniqueSites.reduce<VisibilityState>(
@@ -701,11 +707,13 @@ export default function FishCompositionChart({
         });
       }
       
-      // Always show average lines
-      initialVisibility["average"] = { opacity: 1 };
+      // Show average lines only for multi-BMU users
+      if (!(isCiaUser || isAiaUser)) {
+        initialVisibility["average"] = { opacity: 1 };
+      }
       
-      // Only add historical_average visibility for CIA users
-      if (isCiaUser) {
+      // Only add historical_average visibility for CIA and AIA users
+      if (isCiaUser || isAiaUser) {
         initialVisibility["historical_average"] = { opacity: 1 };
       }
       
@@ -740,7 +748,7 @@ export default function FishCompositionChart({
     } finally {
       setLoading(false);
     }
-  }, [monthlyData, selectedCategory, effectiveBMU, hasRestrictedAccess, effectiveBmus, isCiaUser, localActiveTab, selectedTimeRange]);
+  }, [monthlyData, selectedCategory, effectiveBMU, hasRestrictedAccess, effectiveBmus, isCiaUser, isAiaUser, localActiveTab, selectedTimeRange, chartData.length, getAccessibleBMUs, loading, visibilityState]);
 
   // Calculate derived data when chartData changes
   useEffect(() => {
@@ -753,15 +761,15 @@ export default function FishCompositionChart({
     if (canCompareWithOthers) {
       setRecentData(getRecentData(useChartData, false) as ChartDataPoint[]);
     } 
-    // For CIA users, create comparison against historical average if they have a BMU
-    else if (isCiaUser && effectiveBMU) {
+    // For CIA and AIA users, create comparison against historical average if they have a BMU
+    else if ((isCiaUser || isAiaUser) && effectiveBMU) {
       setCiaComparisonData(prepareDataForCiaComparison(useChartData, effectiveBMU));
     }
       
     // Annual data is the same for all users
     setAnnualData(getAnnualData(useChartData, !canCompareWithOthers, siteColors));
     
-  }, [useChartData, canCompareWithOthers, isCiaUser, effectiveBMU, siteColors, recentData.length, annualData.length, loading]);
+  }, [useChartData, canCompareWithOthers, isCiaUser, isAiaUser, effectiveBMU, siteColors, recentData.length, annualData.length, loading]);
 
   // Find the selected category option
   const selectedCategoryOption = FISH_CATEGORIES.find(
@@ -770,8 +778,8 @@ export default function FishCompositionChart({
 
   // Get appropriate tab title and description based on user role
   const getTabTitle = (tab: string): string => {
-    // Special titles for CIA users
-    if (isCiaUser) {
+    // Special titles for CIA and AIA users
+    if (isCiaUser || isAiaUser) {
       switch(tab) {
         case 'trends':
         case 'standard':
@@ -818,8 +826,8 @@ export default function FishCompositionChart({
   };
   
   const getTabDescription = (tab: string): string => {
-    // Special descriptions for CIA users
-    if (isCiaUser) {
+    // Special descriptions for CIA and AIA users
+    if (isCiaUser || isAiaUser) {
       switch(tab) {
         case 'trends':
         case 'standard':
@@ -941,19 +949,20 @@ export default function FishCompositionChart({
             <div className="h-96 w-full">
               <TrendsChart
               chartData={useChartData.map(point => {
-                // Create a new object without the historical_average property for non-CIA users
-                if (!isCiaUser) {
+                // Create a new object without the historical_average property for non-CIA and non-AIA users
+                if (!(isCiaUser || isAiaUser)) {
                   const { historical_average, ...rest } = point;
                   return rest;
                 }
                 return point;
               })}
               selectedMetricOption={toMetricOption(selectedCategoryOption)}
-              siteColors={isCiaUser ? siteColors : Object.fromEntries(
+              siteColors={(isCiaUser || isAiaUser) ? siteColors : Object.fromEntries(
                 Object.entries(siteColors).filter(([key]) => key !== 'historical_average')
               )}
               visibilityState={visibilityState}
               isCiaUser={!!isCiaUser}
+              isAiaUser={!!isAiaUser}
               isTablet={isTablet}
               fiveYearMarks={fiveYearMarks}
               CustomLegend={(props) => (
@@ -963,6 +972,7 @@ export default function FishCompositionChart({
                   siteColors={siteColors}
                   visibilityState={visibilityState}
                   isCiaUser={!!isCiaUser}
+                  isAiaUser={!!isAiaUser}
                   localActiveTab={localActiveTab}
                 />
               )}
@@ -979,15 +989,15 @@ export default function FishCompositionChart({
               // Standard comparison chart for users who can see multiple BMUs
               <ComparisonChart
                 chartData={recentData.map(point => {
-                  // Create a new object without the historical_average property for non-CIA users
-                  if (!isCiaUser) {
+                  // Create a new object without the historical_average property for non-CIA and non-AIA users
+                  if (!(isCiaUser || isAiaUser)) {
                     const { historical_average, ...rest } = point;
                     return rest;
                   }
                   return point;
                 })}
                 selectedMetricOption={toMetricOption(selectedCategoryOption)}
-                siteColors={isCiaUser ? siteColors : Object.fromEntries(
+                siteColors={(isCiaUser || isAiaUser) ? siteColors : Object.fromEntries(
                   Object.entries(siteColors).filter(([key]) => key !== 'historical_average')
                 )}
                 visibilityState={visibilityState}
@@ -1000,6 +1010,7 @@ export default function FishCompositionChart({
                     siteColors={siteColors}
                     visibilityState={visibilityState}
                     isCiaUser={!!isCiaUser}
+                    isAiaUser={!!isAiaUser}
                     localActiveTab={localActiveTab}
                   />
                 )}
@@ -1022,6 +1033,7 @@ export default function FishCompositionChart({
                     siteColors={siteColors}
                     visibilityState={visibilityState}
                     isCiaUser={!!isCiaUser}
+                    isAiaUser={!!isAiaUser}
                     localActiveTab={localActiveTab}
                     historicalMode={true}
                   />
@@ -1048,6 +1060,7 @@ export default function FishCompositionChart({
               )}
               visibilityState={visibilityState}
               isCiaUser={!!isCiaUser}
+              isAiaUser={!!isAiaUser}
               isTablet={isTablet}
               CustomLegend={(props) => (
                 <CustomLegend 
@@ -1056,6 +1069,7 @@ export default function FishCompositionChart({
                   siteColors={siteColors}
                   visibilityState={visibilityState}
                   isCiaUser={!!isCiaUser}
+                  isAiaUser={!!isAiaUser}
                   localActiveTab={localActiveTab}
                 />
               )}

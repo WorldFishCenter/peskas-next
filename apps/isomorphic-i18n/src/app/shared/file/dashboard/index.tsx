@@ -8,6 +8,7 @@ import type { TBmu } from "@repo/nosql/schema/bmu";
 import FileStats from "@/app/shared/file/dashboard/file-stats";
 import FileStatsWBCIA from "@/app/shared/file/dashboard/file-stats-wbcia";
 import FileStatsAdmin from "@/app/shared/file/dashboard/file-stats-admin";
+import FileStatsAIA from "@/app/shared/file/dashboard/file-stats-aia";
 import GearTreemap from "../../analytics/gear/components/gear-treemap";
 import CatchRadarChart from "../../analytics/bmu/components/bmu-radar-chart";
 import BMURanking from "../../analytics/bmu/components/bmu-ranking";
@@ -38,7 +39,7 @@ export default function FileDashboard({ lang }: { lang?: string }) {
   const [selectedMetric, setSelectedMetric] = useAtom(selectedMetricAtom);
   const [activeTab, setActiveTab] = useState("trends");
   const { t } = useTranslation("common");
-  const { referenceBMU, userBMU, isIiaUser, userFisherId, isWbciaUser, shouldShowUnifiedDashboard, isAdminFisher, isAdmin } = useUserPermissions();
+  const { referenceBMU, userBMU, isIiaUser, userFisherId, isWbciaUser, shouldShowUnifiedDashboard, isAdminFisher, isAdmin, isAiaUser } = useUserPermissions();
 
   // Use reference BMU if available or fall back to user's BMU
   const effectiveBMU = referenceBMU || userBMU;
@@ -78,11 +79,13 @@ export default function FileDashboard({ lang }: { lang?: string }) {
   return (
     <div className="w-full">
       <div className="grid grid-cols-1 gap-5 xl:gap-6">
-        {/* Use admin version for admin users, WBCIA version for WBCIA users, regular version for others */}
+        {/* Use admin version for admin users, WBCIA version for WBCIA users, AIA version for AIA users, regular version for others */}
         {isAdmin ? (
           <FileStatsAdmin lang={lang} />
         ) : isWbciaUser ? (
           <FileStatsWBCIA lang={lang} />
+        ) : isAiaUser ? (
+          <FileStatsAIA lang={lang} bmu={effectiveBMU} />
         ) : (
           <FileStats lang={lang} bmu={effectiveBMU} />
         )}

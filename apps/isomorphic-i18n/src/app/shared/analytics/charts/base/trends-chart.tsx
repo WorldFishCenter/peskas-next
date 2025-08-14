@@ -22,6 +22,7 @@ interface TrendsChartProps {
   siteColors: Record<string, string>;
   visibilityState: VisibilityState;
   isCiaUser: boolean;
+  isAiaUser?: boolean;
   isTablet: boolean;
   fiveYearMarks?: number[];
   CustomLegend?: React.ComponentType<any>;
@@ -36,6 +37,7 @@ export default function TrendsChart({
   siteColors,
   visibilityState,
   isCiaUser,
+  isAiaUser = false,
   isTablet,
   fiveYearMarks,
   CustomLegend,
@@ -172,9 +174,9 @@ export default function TrendsChart({
 
   // Generate lines for each BMU
   const renderAreas = () => {
-    // For CIA users, only show their BMU and not "average" or "historical_average"
+    // For CIA and AIA users, only show their BMU and not "average" or "historical_average"
     const sites = Object.keys(siteColors).filter(site => {
-      if (isCiaUser) {
+      if (isCiaUser || isAiaUser) {
         return site !== "average" && site !== "historical_average";
       }
       return site !== "average";
@@ -325,8 +327,8 @@ export default function TrendsChart({
             />
           )}
           
-          {/* Add average line for non-CIA users only */}
-          {!isCiaUser && (
+          {/* Add average line for non-CIA and non-AIA users only */}
+          {!isCiaUser && !isAiaUser && (
             <Line
               dataKey="average"
               stroke="#000000"

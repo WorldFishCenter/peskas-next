@@ -36,6 +36,10 @@ export const useUserPermissions = () => {
     (group: { name: string }) => group.name === 'IIA'
   );
   
+  const isAiaUser = hasGroups && session?.user?.groups?.some(
+    (group: { name: string }) => group.name === 'AIA'
+  );
+  
   // Get user's BMU - properly handle the property path
   const userBMU = session?.user?.userBmu?.BMU;
   
@@ -59,8 +63,8 @@ export const useUserPermissions = () => {
       // WBCIA users can see BMUs in their region (for now, assuming they can see all)
       // This would need to be enhanced with region filtering logic
       return allBMUs;
-    } else if (isCiaUser && userBMU) {
-      // CIA users can only see their assigned BMU
+    } else if ((isCiaUser || isAiaUser) && userBMU) {
+      // CIA and AIA users can only see their assigned BMU
       return [userBMU];
     } else if (isIiaUser) {
       // IIA users don't see BMU-level data, return empty array
@@ -119,6 +123,7 @@ export const useUserPermissions = () => {
     isWbciaUser,
     isAdmin,
     isIiaUser,
+    isAiaUser,
     
     // New integrated user type
     isAdminFisher,
@@ -128,10 +133,10 @@ export const useUserPermissions = () => {
     getLimitedBMUs,
     
     // Useful flags for components
-    hasRestrictedAccess: (isCiaUser && !!userBMU) || (isIiaUser && !!userFisherId),
-    shouldShowAggregated: isAdmin || isWbciaUser || isCiaUser,
+    hasRestrictedAccess: ((isCiaUser || isAiaUser) && !!userBMU) || (isIiaUser && !!userFisherId),
+    shouldShowAggregated: isAdmin || isWbciaUser || isCiaUser || isAiaUser,
     shouldShowIndividualData: isIiaUser || isAdminFisher,
-    canCompareWithOthers: (!isCiaUser && !isIiaUser) || isAdmin || isWbciaUser,
+    canCompareWithOthers: (!isCiaUser && !isIiaUser && !isAiaUser) || isAdmin || isWbciaUser,
     canSeeBMUData: !isIiaUser,
     
     // New unified dashboard flags

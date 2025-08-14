@@ -321,6 +321,7 @@ export default function GearHeatmap({
   const {
     userBMU,
     isCiaUser,
+    isAiaUser,
     isWbciaUser,
     isAdmin,
     getAccessibleBMUs,
@@ -447,12 +448,12 @@ export default function GearHeatmap({
     }));
   }, []);
 
-  // Reset to distribution tab if CIA user somehow gets to comparison tab
+  // Reset to distribution tab if CIA or AIA user somehow gets to comparison tab
   useEffect(() => {
-    if (isCiaUser && activeTab === 'comparison') {
+    if ((isCiaUser || isAiaUser) && activeTab === 'comparison') {
       setActiveTab('distribution');
     }
-  }, [isCiaUser, activeTab]);
+  }, [isCiaUser, isAiaUser, activeTab]);
 
   useEffect(() => {
     if (!rawData) {
@@ -699,7 +700,8 @@ export default function GearHeatmap({
 
       // Format data for the comparison chart
       // For the user's BMU compared to average of others
-      if (effectiveBMU) {
+      // Only generate for users who can compare with others (not CIA or AIA users)
+      if (effectiveBMU && !isCiaUser && !isAiaUser) {
         const comparisonData = gearTypes.map((gear, index) => {
           // Get value for user's BMU
           const bmuValue = rawData.find(
@@ -766,8 +768,8 @@ export default function GearHeatmap({
   }, [rawData, selectedMetric, selectedTimeRange, effectiveBMU, hasRestrictedAccess, isWbciaUser, safeBmus, individualGearData, shouldFetchIndividualGearData, userFisherId, isLoadingIndividualGear]);
 
   const getTabTitle = (tab: string): string => {
-    // Custom titles for CIA users who can only see their own BMU
-    if (isCiaUser && hasRestrictedAccess) {
+    // Custom titles for CIA and AIA users who can only see their own BMU
+    if ((isCiaUser || isAiaUser) && hasRestrictedAccess) {
       switch (tab) {
         case 'distribution':
           return t("text-distribution-tab-title-cia") || `Fishing Gear Performance in ${effectiveBMU}`;
@@ -794,8 +796,8 @@ export default function GearHeatmap({
   };
 
   const getTabDescription = (tab: string): string => {
-    // Custom descriptions for CIA users who can only see their own BMU
-    if (isCiaUser && hasRestrictedAccess) {
+    // Custom descriptions for CIA and AIA users who can only see their own BMU
+    if ((isCiaUser || isAiaUser) && hasRestrictedAccess) {
       switch (tab) {
         case 'distribution':
           return t("text-distribution-tab-description-cia") || 
@@ -907,8 +909,8 @@ export default function GearHeatmap({
             >
               {t("text-distribution-tab")}
             </button>
-            {/* Only show comparison tab for non-CIA users */}
-            {effectiveBMU && !isCiaUser && (
+            {/* Only show comparison tab for non-CIA and non-AIA users */}
+            {effectiveBMU && !isCiaUser && !isAiaUser && (
               <button
                 className={`px-4 py-2 text-sm rounded-md transition duration-200 ${activeTab === 'comparison' ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'} w-full sm:w-auto`}
                 onClick={() => handleTabChange('comparison')}

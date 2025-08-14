@@ -1,0 +1,389 @@
+"use client";
+
+import { BarChart, Bar, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { useState, useEffect, useMemo, useCallback } from "react";
+import { useAtom } from "jotai";
+import { Button, Text } from "rizzui";
+import cn from "@utils/class-names";
+import { useScrollableSlider } from "@hooks/use-scrollable-slider";
+import { PiCaretLeftBold, PiCaretRightBold } from "react-icons/pi";
+import MetricCard from "@components/cards/metric-card";
+import { useTranslation } from "@/app/i18n/client";
+import { getClientLanguage } from "@/app/i18n/language-link";
+import { api } from "@/trpc/react";
+import { useUserPermissions } from "../../analytics/core/hooks/use-user-permissions";
+
+type FileStatsAIAType = {
+  className?: string;
+  lang?: string;
+  bmu?: string;
+};
+
+interface ChartPoint {
+  month: string;
+  value: number | null; // BMU value only (no individual data)
+  index: number;
+}
+
+interface StatData {
+  id: string;
+  title: string;
+  metric: string;
+  unit: string;
+  chart: ChartPoint[];
+  userBMUValue?: number | null;
+  monthName?: string;
+}
+
+const LoadingState = () => {
+  return (
+    <MetricCard
+      title=""
+      metric=""
+      rounded="lg"
+      chart={
+        <div className="h-24 w-24 @[16.25rem]:h-28 @[16.25rem]:w-32 @xs:h-32 @xs:w-36 flex items-center justify-center">
+          <div className="flex flex-col items-center gap-2">
+            <div className="w-8 h-8 border-4 border-gray-200 border-t-gray-500 rounded-full animate-spin" />
+            <span className="text-sm text-gray-500">Loading chart...</span>
+          </div>
+        </div>
+      }
+      chartClassName="flex flex-col w-auto h-auto text-center justify-center"
+      className="min-w-[292px] w-full max-w-full flex flex-col items-center justify-center"
+    />
+  );
+};
+
+export function FileStatGridAIA({ className, lang, bmu }: { className?: string; lang?: string; bmu?: string }) {
+  // Use client language instead of lang prop
+  const clientLang = getClientLanguage();
+  const { t, i18n } = useTranslation(clientLang, "common");
+  
+  // Track current language with state
+  const [currentLang, setCurrentLang] = useState(clientLang);
+  
+  const [statsData, setStatsData] = useState<StatData[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [hoveredMonth, setHoveredMonth] = useState<{[key: string]: { month: string; value: number | null }}>({});
+  
+  // Listen for language changes
+  useEffect(() => {
+    const handleLanguageChange = (event: CustomEvent) => {
+      setCurrentLang(event.detail.language);
+      
+      // Make sure i18n instance is updated
+      if (i18n.language !== event.detail.language) {
+        i18n.changeLanguage(event.detail.language);
+      }
+    };
+    
+    window.addEventListener('i18n-language-changed', handleLanguageChange as EventListener);
+    return () => {
+      window.removeEventListener('i18n-language-changed', handleLanguageChange as EventListener);
+    };
+  }, [i18n]);
+  
+  // Get user permissions (but don't use individual data for AIA)
+  const { userBMU, referenceBMU } = useUserPermissions();
+  
+  // Use effective BMU (reference or user's BMU)
+  const effectiveBMU = referenceBMU || userBMU;
+  
+  // Fetch monthly data for the effective BMU
+  const { data: monthlyData, isLoading, error: queryError } = api.aggregatedCatch.monthly.useQuery(
+    { bmus: effectiveBMU ? [effectiveBMU] : [] },
+    {
+      retry: 3,
+      retryDelay: 1000,
+      staleTime: 1000 * 60 * 5,
+      enabled: !!effectiveBMU,
+    }
+  );
+
+  // Define metrics once with monthly API field mapping
+  const metrics = useMemo(() => [
+    { id: 'effort', field: 'mean_effort', title: t('text-metrics-effort'), unit: t('text-unit-fishers-km2-day'), category: 'catch' as const },
+    { id: 'catch-rate', field: 'mean_cpue', title: t('text-metrics-catch-rate'), unit: t('text-unit-kg-fisher-day'), category: 'catch' as const },
+    { id: 'catch-density', field: 'mean_cpua', title: t('text-metrics-catch-density'), unit: t('text-unit-kg-km2-day'), category: 'catch' as const },
+    { id: 'fisher-revenue', field: 'mean_rpue', title: t('text-metrics-fisher-revenue'), unit: t('text-unit-kes-fisher-day'), category: 'revenue' as const },
+    { id: 'area-revenue', field: 'mean_rpua', title: t('text-metrics-area-revenue'), unit: t('text-unit-kes-km2-day'), category: 'revenue' as const },
+    { id: 'costs', field: 'mean_cost', title: t('text-metrics-trip-costs'), unit: t('text-unit-kes-fisher-day'), category: 'revenue' as const },
+    { id: 'profit', field: 'mean_profit', title: t('text-metrics-profit'), unit: t('text-unit-kes-fisher-day'), category: 'revenue' as const }
+  ] as const, [t]);
+
+  // Process data - get the latest 3 months (AIA mode: BMU data only, no individual overlay)
+  const processedData = useMemo(() => {
+    if (!monthlyData || !effectiveBMU) return null;
+    
+    try {
+      // Sort data by date and get latest 3 months
+      const sortedData = monthlyData
+        .filter(record => record.landing_site === effectiveBMU)
+        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+        .slice(0, 3)
+        .reverse(); // Reverse to show chronological order (oldest to newest)
+      
+      if (sortedData.length === 0) return null;
+      
+      return metrics.map(metric => {
+        // Collect values for this metric from the 3 months (BMU data only)
+        const monthValues: ChartPoint[] = [];
+        
+        sortedData.forEach((record, index) => {
+          const value = (record as any)[metric.field];
+          if (value !== null && value !== undefined) {
+            const date = new Date(record.date);
+            const monthName = date.toLocaleString('default', { month: 'short' });
+            monthValues.push({
+              month: monthName,
+              value: value,
+              index: index
+            });
+          }
+        });
+        
+        // Get the latest month value for display instead of average
+        const latestMonth = monthValues.length > 0 ? monthValues[monthValues.length - 1] : null;
+        const latestValue = latestMonth?.value || 0;
+        
+        return {
+          id: metric.id,
+          title: metric.title,
+          metric: Math.round(latestValue).toLocaleString(),
+          unit: metric.unit,
+          chart: monthValues,
+          userBMUValue: null,
+          monthName: t('text-last-3-months')
+        };
+      });
+    } catch (error) {
+      console.error("Error transforming data:", error);
+      return null;
+    }
+  }, [monthlyData, metrics, effectiveBMU]);
+
+  // Update state based on processed data
+  useEffect(() => {
+    setLoading(isLoading);
+    
+    if (queryError) {
+      console.error("API error:", queryError);
+      setError("Failed to load statistics data");
+      setLoading(false);
+      return;
+    }
+    
+    if (!isLoading && processedData) {
+      setStatsData(processedData);
+      setError(null);
+      setLoading(false);
+    } else if (!isLoading && !processedData && effectiveBMU) {
+      setError("No statistics data available");
+      setLoading(false);
+    }
+  }, [processedData, isLoading, queryError, effectiveBMU]);
+
+  // Handlers
+  const handleBarClick = useCallback((data: any, metricId: string) => {
+    if (!data || !data.activePayload || data.activePayload.length === 0) return;
+    
+    const entry = data.activePayload[0];
+    const month = entry.payload.month;
+    const value = entry.payload.value;
+    
+    setHoveredMonth(prev => ({
+      ...prev,
+      [metricId]: { month, value }
+    }));
+  }, []);
+
+  const handleMouseMove = useCallback((state: any, metricId: string) => {
+    if (state.activePayload && state.activePayload.length > 0) {
+      const entry = state.activePayload[0];
+      const month = entry.payload.month;
+      const value = entry.payload.value;
+      
+      setHoveredMonth(prev => ({
+        ...prev,
+        [metricId]: { month, value }
+      }));
+    }
+  }, []);
+
+  const handleMouseLeave = useCallback((metricId: string) => {
+    setHoveredMonth(prev => {
+      const newState = { ...prev };
+      delete newState[metricId];
+      return newState;
+    });
+  }, []);
+
+  if (loading) return <LoadingState />;
+  if (error) return <div className="min-w-[292px] w-full p-4 text-center text-gray-500">{error}</div>;
+  if (!statsData.length) return <div className="min-w-[292px] w-full p-4 text-center text-gray-500">No data available</div>;
+
+  return (
+    <>
+      {statsData.map((stat) => {
+        // Find the metric info to get the category
+        const metricInfo = metrics.find(m => m.id === stat.id);
+        const isRevenueMetric = metricInfo?.category === 'revenue';
+        
+        return (
+        <MetricCard
+          key={stat.id}
+          title=""
+          metric={<></>}
+          rounded="lg"
+          className={cn(
+            "@container text-[15px]",
+            "min-w-[260px] w-full max-w-full flex-1 p-0 overflow-hidden",
+            // Apply color scheme based on category
+            isRevenueMetric 
+              ? "bg-amber-50/60" 
+              : "bg-blue-50/60",
+            className
+          )}
+        >
+          <div className="p-4 pb-2">
+            <div className="flex flex-col gap-1">
+              <div className="flex items-baseline gap-1">
+                <Text className="text-m font-medium text-gray-700">{stat.title}</Text>
+                <Text className="text-xs text-gray-400">({stat.unit})</Text>
+              </div>
+              <Text className="text-xs text-gray-500">
+                {stat.monthName}
+              </Text>
+            </div>
+          </div>
+          
+          {/* Legend for BMU data only (no individual data) */}
+          <div className="flex items-center gap-3 text-2xs px-4 pb-2">
+            <div className="flex items-center gap-1">
+            </div>
+          </div>
+          
+          <div 
+            className="h-32 w-full bg-gray-50/50 transition-colors duration-200 hover:bg-gray-100/60"
+            onMouseLeave={() => handleMouseLeave(stat.id)}
+          >
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart 
+                data={stat.chart}
+                margin={{ top: 15, right: 8, bottom: 0, left: 8 }}
+                barGap={2}
+                onMouseMove={(state) => handleMouseMove(state, stat.id)}
+                onClick={(data) => handleBarClick(data, stat.id)}
+                className="[&_.recharts-cartesian-grid]:hidden"
+              >
+                <XAxis 
+                  dataKey="month" 
+                  hide={false}
+                  tick={(props) => {
+                    const { x, y, payload } = props;
+                    return (
+                      <g transform={`translate(${x},${y})`}>
+                        <text
+                          x={0}
+                          y={0}
+                          dy={16}
+                          textAnchor="middle"
+                          fill="#666"
+                          fontSize={10}
+                        >
+                          {payload.value}
+                        </text>
+                      </g>
+                    );
+                  }}
+                  textAnchor="middle"
+                  height={30}
+                  interval={0}
+                />
+                <YAxis 
+                  hide={false}
+                  domain={[0, (dataMax: number) => dataMax * 1.1]}
+                  tick={{ fontSize: 10, fill: '#64748b' }}
+                  tickLine={{ stroke: '#cbd5e1' }}
+                  axisLine={{ stroke: '#cbd5e1', strokeWidth: 1 }}
+                  width={25}
+                  tickCount={4}
+                  tickFormatter={(value) => {
+                    if (value >= 1000) {
+                      return `${(value / 1000).toFixed(0)}k`;
+                    }
+                    return value.toFixed(0);
+                  }}
+                />
+                <Tooltip 
+                  content={<></>}
+                  isAnimationActive={false}
+                />
+                {/* BMU Data Bars only (no individual data) */}
+                <Bar
+                  dataKey="value"
+                  name={effectiveBMU}
+                  fill={isRevenueMetric ? "rgba(245, 158, 11, 0.5)" : "rgba(59, 130, 246, 0.5)"}
+                  radius={[2, 2, 0, 0]}
+                  maxBarSize={8}
+                  minPointSize={0}
+                  activeBar={{ stroke: '#333', strokeWidth: 1 }}
+                  label={{
+                    position: 'top',
+                    fontSize: 8,
+                    fill: '#666',
+                    formatter: (value: number) => Math.round(value).toLocaleString()
+                  }}
+                />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </MetricCard>
+        );
+      })}
+    </>
+  );
+}
+
+export default function FileStatsAIA({ className, lang, bmu }: FileStatsAIAType) {
+  const {
+    sliderEl,
+    sliderPrevBtn,
+    sliderNextBtn,
+    scrollToTheRight,
+    scrollToTheLeft,
+  } = useScrollableSlider();
+
+  return (
+    <div className={cn("relative flex w-auto items-center overflow-hidden", className)}>
+      <Button
+        title="Prev"
+        variant="text"
+        ref={sliderPrevBtn}
+        onClick={() => scrollToTheLeft()}
+        className="!absolute -left-1 top-0 z-10 !h-full w-20 !justify-start rounded-none bg-gradient-to-r from-gray-0 via-gray-0/70 to-transparent px-0 ps-1 text-gray-500 hover:text-gray-900 3xl:hidden dark:from-gray-50 dark:via-gray-50/70"
+      >
+        <PiCaretLeftBold className="h-5 w-5" />
+      </Button>
+      <div className="w-full overflow-hidden">
+        <div
+          ref={sliderEl}
+          className="custom-scrollbar-x grid grid-flow-col gap-5 overflow-x-auto scroll-smooth 2xl:gap-6 3xl:gap-8"
+        >
+          <FileStatGridAIA className="min-w-[292px]" lang={lang} bmu={bmu} />
+        </div>
+      </div>
+      <Button
+        title="Next"
+        variant="text"
+        ref={sliderNextBtn}
+        onClick={() => scrollToTheRight()}
+        className="!absolute right-0 top-0 z-10 !h-full w-20 !justify-end rounded-none bg-gradient-to-l from-gray-0 via-gray-0/70 to-transparent px-0 text-gray-500 hover:text-gray-900 3xl:hidden dark:from-gray-50 dark:via-gray-50/70"
+      >
+        <PiCaretRightBold className="h-5 w-5" />
+      </Button>
+    </div>
+  );
+}

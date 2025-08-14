@@ -325,6 +325,7 @@ export default function CatchMetricsChart({
   const {
     userBMU,
     isCiaUser,
+    isAiaUser,
     isWbciaUser,
     isAdmin,
     getAccessibleBMUs,
@@ -633,8 +634,10 @@ export default function CatchMetricsChart({
         {}
       );
       
-      // Add special colors for averages - only include historical_average for CIA users
-      newSiteColors["average"] = "#64748b"; // Standard average color
+      // Add special colors for averages - only include average for multi-BMU users, historical_average only for CIA users
+      if (!(isCiaUser || isAiaUser)) {
+        newSiteColors["average"] = "#64748b"; // Standard average color - only for multi-BMU users
+      }
       if (isCiaUser) {
         newSiteColors["historical_average"] = "#94a3b8"; // Only add for CIA users
       }
@@ -662,12 +665,14 @@ export default function CatchMetricsChart({
         });
       }
       
-      // Always show average lines
+      // Show average lines only for multi-BMU users
+      if (!(isCiaUser || isAiaUser)) {
         initialVisibility["average"] = { opacity: 1 };
+      }
       
       // Only add historical_average visibility for CIA users
       if (isCiaUser) {
-      initialVisibility["historical_average"] = { opacity: 1 };
+        initialVisibility["historical_average"] = { opacity: 1 };
       }
       
       // Add individual fisher data to visibility state if applicable
@@ -738,20 +743,23 @@ export default function CatchMetricsChart({
       });
 
       // Calculate average value for each date point
-      Object.keys(groupedData).forEach(dateKey => {
-        const dateData = groupedData[dateKey];
-        const values = Object.entries(dateData)
-          .filter(([key, value]) => key !== "date" && value !== undefined)
-          .map(([_, value]) => value as number);
-        
-        if (values.length > 0) {
-          const avg = values.reduce((sum, val) => sum + val, 0) / values.length;
-          groupedData[dateKey].average = parseFloat(avg.toFixed(2));
-        } else {
-          // Set to undefined instead of 0 to create a gap in the chart
-          groupedData[dateKey].average = undefined;
-        }
-      });
+      // For CIA and AIA users, don't calculate multi-BMU average since they only have access to one BMU
+      if (!(isCiaUser || isAiaUser)) {
+        Object.keys(groupedData).forEach(dateKey => {
+          const dateData = groupedData[dateKey];
+          const values = Object.entries(dateData)
+            .filter(([key, value]) => key !== "date" && value !== undefined)
+            .map(([_, value]) => value as number);
+          
+          if (values.length > 0) {
+            const avg = values.reduce((sum, val) => sum + val, 0) / values.length;
+            groupedData[dateKey].average = parseFloat(avg.toFixed(2));
+          } else {
+            // Set to undefined instead of 0 to create a gap in the chart
+            groupedData[dateKey].average = undefined;
+          }
+        });
+      }
 
       const processedData = Object.values(groupedData).sort(
         (a, b) => a.date - b.date
@@ -787,7 +795,7 @@ export default function CatchMetricsChart({
     const needsRecalculation = 
       recentData.length === 0 || 
       annualData.length === 0 || 
-      (isCiaUser && ciaComparisonData.length === 0) ||
+      ((isCiaUser || isAiaUser) && ciaComparisonData.length === 0) ||
       previousMetricRef.current !== selectedMetric;
     
     if (!needsRecalculation) return;
@@ -799,15 +807,15 @@ export default function CatchMetricsChart({
     } else if (canCompareWithOthers) {
       // For other non-CIA users, use standard comparison
       setRecentData(getRecentData(chartData, false) as ChartDataPoint[]);
-    } else if (isCiaUser && effectiveBMU) {
-      // For CIA users, create comparison against historical average if they have a BMU
+    } else if ((isCiaUser || isAiaUser) && effectiveBMU) {
+      // For CIA and AIA users, create comparison against historical average if they have a BMU
       setCiaComparisonData(prepareDataForCiaComparison(chartData, effectiveBMU, selectedMetric));
     }
     
     // Annual data is the same for all users
     setAnnualData(getAnnualData(chartData, !canCompareWithOthers, siteColors));
     
-  }, [chartData, canCompareWithOthers, isCiaUser, isWbciaUser, effectiveBMU, siteColors, selectedMetric, recentData.length, annualData.length, ciaComparisonData.length]);
+  }, [chartData, canCompareWithOthers, isCiaUser, isAiaUser, isWbciaUser, effectiveBMU, siteColors, selectedMetric, recentData.length, annualData.length, ciaComparisonData.length]);
 
   // Find the selected metric option
   const selectedMetricOption = METRIC_OPTIONS.find(
@@ -816,8 +824,8 @@ export default function CatchMetricsChart({
 
   // Get appropriate tab title and description based on user role
   const getTabTitle = (tab: string): string => {
-    // Special titles for CIA and WBCIA users
-    if (isCiaUser || isWbciaUser) {
+    // Special titles for CIA, AIA and WBCIA users
+    if (isCiaUser || isAiaUser || isWbciaUser) {
       switch(tab) {
         case 'trends':
         case 'standard':
@@ -871,8 +879,8 @@ export default function CatchMetricsChart({
   };
   
   const getTabDescription = (tab: string): string => {
-    // Special descriptions for CIA and WBCIA users
-    if (isCiaUser || isWbciaUser) {
+    // Special descriptions for CIA, AIA and WBCIA users
+    if (isCiaUser || isAiaUser || isWbciaUser) {
       switch(tab) {
         case 'trends':
         case 'standard':
@@ -997,19 +1005,29 @@ export default function CatchMetricsChart({
           <SimpleBar>
             <TrendsChart
               chartData={chartData.map(point => {
-                // Create a new object without the historical_average property for non-CIA users
-                if (!isCiaUser) {
+                // Create a new object without average for AIA users and historical_average for non-CIA users
+                if (isAiaUser) {
+                  const { average, historical_average, ...rest } = point;
+                  return rest;
+                } else if (!isCiaUser) {
                   const { historical_average, ...rest } = point;
                   return rest;
                 }
                 return point;
               })}
               selectedMetricOption={selectedMetricOption}
-              siteColors={isCiaUser ? siteColors : Object.fromEntries(
-                Object.entries(siteColors).filter(([key]) => key !== 'historical_average')
-              )}
+              siteColors={(() => {
+                if (isCiaUser) return siteColors;
+                if (isAiaUser) return Object.fromEntries(
+                  Object.entries(siteColors).filter(([key]) => key !== 'historical_average' && key !== 'average')
+                );
+                return Object.fromEntries(
+                  Object.entries(siteColors).filter(([key]) => key !== 'historical_average')
+                );
+              })()}
               visibilityState={visibilityState}
               isCiaUser={!!isCiaUser}
+              isAiaUser={!!isAiaUser}
               isTablet={isTablet}
               fiveYearMarks={fiveYearMarks}
               selectedMetric={selectedMetric}
@@ -1022,6 +1040,7 @@ export default function CatchMetricsChart({
                   siteColors={siteColors}
                   visibilityState={visibilityState}
                   isCiaUser={!!isCiaUser}
+                  isAiaUser={!!isAiaUser}
                   localActiveTab={localActiveTab}
                 />
               )}
@@ -1036,8 +1055,11 @@ export default function CatchMetricsChart({
               // Standard comparison chart for users who can see multiple BMUs
             <ComparisonChart
               chartData={recentData.map(point => {
-                // Create a new object without the historical_average property for non-CIA users
-                if (!isCiaUser) {
+                // Create a new object without average for AIA users and historical_average for non-CIA users
+                if (isAiaUser) {
+                  const { average, historical_average, ...rest } = point;
+                  return rest;
+                } else if (!isCiaUser) {
                   const { historical_average, ...rest } = point;
                   return rest;
                 }
@@ -1045,9 +1067,15 @@ export default function CatchMetricsChart({
               })}
               originalChartData={chartData}
               selectedMetricOption={selectedMetricOption}
-              siteColors={isCiaUser ? siteColors : Object.fromEntries(
-                Object.entries(siteColors).filter(([key]) => key !== 'historical_average')
-              )}
+              siteColors={(() => {
+                if (isCiaUser) return siteColors;
+                if (isAiaUser) return Object.fromEntries(
+                  Object.entries(siteColors).filter(([key]) => key !== 'historical_average' && key !== 'average')
+                );
+                return Object.fromEntries(
+                  Object.entries(siteColors).filter(([key]) => key !== 'historical_average')
+                );
+              })()}
               visibilityState={visibilityState}
               isTablet={isTablet}
               selectedMetric={selectedMetric}
@@ -1062,6 +1090,7 @@ export default function CatchMetricsChart({
                   siteColors={siteColors}
                   visibilityState={visibilityState}
                   isCiaUser={!!isCiaUser}
+                  isAiaUser={!!isAiaUser}
                   localActiveTab={localActiveTab}
                 />
               )}
@@ -1088,6 +1117,7 @@ export default function CatchMetricsChart({
                     siteColors={siteColors}
                     visibilityState={visibilityState}
                     isCiaUser={!!isCiaUser}
+                    isAiaUser={!!isAiaUser}
                     localActiveTab={localActiveTab}
                     historicalMode={true}
                   />
@@ -1109,15 +1139,25 @@ export default function CatchMetricsChart({
                   filtered = annualData.filter(point => new Date(point.date).getFullYear() === latestYear);
                 }
                 return filtered.map(point => {
-                  // Always filter out historical_average for annual chart
-                  const { historical_average, ...rest } = point;
-                  return rest;
+                  // Always filter out historical_average for annual chart, and average for AIA users
+                  if (isAiaUser) {
+                    const { average, historical_average, ...rest } = point;
+                    return rest;
+                  } else {
+                    const { historical_average, ...rest } = point;
+                    return rest;
+                  }
                 });
               })()}
               selectedMetricOption={selectedMetricOption}
-              siteColors={Object.fromEntries(
-                Object.entries(siteColors).filter(([key]) => key !== 'historical_average')
-              )}
+              siteColors={(() => {
+                if (isAiaUser) return Object.fromEntries(
+                  Object.entries(siteColors).filter(([key]) => key !== 'historical_average' && key !== 'average')
+                );
+                return Object.fromEntries(
+                  Object.entries(siteColors).filter(([key]) => key !== 'historical_average')
+                );
+              })()}
               visibilityState={visibilityState}
               isCiaUser={!!isCiaUser}
               isTablet={isTablet}
@@ -1132,6 +1172,7 @@ export default function CatchMetricsChart({
                   siteColors={siteColors}
                   visibilityState={visibilityState}
                   isCiaUser={!!isCiaUser}
+                  isAiaUser={!!isAiaUser}
                   localActiveTab={localActiveTab}
                 />
               )}

@@ -6,6 +6,7 @@ interface CustomLegendProps {
   visibilityState: VisibilityState;
   handleLegendClick: (site: string) => void;
   isCiaUser: boolean;
+  isAiaUser?: boolean;
   localActiveTab: string;
 }
 
@@ -15,12 +16,13 @@ export default function CustomLegend({
   visibilityState,
   handleLegendClick,
   isCiaUser,
+  isAiaUser = false,
   localActiveTab,
 }: CustomLegendProps) {
   // Filter out the auto-generated average entry from the payload
   // This prevents duplicate average entries in the legend
   const customPayload = payload?.filter((entry: any) => entry.dataKey !== "average");
-  const showAverage = !isCiaUser && (localActiveTab === 'trends' || localActiveTab === 'standard');
+  const showAverage = !isCiaUser && !isAiaUser && (localActiveTab === 'trends' || localActiveTab === 'standard');
   
   // Helper function to safely get the site key from an entry
   const getSiteKey = (entry: any): string => {

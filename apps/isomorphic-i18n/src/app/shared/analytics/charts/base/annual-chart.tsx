@@ -22,6 +22,7 @@ interface AnnualChartProps {
   siteColors: Record<string, string>;
   visibilityState: VisibilityState;
   isCiaUser: boolean;
+  isAiaUser?: boolean;
   isTablet: boolean;
   CustomLegend: (props: any) => React.ReactElement;
   selectedMetric?: string;
@@ -36,6 +37,7 @@ export default function AnnualChart({
   siteColors,
   visibilityState,
   isCiaUser,
+  isAiaUser,
   isTablet,
   CustomLegend,
   selectedMetric,
