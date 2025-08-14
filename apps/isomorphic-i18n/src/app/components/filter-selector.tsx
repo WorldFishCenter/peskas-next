@@ -86,7 +86,7 @@ export const FilterSelector = () => {
   const [dropdown, setBmusDropdown] = useAtom(dropdownAtom);
   const [bmus, setBmus] = useAtom(bmusAtom);
   const [viewMode, setViewMode] = useAtom(viewModeAtom);
-  const { isAdmin, adminReferenceBmu, setAdminReferenceBmu } = useUserPermissions();
+  const { isAdmin, adminReferenceBmu, setAdminReferenceBmu, isAiaUser, isCiaUser } = useUserPermissions();
 
   useEffect(() => {
     if (status === 'authenticated') {
@@ -163,6 +163,11 @@ export const FilterSelector = () => {
       setBmus(regionRepresentatives);
     }
   };
+
+  // Don't render filter selector UI for AIA and CIA users as they only have access to a single BMU
+  if (isAiaUser || isCiaUser) {
+    return null;
+  }
 
   return (
     <Popover isOpen={isOpen} setIsOpen={setIsOpen} placement="bottom-end">
