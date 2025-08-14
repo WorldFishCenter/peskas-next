@@ -80,6 +80,7 @@
     "lucide-react": "^0.471.1",
     "mapbox-gl": "^3.5.2",
     "maplibre-gl": "^4.5.0",
+    "mongoose": "^8.7.1",
     "next": "14.2.3",
     "next-auth": "^4.24.11",
     "next-themes": "^0.3.0",
