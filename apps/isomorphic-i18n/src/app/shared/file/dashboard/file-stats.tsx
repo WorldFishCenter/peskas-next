@@ -1,6 +1,6 @@
 "use client";
 
-import { BarChart, Bar, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { BarChart, Bar, ResponsiveContainer, Tooltip, XAxis, YAxis, ReferenceLine } from "recharts";
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useAtom } from "jotai";
 import { Button, Text } from "rizzui";
@@ -382,7 +382,7 @@ className={cn(
                 />
                 <YAxis 
                   hide={false}
-                  domain={[0, (dataMax: number) => dataMax * 1.1]}
+                  domain={['dataMin', 'dataMax']}
                   tick={{ fontSize: 10, fill: '#64748b' }}
                   tickLine={{ stroke: '#cbd5e1' }}
                   axisLine={{ stroke: '#cbd5e1', strokeWidth: 1 }}
@@ -399,6 +399,7 @@ className={cn(
                   content={<></>}
                   isAnimationActive={false}
                 />
+                <ReferenceLine y={0} stroke="#666" strokeDasharray="2 2" strokeWidth={1} />
                 {/* BMU Data Bars */}
                 <Bar
                   dataKey="value"

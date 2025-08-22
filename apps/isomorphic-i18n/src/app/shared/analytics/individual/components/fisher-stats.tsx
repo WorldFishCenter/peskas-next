@@ -1,7 +1,7 @@
 "use client";
 
 import { Text } from "rizzui";
-import { BarChart, Bar, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { BarChart, Bar, ResponsiveContainer, Tooltip, XAxis, YAxis, ReferenceLine } from "recharts";
 import { useTranslation } from "@/app/i18n/client";
 import { useIndividualData } from "../hooks/use-individual-data";
 import useUserPermissions from "../../core/hooks/use-user-permissions";
@@ -376,7 +376,7 @@ export default function IndividualFisherStats({
                   />
                   <YAxis 
                     hide={false}
-                    domain={[0, (dataMax: number) => dataMax * 1.1]}
+                    domain={['dataMin', 'dataMax']}
                     tick={{ fontSize: 10, fill: '#64748b' }}
                     tickLine={{ stroke: '#cbd5e1' }}
                     axisLine={{ stroke: '#cbd5e1', strokeWidth: 1 }}
@@ -393,6 +393,7 @@ export default function IndividualFisherStats({
                     content={<></>}
                     isAnimationActive={false}
                   />
+                  <ReferenceLine y={0} stroke="#666" strokeDasharray="2 2" strokeWidth={1} />
                   {/* Individual Fisher Data Bars */}
                   <Bar
                     dataKey="value"

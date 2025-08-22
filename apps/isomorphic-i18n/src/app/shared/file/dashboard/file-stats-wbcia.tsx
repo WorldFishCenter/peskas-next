@@ -1,6 +1,6 @@
 "use client";
 
-import { BarChart, Bar, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { BarChart, Bar, ResponsiveContainer, Tooltip, XAxis, YAxis, ReferenceLine, Cell } from "recharts";
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useAtom } from "jotai";
 import { Button, Text } from "rizzui";
@@ -382,6 +382,18 @@ export function FileStatWBCIAGrid({ className, lang }: { className?: string; lan
         const metricInfo = metrics.find(m => m.id === stat.id);
         const isRevenueMetric = metricInfo?.category === 'revenue';
         
+        // Process chart data to add color information
+        const chartDataWithColors = stat.chart.map(point => ({
+          ...point,
+          barColor: point.isIndividual 
+            ? "#F79F79" 
+            : point.bmu === userBMU 
+              ? "#fc3468" 
+              : isRevenueMetric 
+                ? "rgba(245, 158, 11, 0.5)" 
+                : "rgba(59, 130, 246, 0.5)"
+        }));
+
         return (
         <MetricCard
           key={stat.id}
@@ -436,7 +448,7 @@ export function FileStatWBCIAGrid({ className, lang }: { className?: string; lan
           >
             <ResponsiveContainer width="100%" height="100%">
               <BarChart 
-                data={stat.chart}
+                data={chartDataWithColors}
                 margin={{ top: 15, right: 8, bottom: 25, left: 8 }}
                 barGap={2}
                 onMouseMove={(state) => handleMouseMove(state, stat.id)}
@@ -473,7 +485,7 @@ export function FileStatWBCIAGrid({ className, lang }: { className?: string; lan
                 />
                 <YAxis 
                   hide={false}
-                  domain={[0, (dataMax: number) => dataMax * 1.1]}
+                  domain={['dataMin', 'dataMax']}
                   tick={{ fontSize: 10, fill: '#64748b' }}
                   tickLine={{ stroke: '#cbd5e1' }}
                   axisLine={{ stroke: '#cbd5e1', strokeWidth: 1 }}
@@ -490,21 +502,24 @@ export function FileStatWBCIAGrid({ className, lang }: { className?: string; lan
                   content={<></>}
                   isAnimationActive={false}
                 />
+                <ReferenceLine y={0} stroke="#666" strokeDasharray="2 2" strokeWidth={1} />
                 <Bar
                   dataKey="value"
-                  fill="rgba(178, 216, 216, 0.75)"
                   radius={[2, 2, 0, 0]}
                   maxBarSize={8}
                   minPointSize={0}
                   activeBar={{ stroke: '#333', strokeWidth: 1 }}
-                  shape={(props: any) => CustomBar(props, metricInfo?.category)}
                   label={{
                     position: 'top',
                     fontSize: 8,
                     fill: '#666',
                     formatter: (value: number) => Math.round(value).toLocaleString()
                   }}
-                />
+                >
+                  {chartDataWithColors.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.barColor} />
+                  ))}
+                </Bar>
               </BarChart>
             </ResponsiveContainer>
           </div>
