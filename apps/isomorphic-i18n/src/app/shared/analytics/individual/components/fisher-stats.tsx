@@ -376,7 +376,7 @@ export default function IndividualFisherStats({
                   />
                   <YAxis 
                     hide={false}
-                    domain={['dataMin', 'dataMax']}
+                    domain={[(dataMin: number) => Math.min(0, dataMin), (dataMax: number) => Math.max(0, dataMax)]}
                     tick={{ fontSize: 10, fill: '#64748b' }}
                     tickLine={{ stroke: '#cbd5e1' }}
                     axisLine={{ stroke: '#cbd5e1', strokeWidth: 1 }}

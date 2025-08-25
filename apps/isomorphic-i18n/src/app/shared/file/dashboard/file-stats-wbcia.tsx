@@ -394,6 +394,23 @@ export function FileStatWBCIAGrid({ className, lang }: { className?: string; lan
                 : "rgba(59, 130, 246, 0.5)"
         }));
 
+        // Calculate ticks that always include 0
+        const calculateTicks = () => {
+          const values = chartDataWithColors.map(d => d.value).filter(v => v !== null) as number[];
+          if (values.length === 0) return [0];
+          const min = Math.min(0, ...values);
+          const max = Math.max(0, ...values);
+          const range = max - min;
+          if (range === 0) return [0];
+          const step = Math.ceil(range / 3);
+          const ticks = [];
+          for (let i = min; i <= max; i += step) {
+            ticks.push(i);
+          }
+          if (!ticks.includes(0)) ticks.push(0);
+          return ticks.sort((a, b) => a - b);
+        };
+
         return (
         <MetricCard
           key={stat.id}
@@ -485,12 +502,13 @@ export function FileStatWBCIAGrid({ className, lang }: { className?: string; lan
                 />
                 <YAxis 
                   hide={false}
-                  domain={['dataMin', 'dataMax']}
+                  domain={[(dataMin: number) => Math.min(0, dataMin), (dataMax: number) => Math.max(0, dataMax)]}
                   tick={{ fontSize: 10, fill: '#64748b' }}
                   tickLine={{ stroke: '#cbd5e1' }}
                   axisLine={{ stroke: '#cbd5e1', strokeWidth: 1 }}
                   width={25}
-                  tickCount={4}
+                  type="number"
+                  ticks={calculateTicks()}
                   tickFormatter={(value) => {
                     if (value >= 1000) {
                       return `${(value / 1000).toFixed(0)}k`;
