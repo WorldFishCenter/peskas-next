@@ -46,10 +46,10 @@ export default async function RootLayout({
         className={cn(inter.variable, lexendDeca.variable, "font-inter")}
       >
         <GoogleAnalytics />
-        <UserAnalyticsTracker />
         <GlobalFilterProvider>
           <TRPCReactProvider>
             <AuthProvider session={session}>
+              <UserAnalyticsTracker />
               <ThemeProvider>
                 <NextProgress />
                 <LanguageInitializer lang={lang} />
