@@ -56,27 +56,44 @@ export default function SignInForm({ lang }: { lang?: string }) {
       
       // Track successful login in Google Analytics with user role data
       if (typeof window !== 'undefined' && window.gtag) {
-        window.gtag('event', 'login', {
-          method: 'credentials',
-          event_category: 'user_authentication',
-          event_label: 'successful_login',
-          user_id: sessionData?.user?.id || 'anonymous',
-          custom_parameter: {
-            user_roles: userRoles,
-            user_permissions: userPermissions,
-            user_bmu: userBmu,
-            has_fisher_id: hasFisherId
-          }
-        });
-        
-        // Set user properties for ongoing session tracking
+        // Set user ID and properties for all tracking
         window.gtag('config', 'G-8VBFKQ4E01', {
           user_id: sessionData?.user?.id,
+          user_properties: {
+            user_roles: userRoles,
+            user_bmu: userBmu,
+            user_permissions: userPermissions,
+            has_fisher_id: hasFisherId
+          },
           custom_map: {
             custom_dimension_1: 'user_roles',
             custom_dimension_2: 'user_bmu',
             custom_dimension_3: 'user_permissions'
           }
+        });
+
+        // Track login event with individual parameters
+        window.gtag('event', 'login', {
+          method: 'credentials',
+          event_category: 'user_authentication',
+          event_label: 'successful_login',
+          user_id: sessionData?.user?.id || 'anonymous',
+          user_roles: userRoles,
+          user_permissions: userPermissions,
+          user_bmu: userBmu,
+          has_fisher_id: hasFisherId,
+          user_groups_count: userGroups.length
+        });
+
+        // Track session start with user data
+        window.gtag('event', 'session_start', {
+          event_category: 'user_engagement',
+          user_id: sessionData?.user?.id,
+          user_roles: userRoles,
+          user_permissions: userPermissions,
+          user_bmu: userBmu,
+          has_fisher_id: hasFisherId,
+          user_groups_count: userGroups.length
         });
       }
       
