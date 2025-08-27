@@ -180,7 +180,25 @@ function DropdownMenu() {
         <Button
           className="h-auto w-full justify-start p-0 font-medium text-gray-700 outline-none focus-within:text-gray-600 hover:text-gray-900 focus-visible:ring-0"
           variant="text"
-          onClick={() => signOut()}
+          onClick={() => {
+            // Track logout in Google Analytics with role information
+            if (typeof window !== 'undefined' && window.gtag) {
+              const userGroups = session?.user?.groups || [];
+              const userRoles = userGroups.map((group: any) => group.name).join(', ') || 'no_role';
+              const userBmu = session?.user?.userBmu?.BMU || 'no_bmu';
+              
+              window.gtag('event', 'logout', {
+                event_category: 'user_authentication',
+                event_label: 'user_logout',
+                user_id: session?.user?.id || 'anonymous',
+                user_roles: userRoles,
+                user_bmu: userBmu,
+                has_fisher_id: session?.user?.fisherId ? 'yes' : 'no'
+              });
+            }
+            
+            signOut();
+          }}
         >
           {t('text-sign-out')}
         </Button>
