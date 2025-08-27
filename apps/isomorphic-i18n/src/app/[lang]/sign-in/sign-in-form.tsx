@@ -41,6 +41,45 @@ export default function SignInForm({ lang }: { lang?: string }) {
     });
 
     if (resp?.ok) {
+      // Get session data to track user roles
+      const sessionResponse = await fetch('/api/auth/session');
+      const sessionData = await sessionResponse.json();
+      
+      // Extract user role information
+      const userGroups = sessionData?.user?.groups || [];
+      const userRoles = userGroups.map((group: any) => group.name).join(', ') || 'no_role';
+      const userPermissions = userGroups.flatMap((group: any) => 
+        group.permission_id?.domain?.map((d: any) => d.resource) || []
+      ).join(', ') || 'no_permissions';
+      const userBmu = sessionData?.user?.userBmu?.BMU || 'no_bmu';
+      const hasFisherId = sessionData?.user?.fisherId ? 'yes' : 'no';
+      
+      // Track successful login in Google Analytics with user role data
+      if (typeof window !== 'undefined' && window.gtag) {
+        window.gtag('event', 'login', {
+          method: 'credentials',
+          event_category: 'user_authentication',
+          event_label: 'successful_login',
+          user_id: sessionData?.user?.id || 'anonymous',
+          custom_parameter: {
+            user_roles: userRoles,
+            user_permissions: userPermissions,
+            user_bmu: userBmu,
+            has_fisher_id: hasFisherId
+          }
+        });
+        
+        // Set user properties for ongoing session tracking
+        window.gtag('config', 'G-8VBFKQ4E01', {
+          user_id: sessionData?.user?.id,
+          custom_map: {
+            custom_dimension_1: 'user_roles',
+            custom_dimension_2: 'user_bmu',
+            custom_dimension_3: 'user_permissions'
+          }
+        });
+      }
+      
       setBmus(RESET);
       setBmusDropdown(RESET);
       router.refresh();
@@ -48,9 +87,27 @@ export default function SignInForm({ lang }: { lang?: string }) {
       !resp?.ok &&
       resp?.error === "No password is set for this user."
     ) {
+      // Track failed login attempt
+      if (typeof window !== 'undefined' && window.gtag) {
+        window.gtag('event', 'login_failed', {
+          method: 'credentials',
+          event_category: 'user_authentication',
+          event_label: 'no_password_set',
+          error_type: 'no_password'
+        });
+      }
       
       setLoginErr(resp?.error);
     } else if (!resp?.ok && resp?.error) {
+      // Track other login failures
+      if (typeof window !== 'undefined' && window.gtag) {
+        window.gtag('event', 'login_failed', {
+          method: 'credentials',
+          event_category: 'user_authentication',
+          event_label: 'authentication_failed',
+          error_type: 'invalid_credentials'
+        });
+      }
       
       setLoginErr(resp?.error);
     }

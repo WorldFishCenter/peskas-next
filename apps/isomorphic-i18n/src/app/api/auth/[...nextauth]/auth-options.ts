@@ -44,7 +44,7 @@ export const authOptions: NextAuthOptions = {
           }
         : {};
 
-      return {
+      const sessionData = {
         ...session,
         ...expiry,
         user: {
@@ -58,6 +58,43 @@ export const authOptions: NextAuthOptions = {
           fisherId: token.fisherId as string | undefined,
         },
       };
+
+      // Track authenticated user session in Google Analytics
+      if (typeof window !== 'undefined' && window.gtag && sessionData.user?.id) {
+        const userGroups = (sessionData.user.groups as any[]) || [];
+        const userRoles = userGroups.map((group: any) => group.name).join(', ') || 'no_role';
+        const userPermissions = userGroups.flatMap((group: any) => 
+          group.permission_id?.domain?.map((d: any) => d.resource) || []
+        ).join(', ') || 'no_permissions';
+        const userBmu = (sessionData.user.userBmu as any)?.BMU || 'no_bmu';
+        
+        window.gtag('config', 'G-8VBFKQ4E01', {
+          user_id: sessionData.user.id,
+          user_properties: {
+            user_roles: userRoles,
+            user_bmu: userBmu,
+            user_permissions: userPermissions,
+            has_fisher_id: sessionData.user.fisherId ? 'yes' : 'no'
+          },
+          custom_map: {
+            custom_dimension_1: 'user_roles',
+            custom_dimension_2: 'user_bmu',
+            custom_dimension_3: 'user_permissions'
+          }
+        });
+        
+        // Track session start with role information
+        window.gtag('event', 'session_start', {
+          event_category: 'user_engagement',
+          user_id: sessionData.user.id,
+          user_roles: userRoles,
+          user_permissions: userPermissions,
+          user_groups_count: userGroups.length,
+          user_bmu: userBmu
+        });
+      }
+
+      return sessionData;
     },
     async redirect({ baseUrl }) {
       return baseUrl;

@@ -20,6 +20,7 @@ declare module "next-auth" {
   interface Session extends DefaultSession {
     user:
       | (DefaultSession["user"] & {
+          id?: string;
           groups: TGroup[];
           bmus: TBmu[];
           userBmu?: SerializedBmu;
