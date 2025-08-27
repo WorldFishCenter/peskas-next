@@ -15,6 +15,7 @@ import { GlobalFilterProvider } from "../components/global-filter-provider";
 import { TRPCReactProvider } from "@/trpc/react";
 import LanguageInitializer from "../i18n/language-initializer";
 import GoogleAnalytics from "../_components/google-analytics";
+import UserAnalyticsTracker from "../_components/user-analytics-tracker";
 import ModalSwitcher from "@/app/_components/modal/modal-switcher";
 
 const NextProgress = dynamic(() => import("@components/next-progress"), {
@@ -48,6 +49,7 @@ export default async function RootLayout({
         <GlobalFilterProvider>
           <TRPCReactProvider>
             <AuthProvider session={session}>
+              <UserAnalyticsTracker />
               <ThemeProvider>
                 <NextProgress />
                 <LanguageInitializer lang={lang} />
