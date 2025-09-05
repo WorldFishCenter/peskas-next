@@ -309,7 +309,7 @@ export default function GearHeatmap({
   const [selectedTimeRange] = useAtom(selectedTimeRangeAtom);
   const [siteColors, setSiteColors] = useState<Record<string, string>>({});
   const [visibilityState, setVisibilityState] = useState<VisibilityState>({});
-  const [activeTab, setActiveTab] = useState('distribution');
+  const [activeTab, setActiveTab] = useState('ranking');
   
   // Add refs to track initialization states
   const dataProcessed = useRef<boolean>(false);

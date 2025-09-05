@@ -133,17 +133,11 @@ export default function FileDashboard({ lang }: { lang?: string }) {
             </Collapse>
           </div>
         )} */}
-        
+
 
         <div className="grid grid-cols-12 gap-5 xl:gap-6">
           <div className="col-span-12 md:col-span-9">
-            <CatchMetricsChart
-              lang={lang}
-              selectedMetric={selectedMetric}
-              activeTab={activeTab}
-              onTabChange={setActiveTab}
-              bmu={effectiveBMU}
-            />
+            <GearTreemap lang={lang} bmu={effectiveBMU} />
           </div>
           <div className="col-span-12 md:col-span-3">
             <CatchRadarChart
@@ -152,7 +146,13 @@ export default function FileDashboard({ lang }: { lang?: string }) {
             />
           </div>
         </div>
-        <GearTreemap lang={lang} bmu={effectiveBMU} />
+        <CatchMetricsChart
+          lang={lang}
+          selectedMetric={selectedMetric}
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+          bmu={effectiveBMU}
+        />
         <BMURanking lang={lang} bmu={effectiveBMU} />
       </div>
     </div>

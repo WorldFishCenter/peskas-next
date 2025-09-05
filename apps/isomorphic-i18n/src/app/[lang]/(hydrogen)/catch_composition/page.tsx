@@ -45,19 +45,19 @@ export default function CatchCompositionPage({ params }: PageProps) {
   const [activeTab, setActiveTab] = useState("trends");
   const [isCollapseOpen, setIsCollapseOpen] = useState(false);
   const { t } = useTranslation("common");
-  
+
   // Use the same permission patterns as homepage
-  const { 
-    referenceBMU, 
-    isIiaUser, 
-    userFisherId, 
-    isWbciaUser, 
-    shouldShowUnifiedDashboard, 
+  const {
+    referenceBMU,
+    isIiaUser,
+    userFisherId,
+    isWbciaUser,
+    shouldShowUnifiedDashboard,
     isAdminFisher,
     shouldShowIndividualData,
-    canSeeBMUData 
+    canSeeBMUData
   } = useUserPermissions();
-  
+
   const [selectedTimeRange] = useAtom(selectedTimeRangeAtom);
   const [bmus] = useAtom(bmusAtom); // Get the BMU array for charts
 
@@ -105,7 +105,7 @@ export default function CatchCompositionPage({ params }: PageProps) {
   // Process individual data for pure IIA users (no BMU comparison)
   const individualOnlyData = useMemo(() => {
     if (!shouldShowIndividualData || !individualFishDistribution || canSeeBMUData) return null;
-    
+
     // For pure IIA users, create a simplified data structure with only their own data
     return individualFishDistribution.map(item => ({
       ...item,
@@ -174,9 +174,9 @@ export default function CatchCompositionPage({ params }: PageProps) {
   return (
     <div className="w-full">
       <div className="grid grid-cols-1 gap-5 xl:gap-6">
-        
+
         {/* Individual Fisher Performance Integration for Administrator-Fishers */}
-        
+
         {/* {shouldShowUnifiedDashboard && (
           <div className="bg-gradient-to-r from-blue-100 to-indigo-50 rounded-xl border border-blue-100 shadow-sm">
             <Collapse
@@ -266,19 +266,19 @@ export default function CatchCompositionPage({ params }: PageProps) {
         {canSeeBMUData && bmus.length > 0 && (
           <div className="grid grid-cols-12 gap-5 xl:gap-6">
             <div className="col-span-12">
-              <FishCompositionChart 
+              <FishCompositionComparison
                 lang={lang}
-                bmu={effectiveBMU} 
+                bmu={effectiveBMU}
+              />
+            </div>
+            <div className="col-span-12">
+              <FishCompositionChart
+                lang={lang}
+                bmu={effectiveBMU}
                 selectedCategory={selectedCategory}
                 onCategoryChange={setSelectedCategory}
                 activeTab={activeTab}
                 onTabChange={setActiveTab}
-              />
-            </div>
-            <div className="col-span-12">
-              <FishCompositionComparison
-                lang={lang}
-                bmu={effectiveBMU}
               />
             </div>
             <div className="col-span-12">
