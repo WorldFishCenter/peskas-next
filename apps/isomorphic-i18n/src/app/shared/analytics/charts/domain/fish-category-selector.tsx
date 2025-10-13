@@ -45,9 +45,9 @@ export default function FishCategorySelector({
             )}
           >
             <div className="flex items-center gap-2">
-              <div 
-                className="w-2.5 h-2.5 rounded-full" 
-                style={{ backgroundColor: selectedCategoryOption ? generateFishCategoryColor(selectedCategoryOption.label) : "#14b8a6" }}
+              <div
+                className="w-2.5 h-2.5 rounded-full"
+                style={{ backgroundColor: selectedCategoryOption ? generateFishCategoryColor(selectedCategoryOption.value) : "#14b8a6" }}
               />
               <span className="text-sm font-medium truncate">
                 {selectedCategoryOption?.label || t("text-fish-category")}
@@ -87,10 +87,10 @@ export default function FishCategorySelector({
                       : "text-gray-700 hover:bg-gray-50"
                   )}
                 >
-                  <div 
+                  <div
                     className="mr-2 w-2 h-2 rounded-full flex-shrink-0"
-                    style={{ 
-                      backgroundColor: generateFishCategoryColor(option.label)
+                    style={{
+                      backgroundColor: generateFishCategoryColor(option.value)
                     }}
                   />
                   <span className="truncate">{option.label}</span>

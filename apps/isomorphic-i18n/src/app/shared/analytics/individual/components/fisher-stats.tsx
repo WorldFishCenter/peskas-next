@@ -80,8 +80,8 @@ export default function IndividualFisherStats({
   
   // Define metrics similar to CIA file-stats.tsx with monthly API field mapping
   const metrics = useMemo(() => [
-    { id: 'cpue', field: 'mean_cpue', title: t('text-cpue'), unit: t('text-unit-kg-fisher-day'), category: 'catch' as const },
-    { id: 'rpue', field: 'mean_rpue', title: t('text-rpue'), unit: t('text-unit-kes-fisher-day'), category: 'revenue' as const },
+    { id: 'cpue', field: 'mean_cpue', title: t('text-metrics-catch-rate'), unit: t('text-unit-kg-fisher-day'), category: 'catch' as const },
+    { id: 'rpue', field: 'mean_rpue', title: t('text-metrics-fisher-revenue'), unit: t('text-unit-kes-fisher-day'), category: 'revenue' as const },
     { id: 'cost', field: 'mean_cost', title: t('text-costs'), unit: t('text-unit-kes-fisher-day'), category: 'revenue' as const },
     { id: 'profit', field: 'mean_profit', title: t('text-net-profit'), unit: t('text-unit-kes-fisher-day'), category: 'revenue' as const }
   ] as const, [t]);

@@ -14,6 +14,26 @@ import { generateFishCategoryColor, updateBmuColorRegistry } from "../../charts/
 import { filterDataByTimeRange } from "../../core/utils/time-range-filter";
 import cn from "@utils/class-names";
 
+// Fish category translation mapping
+const FISH_TRANSLATION_KEYS: Record<string, string> = {
+  "Octopus": "text-fish-octopus",
+  "Scavengers": "text-fish-scavengers",
+  "Rabbitfish": "text-fish-rabbitfish",
+  "Goatfish": "text-fish-goatfish",
+  "Rest Of Catch": "text-fish-rest-of-catch",
+  "Pelagics": "text-fish-pelagics",
+  "Shark": "text-fish-shark",
+  "Ray": "text-fish-ray",
+  "Parrotfish": "text-fish-parrotfish",
+  "Lobster": "text-fish-lobster",
+};
+
+// Helper function to translate fish category names
+const translateFishCategory = (category: string, t: (key: string) => string): string => {
+  const translationKey = FISH_TRANSLATION_KEYS[category];
+  return translationKey ? t(translationKey) : category;
+};
+
 // Define fish category display data
 interface CategoryDisplay {
   id: string;
@@ -60,10 +80,12 @@ export default function FishCompositionAreaChart({
 }: FishCompositionAreaChartProps & { chartData?: any[]; isIiaUser?: boolean }) {
   // Use client language instead of lang prop
   const clientLang = getClientLanguage();
-  const { t, i18n } = useTranslation(clientLang, "common");
-  
+
   // Track current language with state
   const [currentLang, setCurrentLang] = useState(clientLang);
+
+  // Use currentLang for translation so it updates when language changes
+  const { t, i18n } = useTranslation(currentLang, "common");
   
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -248,7 +270,8 @@ export default function FishCompositionAreaChart({
       // Convert to array of category objects with colors
       const categoryArray = Array.from(categories).map((category) => ({
         id: category.toLowerCase().replace(/\s+/g, '_'),
-        name: category,
+        name: translateFishCategory(category, t),
+        originalName: category, // Keep original English name for data lookup
         color: generateFishCategoryColor(category)
       }));
       
@@ -273,13 +296,13 @@ export default function FishCompositionAreaChart({
           // Calculate total for percentage calculation
           let totalCatch = 0;
           categoryArray.forEach(category => {
-            const value = monthlyData[monthKey][category.name] || 0;
+            const value = monthlyData[monthKey][category.originalName] || 0;
             totalCatch += value;
           });
-          
+
                      // Add absolute and percentage values for each category
            categoryArray.forEach(category => {
-             const absoluteValue = monthlyData[monthKey][category.name] || 0;
+             const absoluteValue = monthlyData[monthKey][category.originalName] || 0;
              dataPoint[`${category.id}_absolute`] = absoluteValue;
              // For percent mode, we use the raw values and let Recharts calculate percentages
              // with stackOffset="expand" - this will automatically convert to 0-100% stacking
@@ -297,7 +320,7 @@ export default function FishCompositionAreaChart({
       setError("Error processing data");
       setLoading(false);
     }
-  }, [fishDistributionData, isLoadingData, apiError, queryBmus, selectedTimeRange, clientLang]);
+  }, [fishDistributionData, isLoadingData, apiError, queryBmus, selectedTimeRange, clientLang, t]);
   
      // Custom tooltip for the chart
    const CustomTooltip = ({ active, payload, label }: any) => {
@@ -433,9 +456,6 @@ export default function FishCompositionAreaChart({
             <div className="w-full sm:w-auto">
               <div className="text-base font-medium text-gray-800">
                 {getTitle()}
-              </div>
-              <div className="text-xs text-gray-500 mt-1">
-                {getDescription()}
               </div>
             </div>
             {/* Mode Toggle Buttons - only show for non-IIA users */}

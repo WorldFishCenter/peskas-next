@@ -1078,5 +1078,15 @@
   "text-fish-composition-bar-description": "Monthly catch trends for the selected fish category compared with other BMU fishers",
   "text-fish-composition-individual-description": "Monthly catch trends for the selected fish category",
   "text-fish-composition-area-description": "Fish composition distribution over time compared with other BMU fishers",
-  "text-fish-composition-area-individual-description": "Fish composition distribution over time"
+  "text-fish-composition-area-individual-description": "Fish composition distribution over time",
+  "text-fish-octopus": "Octopus",
+  "text-fish-scavengers": "Scavengers",
+  "text-fish-rabbitfish": "Rabbitfish",
+  "text-fish-goatfish": "Goatfish",
+  "text-fish-rest-of-catch": "Rest Of Catch",
+  "text-fish-pelagics": "Pelagics",
+  "text-fish-shark": "Shark",
+  "text-fish-ray": "Ray",
+  "text-fish-parrotfish": "Parrotfish",
+  "text-fish-lobster": "Lobster"
 }

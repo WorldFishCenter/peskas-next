@@ -1,12 +1,13 @@
 import React, { useState, useMemo } from "react";
 import WidgetCard from "@components/cards/widget-card";
 import { BarChart, Bar, ResponsiveContainer, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from "recharts";
-import { FISH_CATEGORIES } from "./composition-chart";
+import { getFishCategories } from "./composition-chart";
 import SimpleBar from "@ui/simplebar";
 import { generateFishCategoryColor } from "../../charts/utils/chart-utils";
 import { useAtom } from "jotai";
 import { selectedTimeRangeAtom } from "@/app/components/filter-selector";
 import { useUserPermissions } from "../../core/hooks/use-user-permissions";
+import { useTranslation } from "@/app/i18n/client";
 
 export default function IndividualFishCompositionComparison({
   allData,
@@ -21,9 +22,14 @@ export default function IndividualFishCompositionComparison({
   description?: string;
   bmuName?: string;
 }) {
+  const { t } = useTranslation("common");
   const [selectedTimeRange] = useAtom(selectedTimeRangeAtom);
   const [visibilityState, setVisibilityState] = useState<Record<string, { opacity: number }>>({});
   const { canCompareWithOthers } = useUserPermissions();
+
+  // Get translated fish categories
+  const translatedFishCategories = useMemo(() => getFishCategories(t), [t]);
+
   const endDate = new Date();
   let startDate = new Date(0); // No longer needed, filtering is done in component
 
@@ -42,11 +48,11 @@ export default function IndividualFishCompositionComparison({
 
   // Get available fish categories from data
   const availableFishCategories = useMemo(() => {
-    if (!allData.length) return FISH_CATEGORIES;
-    
+    if (!allData.length) return translatedFishCategories;
+
     const availableCategories = new Set(allData.map(item => item.fish_category));
-    return FISH_CATEGORIES.filter(cat => availableCategories.has(cat.value));
-  }, [allData]);
+    return translatedFishCategories.filter(cat => availableCategories.has(cat.value));
+  }, [allData, translatedFishCategories]);
 
   // Clean aggregation logic, no debug logs
   const chartData = useMemo(() => {
@@ -100,7 +106,7 @@ export default function IndividualFishCompositionComparison({
   const categoryDisplays = availableFishCategories.map(cat => ({
     id: cat.value,
     name: cat.label,
-    color: generateFishCategoryColor(cat.label),
+    color: generateFishCategoryColor(cat.value),
   }));
   // Row labels for the chart
   const rowLabels = canCompareWithOthers ? [

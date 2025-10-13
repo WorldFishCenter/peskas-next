@@ -4,7 +4,7 @@ import React, { useState, useMemo, useEffect } from "react";
 import WidgetCard from "@components/cards/widget-card";
 import { useTranslation } from "@/app/i18n/client";
 import { useUserPermissions } from "../../core/hooks/use-user-permissions";
-import { FISH_CATEGORIES } from "./composition-chart";
+import { getFishCategories } from "./composition-chart";
 import FishCategorySelector from "../../charts/domain/fish-category-selector";
 import SimpleBar from "@ui/simplebar";
 
@@ -44,7 +44,10 @@ export default function IndividualFishCompositionUnified({
   const { t } = useTranslation("common");
   const { canCompareWithOthers, isIiaUser } = useUserPermissions();
   const [selectedTimeRange] = useAtom(selectedTimeRangeAtom);
-  
+
+  // Get translated fish categories
+  const translatedFishCategories = useMemo(() => getFishCategories(t), [t]);
+
   // Local state for tab management
   const [localActiveTab, setLocalActiveTab] = useState(activeTab);
   const [visibilityState, setVisibilityState] = useState<Record<string, { opacity: number }>>({});
@@ -57,11 +60,11 @@ export default function IndividualFishCompositionUnified({
   
   // Get available fish categories from data
   const availableFishCategories = useMemo(() => {
-    if (!allData.length) return FISH_CATEGORIES;
-    
+    if (!allData.length) return translatedFishCategories;
+
     const availableCategories = new Set(allData.map(item => item.fish_category));
-    return FISH_CATEGORIES.filter(cat => availableCategories.has(cat.value));
-  }, [allData]);
+    return translatedFishCategories.filter(cat => availableCategories.has(cat.value));
+  }, [allData, translatedFishCategories]);
 
   // Find selected category option for dropdown
   const selectedCategoryOption = useMemo(() => 
@@ -154,19 +157,19 @@ export default function IndividualFishCompositionUnified({
   }, [allData, userFisherId, canCompareWithOthers, availableFishCategories]);
 
   // Category displays for area chart legend - only show available categories
-  const categoryDisplays = useMemo(() => 
+  const categoryDisplays = useMemo(() =>
     availableFishCategories.map(cat => ({
       id: cat.value,
       name: cat.label,
-      color: generateFishCategoryColor(cat.label),
+      color: generateFishCategoryColor(cat.value),
     })), [availableFishCategories]
   );
 
   // Get color for selected fish category
   const selectedCategoryColor = useMemo(() => {
-    const selectedCat = FISH_CATEGORIES.find(cat => cat.value === selectedCategory);
-    return selectedCat ? generateFishCategoryColor(selectedCat.label) : "#F79F79";
-  }, [selectedCategory]);
+    const selectedCat = translatedFishCategories.find(cat => cat.value === selectedCategory);
+    return selectedCat ? generateFishCategoryColor(selectedCat.value) : "#F79F79";
+  }, [selectedCategory, translatedFishCategories]);
 
   // Get appropriate tab title and description
   const getTabTitle = (tab: string): string => {

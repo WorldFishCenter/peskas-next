@@ -481,9 +481,6 @@ export default function BMURanking({
             <div className="text-center">
               {getTitle()}
             </div>
-            <div className="text-xs text-gray-500 text-center mt-1">
-              {getDescription()}
-            </div>
           </div>
         </div>
       }
@@ -493,9 +490,6 @@ export default function BMURanking({
       <div className="sm:hidden text-center mb-4">
         <div className="text-base font-medium text-gray-800">
           {getTitle()}
-        </div>
-        <div className="text-xs text-gray-500 mt-1">
-          {getDescription()}
         </div>
       </div>
 
@@ -515,7 +509,14 @@ export default function BMURanking({
                 axisLine={{ stroke: "#cbd5e1", strokeWidth: 1 }}
                 tickLine={{ stroke: "#cbd5e1" }}
                 label={{
-                  value: `${selectedMetricOption?.label || "Value"} (${selectedMetricOption?.unit || ""})`,
+                  value: selectedMetricOption?.value === "mean_effort" ? t('text-unit-fishers-km2-day') :
+                         selectedMetricOption?.value === "mean_cpue" ? t('text-unit-kg-fisher-day') :
+                         selectedMetricOption?.value === "mean_cpua" ? t('text-unit-kg-km2-day') :
+                         selectedMetricOption?.value === "mean_rpue" ? t('text-unit-kes-fisher-day') :
+                         selectedMetricOption?.value === "mean_rpua" ? t('text-unit-kes-km2-day') :
+                         selectedMetricOption?.value === "mean_cost" ? t('text-unit-kes-fisher-day') :
+                         selectedMetricOption?.value === "mean_profit" ? t('text-unit-kes-fisher-day') :
+                         "Value",
                   position: 'insideBottom',
                   offset: -10,
                   style: {

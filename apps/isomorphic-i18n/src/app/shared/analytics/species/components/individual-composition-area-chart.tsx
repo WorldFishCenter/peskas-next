@@ -3,7 +3,7 @@ import WidgetCard from "@components/cards/widget-card";
 import { AreaChart, Area, ResponsiveContainer, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from "recharts";
 import { useAtom } from "jotai";
 import { selectedTimeRangeAtom } from "@/app/components/filter-selector";
-import { FISH_CATEGORIES } from "./composition-chart";
+import { getFishCategories } from "./composition-chart";
 import { generateFishCategoryColor } from "../../charts/utils/chart-utils";
 import cn from "@utils/class-names";
 import { useTranslation } from "@/app/i18n/client";
@@ -30,6 +30,9 @@ export default function IndividualFishCompositionAreaChart({
   const { t } = useTranslation("common");
   const { canCompareWithOthers } = useUserPermissions();
 
+  // Get translated fish categories
+  const translatedFishCategories = useMemo(() => getFishCategories(t), [t]);
+
   // Group data by month and aggregate for 'You' and 'Others'
   const chartData = useMemo(() => {
     if (!allData.length) return [];
@@ -54,7 +57,7 @@ export default function IndividualFishCompositionAreaChart({
     return Object.entries(grouped).map(([monthKey, vals]) => {
       const displayMonth = new Date(monthKey + '-01').toLocaleString('default', { month: 'short', year: 'numeric' });
       const row: Record<string, any> = { month: displayMonth };
-      FISH_CATEGORIES.forEach(cat => {
+      translatedFishCategories.forEach(cat => {
         const key = normalize(cat.value);
         row[`you_${cat.value}`] = vals.youTotals[key] || 0;
         // Only add others data if user can compare
@@ -68,13 +71,13 @@ export default function IndividualFishCompositionAreaChart({
       }
       return row;
     }).sort((a, b) => new Date(a.month).getTime() - new Date(b.month).getTime());
-  }, [allData, userFisherId, canCompareWithOthers]);
+  }, [allData, userFisherId, canCompareWithOthers, translatedFishCategories]);
 
   // Legend and color mapping
-  const categoryDisplays = FISH_CATEGORIES.map(cat => ({
+  const categoryDisplays = translatedFishCategories.map(cat => ({
     id: cat.value,
     name: cat.label,
-    color: generateFishCategoryColor(cat.label),
+    color: generateFishCategoryColor(cat.value),
   }));
 
   // Interactive legend logic
@@ -163,13 +166,13 @@ export default function IndividualFishCompositionAreaChart({
       const newRow: Record<string, any> = { ...row };
       const youSum = row.youSum || 0;
       const othersSum = row.othersSum || 0;
-      FISH_CATEGORIES.forEach(cat => {
+      translatedFishCategories.forEach(cat => {
         newRow[`you_${cat.value}`] = youSum > 0 ? +(row[`you_${cat.value}`] / youSum * 100).toFixed(2) : 0;
         newRow[`others_${cat.value}`] = othersSum > 0 ? +(row[`others_${cat.value}`] / othersSum * 100).toFixed(2) : 0;
       });
       return newRow;
     });
-  }, [chartData, chartMode]);
+  }, [chartData, chartMode, translatedFishCategories]);
 
   return (
     <WidgetCard title={title} description={description} headerClassName="pb-2">

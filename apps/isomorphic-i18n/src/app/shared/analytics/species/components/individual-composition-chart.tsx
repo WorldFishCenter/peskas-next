@@ -5,7 +5,7 @@ import { useAtom } from "jotai";
 import { selectedTimeRangeAtom } from "@/app/components/filter-selector";
 import { useTranslation } from "@/app/i18n/client";
 import { getTimeRangeStartDate } from "../../core/utils/time-range-filter";
-import { FISH_CATEGORIES } from "./composition-chart";
+import { getFishCategories } from "./composition-chart";
 import FishCategorySelector from "../../charts/domain/fish-category-selector";
 import { useUserPermissions } from "../../core/hooks/use-user-permissions";
 
@@ -33,6 +33,10 @@ export default function IndividualFishCompositionChart({
   const { t } = useTranslation("common");
   const [selectedTimeRange] = useAtom(selectedTimeRangeAtom);
   const { canCompareWithOthers } = useUserPermissions();
+
+  // Get translated fish categories
+  const translatedFishCategories = useMemo(() => getFishCategories(t), [t]);
+
   // 1. Get time range
   const endDate = new Date();
   let startDate = getTimeRangeStartDate(selectedTimeRange, endDate);
@@ -83,7 +87,7 @@ export default function IndividualFishCompositionChart({
   }, [filtered, userFisherId, selectedTimeRange, canCompareWithOthers]);
 
   // Find selected category option for dropdown
-  const selectedCategoryOption = FISH_CATEGORIES.find(c => c.value === selectedCategory);
+  const selectedCategoryOption = translatedFishCategories.find(c => c.value === selectedCategory);
 
   // Tooltip styled like individual-fisher-trends
   const CustomTooltip = ({ active, payload }: any) => {
@@ -129,7 +133,7 @@ export default function IndividualFishCompositionChart({
           selectedCategory={selectedCategory}
           onCategoryChange={setSelectedCategory}
           selectedCategoryOption={selectedCategoryOption}
-          fishCategories={FISH_CATEGORIES}
+          fishCategories={translatedFishCategories}
         />
       </div>
       {/* Chart */}

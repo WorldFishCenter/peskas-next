@@ -130,68 +130,51 @@ const toMetricOption = (option: FishCategoryOption | undefined): FishCategoryMet
   category: "catch" // All fish categories are catch data
 });
 
-export const FISH_CATEGORIES: FishCategoryOption[] = [
-  { 
-    label: "Goatfish", 
-    value: "Goatfish", 
-    unit: "kg",
-    description: "Goatfish catch data" 
-  },
-  { 
-    label: "Lobster", 
-    value: "Lobster", 
-    unit: "kg",
-    description: "Lobster catch data" 
-  },
-  { 
-    label: "Octopus", 
-    value: "Octopus", 
-    unit: "kg",
-    description: "Octopus catch data" 
-  },
-  { 
-    label: "Parrotfish", 
-    value: "Parrotfish", 
-    unit: "kg",
-    description: "Parrotfish catch data" 
-  },
-  { 
-    label: "Pelagics", 
-    value: "Pelagics", 
-    unit: "kg",
-    description: "Pelagic fish catch data" 
-  },
-  { 
-    label: "Rabbitfish", 
-    value: "Rabbitfish", 
-    unit: "kg",
-    description: "Rabbitfish catch data" 
-  },
-  { 
-    label: "Ray", 
-    value: "Ray", 
-    unit: "kg",
-    description: "Ray catch data" 
-  },
-  { 
-    label: "Rest Of Catch", 
-    value: "Rest Of Catch", 
-    unit: "kg",
-    description: "Other fish species catch data" 
-  },
-  { 
-    label: "Scavengers", 
-    value: "Scavengers", 
-    unit: "kg",
-    description: "Scavenger fish catch data" 
-  },
-  { 
-    label: "Shark", 
-    value: "Shark", 
-    unit: "kg",
-    description: "Shark catch data" 
-  },
+// Mapping from fish category values to translation keys
+const FISH_TRANSLATION_KEYS: Record<string, string> = {
+  "Octopus": "text-fish-octopus",
+  "Scavengers": "text-fish-scavengers",
+  "Rabbitfish": "text-fish-rabbitfish",
+  "Goatfish": "text-fish-goatfish",
+  "Rest Of Catch": "text-fish-rest-of-catch",
+  "Pelagics": "text-fish-pelagics",
+  "Shark": "text-fish-shark",
+  "Ray": "text-fish-ray",
+  "Parrotfish": "text-fish-parrotfish",
+  "Lobster": "text-fish-lobster",
+};
+
+// Static fish categories with English values (value field stays in English for API compatibility)
+export const FISH_CATEGORIES_BASE = [
+  { value: "Goatfish", unit: "kg" },
+  { value: "Lobster", unit: "kg" },
+  { value: "Octopus", unit: "kg" },
+  { value: "Parrotfish", unit: "kg" },
+  { value: "Pelagics", unit: "kg" },
+  { value: "Rabbitfish", unit: "kg" },
+  { value: "Ray", unit: "kg" },
+  { value: "Rest Of Catch", unit: "kg" },
+  { value: "Scavengers", unit: "kg" },
+  { value: "Shark", unit: "kg" },
 ];
+
+// Function to get translated fish categories
+export const getFishCategories = (t: (key: string) => string): FishCategoryOption[] => {
+  return FISH_CATEGORIES_BASE.map(category => ({
+    label: t(FISH_TRANSLATION_KEYS[category.value] || category.value),
+    value: category.value,
+    unit: category.unit,
+    description: `${t(FISH_TRANSLATION_KEYS[category.value] || category.value)} catch data`
+  }));
+};
+
+// Export for backwards compatibility (will use English labels by default)
+export const FISH_CATEGORIES: FishCategoryOption[] = FISH_CATEGORIES_BASE.map(category => ({
+  label: category.value,
+  value: category.value,
+  unit: category.unit,
+  description: `${category.value} catch data`
+}));
 
 // Create a more robust language context that includes both the language code and translations
 const LanguageContext = createContext<{
@@ -287,10 +270,12 @@ export default function FishCompositionChart({
   
   // Use client language instead of lang prop
   const clientLang = getClientLanguage();
-  const { t, i18n } = useTranslation(clientLang);
-  
+
   // Track current language with state
   const [currentLang, setCurrentLang] = useState(clientLang);
+
+  // Use currentLang for translation so it updates when language changes
+  const { t, i18n } = useTranslation(currentLang);
   
   // Listen for language changes
   useEffect(() => {
@@ -771,8 +756,11 @@ export default function FishCompositionChart({
     
   }, [useChartData, canCompareWithOthers, isCiaUser, isAiaUser, effectiveBMU, siteColors, recentData.length, annualData.length, loading]);
 
+  // Get translated fish categories
+  const translatedFishCategories = useMemo(() => getFishCategories(t), [t]);
+
   // Find the selected category option
-  const selectedCategoryOption = FISH_CATEGORIES.find(
+  const selectedCategoryOption = translatedFishCategories.find(
     (c) => c.value === selectedCategory
   );
 
@@ -894,7 +882,7 @@ export default function FishCompositionChart({
                 selectedCategory={selectedCategory}
                 onCategoryChange={onCategoryChange}
                 selectedCategoryOption={selectedCategoryOption}
-                fishCategories={FISH_CATEGORIES}
+                fishCategories={translatedFishCategories}
               />
             </div>
           </div>

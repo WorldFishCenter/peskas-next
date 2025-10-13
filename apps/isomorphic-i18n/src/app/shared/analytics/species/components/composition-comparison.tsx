@@ -14,6 +14,25 @@ import { generateFishCategoryColor, updateBmuColorRegistry } from "../../charts/
 import { filterDataByTimeRange } from "../../core/utils/time-range-filter";
 import cn from "@utils/class-names";
 
+// Fish category translation mapping
+const FISH_TRANSLATION_KEYS: Record<string, string> = {
+  "Octopus": "text-fish-octopus",
+  "Scavengers": "text-fish-scavengers",
+  "Rabbitfish": "text-fish-rabbitfish",
+  "Goatfish": "text-fish-goatfish",
+  "Rest Of Catch": "text-fish-rest-of-catch",
+  "Pelagics": "text-fish-pelagics",
+  "Shark": "text-fish-shark",
+  "Ray": "text-fish-ray",
+  "Parrotfish": "text-fish-parrotfish",
+  "Lobster": "text-fish-lobster",
+};
+
+// Helper function to translate fish category names
+const translateFishCategory = (category: string, t: (key: string) => string): string => {
+  const translationKey = FISH_TRANSLATION_KEYS[category];
+  return translationKey ? t(translationKey) : category;
+};
 
 // Define fish category display data
 interface CategoryDisplay {
@@ -58,10 +77,12 @@ export default function FishCompositionComparison({
 }: FishCompositionComparisonProps & { chartData?: any[]; isIiaUser?: boolean }) {
   // Use client language instead of lang prop
   const clientLang = getClientLanguage();
-  const { t, i18n } = useTranslation(clientLang, "common");
-  
+
   // Track current language with state
   const [currentLang, setCurrentLang] = useState(clientLang);
+
+  // Use currentLang for translation so it updates when language changes
+  const { t, i18n } = useTranslation(currentLang, "common");
   
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -242,7 +263,8 @@ export default function FishCompositionComparison({
       const categoryArray = Array.from(categories).map((category) => {
         return {
           id: category.toLowerCase().replace(/\s+/g, '_'),
-          name: category,
+          name: translateFishCategory(category, t),
+          originalName: category, // Keep original English name for data lookup
           color: generateFishCategoryColor(category)
         };
       });
@@ -270,7 +292,7 @@ export default function FishCompositionComparison({
           let totalPercentage = 0;
           
           categoryArray.forEach(category => {
-            const value = totals[bmu][category.name] || 0;
+            const value = totals[bmu][category.originalName] || 0;
             const percentage = Math.floor((value / totalCatch) * 100);
             bmuData[category.id] = percentage;
             totalPercentage += percentage;
@@ -315,7 +337,7 @@ export default function FishCompositionComparison({
       setError("Error processing data");
       setLoading(false);
     }
-  }, [fishDistributionData, isLoadingData, apiError, queryBmus, selectedTimeRange]);
+  }, [fishDistributionData, isLoadingData, apiError, queryBmus, selectedTimeRange, currentLang, t]);
   
   // Custom tooltip for the chart
   const CustomTooltip = ({ active, payload, label }: any) => {
@@ -492,7 +514,12 @@ const CustomYAxisTick = ({ x = 0, y = 0, payload = { value: '' }, userBMU }: any
                     tickLine={false}
                     axisLine={false}
                   />
-                  <Tooltip content={<CustomTooltip />} />
+                  <Tooltip
+                    content={<CustomTooltip />}
+                    cursor={{ fill: 'rgba(0, 0, 0, 0.05)' }}
+                    wrapperStyle={{ zIndex: 1000, outline: 'none' }}
+                    allowEscapeViewBox={{ x: true, y: true }}
+                  />
                   
                   {/* Stack bars for each fish category with visibility state */}
                   {categoryDisplays.map((category) => {
