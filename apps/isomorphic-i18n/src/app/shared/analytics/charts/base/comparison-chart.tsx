@@ -189,8 +189,8 @@ export default function ComparisonChart({
         const individualFisherSum = absoluteValues.reduce((sum, item) => sum + item.absoluteValue, 0);
         baseline = individualFisherSum / absoluteValues.length;
       } else if (selectedMetric === 'mean_rpue') {
-        // For fisher revenue, use minimum wage baseline (same as BMU data)
-        baseline = BASELINE_DATA.INCOME.NATIONAL_MINIMUM_WAGE;
+        // For fisher revenue, use living wage baseline (same as BMU data)
+        baseline = BASELINE_DATA.INCOME.LIVING_WAGE;
       } else {
         // For other metrics, use the absolute value itself (no baseline comparison)
         return absoluteValues.map(item => ({

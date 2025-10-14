@@ -1037,6 +1037,8 @@
   "text-cia-msy-comparison-explanation": "Shows values compared to the Maximum Sustainable Yield baseline",
   "text-performance-vs-minimum-wage": "Performance vs Minimum Wage",
   "text-cia-minimum-wage-comparison-explanation": "Shows values compared to the national minimum wage",
+  "text-performance-vs-living-wage": "Performance vs Living Wage",
+  "text-cia-living-wage-comparison-explanation": "Shows values compared to the national living wage",
   "text-performance-vs-your-average": "Performance vs Your Average",
   "text-comparison-vs-your-average-explanation": "Shows your performance compared to your own average over the selected time period",
   "text-difference-from-minimum-wage": "Difference from Minimum Wage",

@@ -96,8 +96,8 @@ const prepareDataForCiaComparison = (chartData: ChartDataPoint[], bmuName: strin
     const isIsland = isIslandSite(bmuName);
     baseline = isIsland ? BASELINE_DATA.CPUA.MSY.ISLAND : BASELINE_DATA.CPUA.MSY.FRINGING;
   } else if (selectedMetric === 'mean_rpue') {
-    // For fisher revenue, use minimum wage
-    baseline = BASELINE_DATA.INCOME.NATIONAL_MINIMUM_WAGE;
+    // For fisher revenue, use living wage
+    baseline = BASELINE_DATA.INCOME.LIVING_WAGE;
   } else if (selectedMetric === 'mean_profit') {
     // For profit, calculate 24-month average as baseline (same as other metrics)
     // Need at least 6 data points to calculate average
@@ -216,8 +216,8 @@ const prepareMultiBMUBaselineComparison = (chartData: ChartDataPoint[], selected
         const isIsland = isIslandSite(bmuName);
         baseline = isIsland ? BASELINE_DATA.CPUA.MSY.ISLAND : BASELINE_DATA.CPUA.MSY.FRINGING;
       } else if (selectedMetric === 'mean_rpue') {
-        // For fisher revenue, use minimum wage
-        baseline = BASELINE_DATA.INCOME.NATIONAL_MINIMUM_WAGE;
+        // For fisher revenue, use living wage
+        baseline = BASELINE_DATA.INCOME.LIVING_WAGE;
       } else if (selectedMetric === 'mean_profit') {
         // For profit, calculate BMU's own average as baseline (same as CPUE logic)
         // Need to calculate this BMU's average across all time points
@@ -836,7 +836,7 @@ export default function CatchMetricsChart({
           if (selectedMetric === 'mean_cpua') {
             return t("text-performance-vs-msy") || "Performance vs MSY";
           } else if (selectedMetric === 'mean_rpue') {
-            return t("text-performance-vs-minimum-wage") || "Performance vs Minimum Wage";
+            return t("text-performance-vs-living-wage") || "Performance vs Living Wage";
           } else {
             // Get time range label for dynamic baseline description
             const getTimeRangeLabel = (timeRange: string): string => {
@@ -891,7 +891,7 @@ export default function CatchMetricsChart({
           if (selectedMetric === 'mean_cpua') {
             return t("text-cia-msy-comparison-explanation") || "Shows values compared to the Maximum Sustainable Yield baseline";
           } else if (selectedMetric === 'mean_rpue') {
-            return t("text-cia-minimum-wage-comparison-explanation") || "Shows values compared to the national minimum wage";
+            return t("text-cia-living-wage-comparison-explanation") || "Shows values compared to the national living wage";
           } else {
             // Get time range label for dynamic baseline description
             const getTimeRangeLabel = (timeRange: string): string => {
