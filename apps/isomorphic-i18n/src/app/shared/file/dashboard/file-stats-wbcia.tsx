@@ -431,10 +431,12 @@ export function FileStatWBCIAGrid({ className, lang }: { className?: string; lan
             <div className="flex flex-col gap-1">
               <div className="flex items-baseline gap-1">
                 <Text className="text-m font-medium text-gray-700">{stat.title}</Text>
-                <Text className="text-xs text-gray-400">({stat.unit})</Text>
+                {currentLang !== 'sw' && (
+                  <Text className="text-xs text-gray-400">({stat.unit})</Text>
+                )}
               </div>
               <Text className="text-xs text-gray-500">
-                Latest month {stat.monthName ? `(${stat.monthName})` : ''} comparison across BMUs
+                {t('text-latest-month-comparison')} {stat.monthName ? `(${stat.monthName})` : ''} {t('text-comparison-across-bmus')}
               </Text>
             </div>
             
@@ -446,7 +448,7 @@ export function FileStatWBCIAGrid({ className, lang }: { className?: string; lan
                     : stat.metric}
                 </Text>
                                 <span className="text-xs font-bold text-gray-500">
-                {hoveredBMU[stat.id] ? hoveredBMU[stat.id].bmu : "Average among all BMUs"}
+                {hoveredBMU[stat.id] ? hoveredBMU[stat.id].bmu : t('text-average-among-all-bmus')}
               </span>
               </div>
               

@@ -92,12 +92,23 @@ const prepareDataForCiaComparison = (chartData: ChartDataPoint[], bmuName: strin
   let baseline: number;
   
   if (selectedMetric === 'mean_cpua') {
-    // For catch density, use MSY baseline (island or fringing)
-    const isIsland = isIslandSite(bmuName);
-    baseline = isIsland ? BASELINE_DATA.CPUA.MSY.ISLAND : BASELINE_DATA.CPUA.MSY.FRINGING;
+    // For catch density, use BMU-specific baseline
+    const { getCpuaBaseline } = require('../../charts/utils/site-config');
+    const cpuaBaseline = getCpuaBaseline(bmuName);
+    baseline = cpuaBaseline !== null ? cpuaBaseline : 0;
+  } else if (selectedMetric === 'mean_cpue') {
+    // For CPUE, use BMU-specific baseline
+    const { getCpueBaseline } = require('../../charts/utils/site-config');
+    const cpueBaseline = getCpueBaseline(bmuName);
+    baseline = cpueBaseline !== null ? cpueBaseline : 0;
   } else if (selectedMetric === 'mean_rpue') {
     // For fisher revenue, use living wage
     baseline = BASELINE_DATA.INCOME.LIVING_WAGE;
+  } else if (selectedMetric === 'mean_effort') {
+    // For effort, use BMU-specific baseline
+    const { getEffortBaseline } = require('../../charts/utils/site-config');
+    const effortBaseline = getEffortBaseline(bmuName);
+    baseline = effortBaseline !== null ? effortBaseline : 0;
   } else if (selectedMetric === 'mean_profit') {
     // For profit, calculate 24-month average as baseline (same as other metrics)
     // Need at least 6 data points to calculate average
@@ -212,12 +223,23 @@ const prepareMultiBMUBaselineComparison = (chartData: ChartDataPoint[], selected
       let baseline: number;
       
       if (selectedMetric === 'mean_cpua') {
-        // For catch density, use MSY baseline
-        const isIsland = isIslandSite(bmuName);
-        baseline = isIsland ? BASELINE_DATA.CPUA.MSY.ISLAND : BASELINE_DATA.CPUA.MSY.FRINGING;
+        // For catch density, use BMU-specific baseline
+        const { getCpuaBaseline } = require('../../charts/utils/site-config');
+        const cpuaBaseline = getCpuaBaseline(bmuName);
+        baseline = cpuaBaseline !== null ? cpuaBaseline : 0;
+      } else if (selectedMetric === 'mean_cpue') {
+        // For CPUE, use BMU-specific baseline
+        const { getCpueBaseline } = require('../../charts/utils/site-config');
+        const cpueBaseline = getCpueBaseline(bmuName);
+        baseline = cpueBaseline !== null ? cpueBaseline : 0;
       } else if (selectedMetric === 'mean_rpue') {
         // For fisher revenue, use living wage
         baseline = BASELINE_DATA.INCOME.LIVING_WAGE;
+      } else if (selectedMetric === 'mean_effort') {
+        // For effort, use BMU-specific baseline
+        const { getEffortBaseline } = require('../../charts/utils/site-config');
+        const effortBaseline = getEffortBaseline(bmuName);
+        baseline = effortBaseline !== null ? effortBaseline : 0;
       } else if (selectedMetric === 'mean_profit') {
         // For profit, calculate BMU's own average as baseline (same as CPUE logic)
         // Need to calculate this BMU's average across all time points
@@ -801,7 +823,7 @@ export default function CatchMetricsChart({
     if (!needsRecalculation) return;
     
     // Process data based on user type
-    if (isWbciaUser && (selectedMetric === 'mean_cpua' || selectedMetric === 'mean_rpue' || selectedMetric === 'mean_profit' || selectedMetric === 'mean_cost')) {
+    if (isWbciaUser && (selectedMetric === 'mean_cpua' || selectedMetric === 'mean_cpue' || selectedMetric === 'mean_rpue' || selectedMetric === 'mean_effort' || selectedMetric === 'mean_profit' || selectedMetric === 'mean_cost')) {
       // For WBCIA users viewing catch density, fisher revenue, or profit, use baseline comparison
       setRecentData(prepareMultiBMUBaselineComparison(chartData, selectedMetric));
     } else if (canCompareWithOthers) {
@@ -835,8 +857,12 @@ export default function CatchMetricsChart({
           // Title varies by metric for both CIA and WBCIA users
           if (selectedMetric === 'mean_cpua') {
             return t("text-performance-vs-msy") || "Performance vs MSY";
+          } else if (selectedMetric === 'mean_cpue') {
+            return t("text-performance-vs-cpue-baseline") || "Performance vs CPUE Baseline";
           } else if (selectedMetric === 'mean_rpue') {
             return t("text-performance-vs-living-wage") || "Performance vs Living Wage";
+          } else if (selectedMetric === 'mean_effort') {
+            return t("text-performance-vs-effort-baseline") || "Performance vs Effort Baseline";
           } else {
             // Get time range label for dynamic baseline description
             const getTimeRangeLabel = (timeRange: string): string => {
@@ -890,8 +916,12 @@ export default function CatchMetricsChart({
           // Description varies by metric for both CIA and WBCIA users
           if (selectedMetric === 'mean_cpua') {
             return t("text-cia-msy-comparison-explanation") || "Shows values compared to the Maximum Sustainable Yield baseline";
+          } else if (selectedMetric === 'mean_cpue') {
+            return t("text-cia-cpue-comparison-explanation") || "Shows values compared to each BMU's recommended CPUE baseline";
           } else if (selectedMetric === 'mean_rpue') {
             return t("text-cia-living-wage-comparison-explanation") || "Shows values compared to the national living wage";
+          } else if (selectedMetric === 'mean_effort') {
+            return t("text-cia-effort-comparison-explanation") || "Shows values compared to each BMU's recommended effort baseline";
           } else {
             // Get time range label for dynamic baseline description
             const getTimeRangeLabel = (timeRange: string): string => {
@@ -1080,7 +1110,7 @@ export default function CatchMetricsChart({
               isTablet={isTablet}
               selectedMetric={selectedMetric}
               selectedTimeRange={selectedTimeRange}
-              isCiaHistoricalMode={isWbciaUser && (selectedMetric === 'mean_cpua' || selectedMetric === 'mean_rpue' || selectedMetric === 'mean_profit' || selectedMetric === 'mean_cost')}
+              isCiaHistoricalMode={isWbciaUser && (selectedMetric === 'mean_cpua' || selectedMetric === 'mean_cpue' || selectedMetric === 'mean_rpue' || selectedMetric === 'mean_effort' || selectedMetric === 'mean_profit' || selectedMetric === 'mean_cost')}
               individualFisherData={memoizedFisherData}
               userFisherId={userFisherId}
               CustomLegend={(props) => (
@@ -1165,6 +1195,7 @@ export default function CatchMetricsChart({
               individualFisherData={memoizedFisherData}
               individualYearlyData={memoizedYearlyData}
               userFisherId={userFisherId}
+              userBMU={effectiveBMU}
               CustomLegend={(props) => (
                 <CustomLegend 
                   {...props} 

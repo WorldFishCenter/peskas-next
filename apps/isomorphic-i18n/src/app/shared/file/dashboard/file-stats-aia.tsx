@@ -269,7 +269,9 @@ export function FileStatGridAIA({ className, lang, bmu }: { className?: string; 
             <div className="flex flex-col gap-1">
               <div className="flex items-baseline gap-1">
                 <Text className="text-m font-medium text-gray-700">{stat.title}</Text>
-                <Text className="text-xs text-gray-400">({stat.unit})</Text>
+                {currentLang !== 'sw' && (
+                  <Text className="text-xs text-gray-400">({stat.unit})</Text>
+                )}
               </div>
               <Text className="text-xs text-gray-500">
                 {stat.monthName}

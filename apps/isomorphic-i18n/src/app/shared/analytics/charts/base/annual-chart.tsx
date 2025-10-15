@@ -29,6 +29,7 @@ interface AnnualChartProps {
   individualFisherData?: any[];
   individualYearlyData?: any[];
   userFisherId?: string;
+  userBMU?: string;
 }
 
 export default function AnnualChart({
@@ -44,6 +45,7 @@ export default function AnnualChart({
   individualFisherData,
   individualYearlyData,
   userFisherId,
+  userBMU,
 }: AnnualChartProps) {
   // Check if there's a parent language context we should use
   const contextLang = document.documentElement.getAttribute('data-language');
@@ -321,28 +323,52 @@ export default function AnnualChart({
                   stroke="#22c55e"
                   strokeDasharray="8 4"
                   strokeWidth={2}
-                  label={{ value: "MSY Fringing", position: "left", fill: "#22c55e", fontSize: 11 }}
+                  label={{
+                    value: "MSY Fringing",
+                    position: "insideTopRight",
+                    fill: "#22c55e",
+                    fontSize: 11,
+                    offset: 10
+                  }}
                 />
                 <ReferenceLine
                   y={BASELINE_DATA.CPUA.MSY.ISLAND}
                   stroke="#16a34a"
                   strokeDasharray="8 4"
                   strokeWidth={2}
-                  label={{ value: "MSY Island", position: "left", fill: "#16a34a", fontSize: 11 }}
+                  label={{
+                    value: "MSY Island",
+                    position: "insideTopRight",
+                    fill: "#16a34a",
+                    fontSize: 11,
+                    offset: 10
+                  }}
                 />
                 <ReferenceLine
                   y={BASELINE_DATA.CPUA.CURRENT.FRINGING}
                   stroke="#f59e0b"
                   strokeDasharray="4 4"
                   strokeWidth={1.5}
-                  label={{ value: "Current Fringing", position: "left", fill: "#f59e0b", fontSize: 11 }}
+                  label={{
+                    value: "Current Fringing",
+                    position: "insideBottomRight",
+                    fill: "#f59e0b",
+                    fontSize: 11,
+                    offset: 10
+                  }}
                 />
                 <ReferenceLine
                   y={BASELINE_DATA.CPUA.CURRENT.ISLAND}
                   stroke="#ea580c"
                   strokeDasharray="4 4"
                   strokeWidth={1.5}
-                  label={{ value: "Current Island", position: "left", fill: "#ea580c", fontSize: 11 }}
+                  label={{
+                    value: "Current Island",
+                    position: "insideBottomRight",
+                    fill: "#ea580c",
+                    fontSize: 11,
+                    offset: 10
+                  }}
                 />
             </>
           )}
@@ -354,26 +380,93 @@ export default function AnnualChart({
                   stroke="#ef4444"
                   strokeDasharray="3 3"
                   strokeWidth={1.5}
-                  label={{ value: t("text-poverty-line"), position: "left", fill: "#ef4444", fontSize: 11 }}
+                  label={{
+                    value: t("text-poverty-line"),
+                    position: "insideBottomRight",
+                    fill: "#ef4444",
+                    fontSize: 11,
+                    offset: 10
+                  }}
                 />
                 <ReferenceLine
                   y={BASELINE_DATA.INCOME.NATIONAL_MINIMUM_WAGE}
                   stroke="#f59e0b"
                   strokeDasharray="3 3"
                   strokeWidth={1.5}
-                  label={{ value: t("text-minimum-wage"), position: "left", fill: "#f59e0b", fontSize: 11 }}
+                  label={{
+                    value: t("text-minimum-wage"),
+                    position: "insideBottomRight",
+                    fill: "#f59e0b",
+                    fontSize: 11,
+                    offset: 10
+                  }}
                 />
                 <ReferenceLine
                   y={BASELINE_DATA.INCOME.LIVING_WAGE}
                   stroke="#22c55e"
                   strokeDasharray="3 3"
                   strokeWidth={1.5}
-                  label={{ value: t("text-living-wage"), position: "left", fill: "#22c55e", fontSize: 11 }}
+                  label={{
+                    value: t("text-living-wage"),
+                    position: "insideTopRight",
+                    fill: "#22c55e",
+                    fontSize: 11,
+                    offset: 10
+                  }}
                 />
               </>
             )}
 
-          
+          {/* Add Effort baseline reference line */}
+          {selectedMetric === "mean_effort" && userBMU && (() => {
+            const { getEffortBaseline } = require('../utils/site-config');
+            const effortBaseline = getEffortBaseline(userBMU);
+
+            if (effortBaseline !== null) {
+              return (
+                <ReferenceLine
+                  y={effortBaseline}
+                  stroke="#22c55e"
+                  strokeDasharray="8 4"
+                  strokeWidth={2}
+                  label={{
+                    value: t("text-recommended-effort"),
+                    position: "insideTopRight",
+                    fill: "#22c55e",
+                    fontSize: 11,
+                    offset: 10
+                  }}
+                />
+              );
+            }
+            return null;
+          })()}
+
+          {/* Add CPUE baseline reference line */}
+          {selectedMetric === "mean_cpue" && userBMU && (() => {
+            const { getCpueBaseline } = require('../utils/site-config');
+            const cpueBaseline = getCpueBaseline(userBMU);
+
+            if (cpueBaseline !== null) {
+              return (
+                <ReferenceLine
+                  y={cpueBaseline}
+                  stroke="#22c55e"
+                  strokeDasharray="8 4"
+                  strokeWidth={2}
+                  label={{
+                    value: t("text-recommended-catch-rate"),
+                    position: "insideTopRight",
+                    fill: "#22c55e",
+                    fontSize: 11,
+                    offset: 10
+                  }}
+                />
+              );
+            }
+            return null;
+          })()}
+
           {CustomLegend && <Legend content={(props) => <CustomLegend {...props} />} />}
         </BarChart>
       </ResponsiveContainer>

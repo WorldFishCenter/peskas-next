@@ -105,37 +105,42 @@ export default function IndividualFisherTrends({
       });
   }, [fisherData]);
 
-  // Calculate comparison data (fisher's data vs their own average)
+  // Calculate comparison data (fisher's data vs baseline)
   const comparisonData = useMemo(() => {
     if (!chartData || chartData.length === 0) return [];
-    
+
     // Calculate the fisher's average for the selected metric over the time range
-    const metricKey = selectedMetric === "mean_cpue" ? "cpue" : 
-                     selectedMetric === "mean_rpue" ? "rpue" : 
+    const metricKey = selectedMetric === "mean_cpue" ? "cpue" :
+                     selectedMetric === "mean_rpue" ? "rpue" :
                      selectedMetric === "mean_cost" ? "cost" : "profit";
-    
+
     const validValues = chartData
       .map(point => point[metricKey])
       .filter(value => value !== undefined && value !== null);
-    
+
     if (validValues.length === 0) return [];
-    
+
     // Determine the baseline based on the metric
     let baseline: number;
-    
+
     if (selectedMetric === 'mean_rpue') {
-      // For fisher revenue, use minimum wage baseline
-      baseline = BASELINE_DATA.INCOME.NATIONAL_MINIMUM_WAGE;
+      // For fisher revenue, use living wage baseline
+      baseline = BASELINE_DATA.INCOME.LIVING_WAGE;
+    } else if (selectedMetric === 'mean_cpue' && fisherBMU) {
+      // For fisher CPUE, use BMU-specific recommended CPUE baseline
+      const { getCpueBaseline } = require('../../charts/utils/site-config');
+      const cpueBaseline = getCpueBaseline(fisherBMU);
+      baseline = cpueBaseline !== null ? cpueBaseline : validValues.reduce((sum, val) => sum + val, 0) / validValues.length;
     } else {
       // For other metrics, use the fisher's own average
       baseline = validValues.reduce((sum, val) => sum + val, 0) / validValues.length;
     }
-    
+
     // Create comparison data showing difference from baseline
     return chartData.map(point => {
       const value = point[metricKey];
       const difference = value !== undefined && value !== null ? value - baseline : undefined;
-      
+
       return {
         ...point,
         [metricKey]: value, // Keep original value for trends
@@ -143,7 +148,7 @@ export default function IndividualFisherTrends({
         average: baseline, // Store baseline for reference
       };
     });
-  }, [chartData, selectedMetric]);
+  }, [chartData, selectedMetric, fisherBMU]);
 
   // Calculate summary statistics (excluding NA values)
   const summaryStats = useMemo(() => {
@@ -226,26 +231,30 @@ export default function IndividualFisherTrends({
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 rounded-full" style={{ backgroundColor: '#8693AB' }} />
                 <p className="text-sm font-medium">
-                  {selectedMetric === "mean_rpue" ? t('text-minimum-wage') : "Your Average"} {metricLabel} <span className="font-semibold">{formatValue(average)}</span>
+                  {selectedMetric === "mean_rpue" ? t('text-living-wage') :
+                   selectedMetric === "mean_cpue" ? t('text-recommended-catch-rate') :
+                   "Your Average"} {metricLabel} <span className="font-semibold">{formatValue(average)}</span>
                 </p>
               </div>
             )}
             {/* Difference */}
             {difference !== undefined && (
               <div className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full" style={{ 
+                <div className="w-2 h-2 rounded-full" style={{
                   backgroundColor: (() => {
                     // For costs, lower is better (green), higher is worse (red)
                     const isCostMetric = selectedMetric === "mean_cost";
-                    return isCostMetric 
+                    return isCostMetric
                       ? (difference > 0 ? '#ef4444' : '#10b981')  // Inverted for costs
                       : (difference > 0 ? '#10b981' : '#ef4444'); // Normal for others
                   })()
                 }} />
                 <p className="text-sm font-medium">
-                  {selectedMetric === "mean_rpue" ? t('text-difference-from-minimum-wage') : "Difference"} <span className={`font-semibold ${(() => {
+                  {selectedMetric === "mean_rpue" ? t('text-difference-from-living-wage') :
+                   selectedMetric === "mean_cpue" ? t('text-difference-from-average') :
+                   "Difference"} <span className={`font-semibold ${(() => {
                     const isCostMetric = selectedMetric === "mean_cost";
-                    return isCostMetric 
+                    return isCostMetric
                       ? (difference > 0 ? 'text-red-600' : 'text-green-600')   // Inverted for costs
                       : (difference > 0 ? 'text-green-600' : 'text-red-600');  // Normal for others
                   })()}`}>
@@ -267,18 +276,30 @@ export default function IndividualFisherTrends({
       case 'trends':
         return t("text-your-monthly-trends");
       case 'comparison':
-        return selectedMetric === "mean_rpue" ? t("text-performance-vs-minimum-wage") : t("text-performance-vs-your-average");
+        if (selectedMetric === "mean_rpue") {
+          return t("text-performance-vs-living-wage");
+        } else if (selectedMetric === "mean_cpue") {
+          return t("text-performance-vs-cpue-baseline");
+        } else {
+          return t("text-performance-vs-your-average");
+        }
       default:
         return t("text-your-monthly-trends");
     }
   };
-  
+
   const getTabDescription = (tab: string): string => {
     switch(tab) {
       case 'trends':
         return t("text-trends-explanation");
       case 'comparison':
-        return selectedMetric === "mean_rpue" ? t("text-cia-minimum-wage-comparison-explanation") : t("text-comparison-vs-your-average-explanation");
+        if (selectedMetric === "mean_rpue") {
+          return t("text-cia-living-wage-comparison-explanation");
+        } else if (selectedMetric === "mean_cpue") {
+          return t("text-cia-cpue-comparison-explanation");
+        } else {
+          return t("text-comparison-vs-your-average-explanation");
+        }
       default:
         return t("text-trends-explanation");
     }
@@ -399,21 +420,21 @@ export default function IndividualFisherTrends({
                       stroke="#ef4444"
                       strokeDasharray="3 3"
                       strokeWidth={1.5}
-                      label={{ value: t('text-poverty-line'), position: "right", fill: "#ef4444", fontSize: 11 }}
+                      label={{ value: t('text-poverty-line'), position: "insideBottomLeft", fill: "#ef4444", fontSize: 11, offset: 10 }}
                     />
                     <ReferenceLine
                       y={BASELINE_DATA.INCOME.NATIONAL_MINIMUM_WAGE}
                       stroke="#f59e0b"
                       strokeDasharray="3 3"
                       strokeWidth={1.5}
-                      label={{ value: t('text-minimum-wage'), position: "right", fill: "#f59e0b", fontSize: 11 }}
+                      label={{ value: t('text-minimum-wage'), position: "insideLeft", fill: "#f59e0b", fontSize: 11, offset: 10 }}
                     />
                     <ReferenceLine
                       y={BASELINE_DATA.INCOME.LIVING_WAGE}
                       stroke="#22c55e"
                       strokeDasharray="3 3"
                       strokeWidth={1.5}
-                      label={{ value: t('text-living-wage'), position: "right", fill: "#22c55e", fontSize: 11 }}
+                      label={{ value: t('text-living-wage'), position: "insideTopLeft", fill: "#22c55e", fontSize: 11, offset: 10 }}
                     />
                   </>
                 )}

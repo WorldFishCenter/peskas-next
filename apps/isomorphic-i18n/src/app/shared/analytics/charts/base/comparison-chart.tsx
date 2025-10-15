@@ -176,8 +176,8 @@ export default function ComparisonChart({
       .sort((a, b) => a.date - b.date);
 
     // Check if we're in baseline comparison mode (CIA or WBCIA users viewing baseline data)
-    const isBaselineComparisonMode = isCiaHistoricalMode || 
-      (selectedMetric === 'mean_cpue' || selectedMetric === 'mean_cpua' || selectedMetric === 'mean_rpue' || selectedMetric === 'mean_profit' || selectedMetric === 'mean_cost');
+    const isBaselineComparisonMode = isCiaHistoricalMode ||
+      (selectedMetric === 'mean_cpua' || selectedMetric === 'mean_cpue' || selectedMetric === 'mean_rpue' || selectedMetric === 'mean_effort' || selectedMetric === 'mean_profit' || selectedMetric === 'mean_cost');
     
     
     // For baseline comparison mode, calculate difference from appropriate baseline
@@ -227,8 +227,8 @@ export default function ComparisonChart({
     );
     
     // Check if we're in baseline comparison mode (CIA or WBCIA users viewing baseline data)
-    const isBaselineComparisonMode = isCiaHistoricalMode || 
-      (selectedMetric === 'mean_cpue' || selectedMetric === 'mean_cpua' || selectedMetric === 'mean_rpue' || selectedMetric === 'mean_profit' || selectedMetric === 'mean_cost');
+    const isBaselineComparisonMode = isCiaHistoricalMode ||
+      (selectedMetric === 'mean_cpua' || selectedMetric === 'mean_cpue' || selectedMetric === 'mean_rpue' || selectedMetric === 'mean_effort' || selectedMetric === 'mean_profit' || selectedMetric === 'mean_cost');
     
     
     // Merge with BMU data
@@ -392,7 +392,7 @@ export default function ComparisonChart({
     if (!isCiaHistoricalMode) return true;
     
     // For WBCIA users with baseline comparisons
-    if (selectedMetric === 'mean_cpua' || selectedMetric === 'mean_rpue' || selectedMetric === 'mean_profit' || selectedMetric === 'mean_cost') {
+    if (selectedMetric === 'mean_cpua' || selectedMetric === 'mean_cpue' || selectedMetric === 'mean_rpue' || selectedMetric === 'mean_effort' || selectedMetric === 'mean_profit' || selectedMetric === 'mean_cost') {
       // Check if we have any BMU data (excluding date)
       return chartData.some(point => {
         const keys = Object.keys(point).filter(k => k !== 'date');

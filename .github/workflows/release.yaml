@@ -1,0 +1,71 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - dev
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Extract version from NEWS.md
+        id: extract_version
+        run: |
+          VERSION=$(grep -m 1 "^# peskas-next" NEWS.md | sed 's/# peskas-next //')
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Extracted version: $VERSION"
+
+      - name: Extract changelog for current version
+        id: extract_changelog
+        run: |
+          # Extract the first version block from NEWS.md
+          # This gets everything between the first version header and the next "---" separator
+          CHANGELOG=$(awk '/^# peskas-next [0-9]/{flag=1; next} /^---$/{flag=0} flag' NEWS.md)
+
+          # Save to file to preserve formatting
+          echo "$CHANGELOG" > changelog.txt
+
+          # Also set as output for display
+          echo "changelog<<EOF" >> $GITHUB_OUTPUT
+          echo "$CHANGELOG" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+          echo "Extracted changelog:"
+          cat changelog.txt
+
+      - name: Check if tag already exists
+        id: check_tag
+        run: |
+          TAG_NAME="v${{ steps.extract_version.outputs.version }}"
+          if git rev-parse "$TAG_NAME" >/dev/null 2>&1; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+            echo "Tag $TAG_NAME already exists"
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+            echo "Tag $TAG_NAME does not exist"
+          fi
+
+      - name: Create GitHub Release
+        if: steps.check_tag.outputs.exists == 'false'
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: v${{ steps.extract_version.outputs.version }}
+          release_name: peskas-next v${{ steps.extract_version.outputs.version }}
+          body_path: changelog.txt
+          draft: false
+          prerelease: false
+
+      - name: Skip release creation
+        if: steps.check_tag.outputs.exists == 'true'
+        run: |
+          echo "Skipping release creation - tag v${{ steps.extract_version.outputs.version }} already exists"
