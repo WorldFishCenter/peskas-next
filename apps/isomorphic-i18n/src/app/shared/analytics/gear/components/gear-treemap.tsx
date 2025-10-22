@@ -28,6 +28,8 @@ import useUserPermissions from "../../core/hooks/use-user-permissions";
 import { getTimeRangeStartDate } from "../../core/utils/time-range-filter";
 // Import individual gear data hook
 import useIndividualGearData from "../../individual/hooks/use-individual-gear-data";
+// Import gear translation utilities
+import { getGearTypeLabel } from "../utils/gear-translations";
 
 // Colors for gear types (consistent set)
 const GEAR_COLORS = [
@@ -54,12 +56,8 @@ const formatNumber = (value: number) => {
   return value.toFixed(1);
 };
 
-const capitalizeGearType = (gear: string) => {
-  return gear
-    .split(" ")
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-    .join(" ");
-};
+// Use the centralized gear translation utility
+// const capitalizeGearType function removed - now using getGearTypeLabel from gear-translations
 
 interface GearData {
   BMU: string;
@@ -299,10 +297,15 @@ export default function GearHeatmap({
   const [comparisonData, setComparisonData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  
+
   // Use client language for translations
   const clientLang = getClientLanguage();
-  const { t } = useTranslation(clientLang, "common");
+
+  // Track current language with state
+  const [currentLang, setCurrentLang] = useState(clientLang);
+
+  // Use currentLang for translation so it updates when language changes
+  const { t, i18n } = useTranslation(currentLang, "common");
   
   const [bmus] = useAtom(bmusAtom);
   const [selectedMetric] = useAtom(selectedMetricAtom);
@@ -317,6 +320,29 @@ export default function GearHeatmap({
   const previousBmus = useRef<string[]>(bmus);
   const previousTimeRangeRef = useRef<string>(selectedTimeRange);
   
+  // Listen for language changes
+  useEffect(() => {
+    const handleLanguageChange = (event: CustomEvent) => {
+      setCurrentLang(event.detail.language);
+
+      // Make sure i18n instance is updated
+      if (i18n.language !== event.detail.language) {
+        i18n.changeLanguage(event.detail.language);
+      }
+
+      // Force data reprocessing to apply new translations
+      dataProcessed.current = false;
+      setBarData([]);
+      setRankingData([]);
+      setComparisonData([]);
+    };
+
+    window.addEventListener('i18n-language-changed', handleLanguageChange as EventListener);
+    return () => {
+      window.removeEventListener('i18n-language-changed', handleLanguageChange as EventListener);
+    };
+  }, [i18n]);
+
   // Use the centralized permissions hook
   const {
     userBMU,
@@ -629,7 +655,7 @@ export default function GearHeatmap({
       // Format data for the distribution bar chart
       const transformedData = gearTypes.map((gear) => {
         const gearData: any = {
-          name: capitalizeGearType((gear || '').replace(/_/g, " ")),
+          name: getGearTypeLabel((gear || '').replace(/_/g, " "), t),
         };
 
         // First initialize all BMUs with undefined
@@ -684,7 +710,7 @@ export default function GearHeatmap({
           }, 0);
 
         return {
-          name: capitalizeGearType((gear || '').replace(/_/g, " ")),
+          name: getGearTypeLabel((gear || '').replace(/_/g, " "), t),
           value: Number(totalValue.toFixed(2)),
           fill: GEAR_COLORS[index % GEAR_COLORS.length]
         };
@@ -732,7 +758,7 @@ export default function GearHeatmap({
           const diff = bmuValue - otherBMUsAvg;
 
           const result: any = {
-            name: capitalizeGearType((gear || '').replace(/_/g, " ")),
+            name: getGearTypeLabel((gear || '').replace(/_/g, " "), t),
             [effectiveBMU]: Number(bmuValue.toFixed(2)),
             average: Number(otherBMUsAvg.toFixed(2)),
             diff: diff,
@@ -765,7 +791,7 @@ export default function GearHeatmap({
     } finally {
       setLoading(false);
     }
-  }, [rawData, selectedMetric, selectedTimeRange, effectiveBMU, hasRestrictedAccess, isWbciaUser, safeBmus, individualGearData, shouldFetchIndividualGearData, userFisherId, isLoadingIndividualGear]);
+  }, [rawData, selectedMetric, selectedTimeRange, effectiveBMU, hasRestrictedAccess, isWbciaUser, safeBmus, individualGearData, shouldFetchIndividualGearData, userFisherId, isLoadingIndividualGear, t]);
 
   const getTabTitle = (tab: string): string => {
     // Custom titles for CIA and AIA users who can only see their own BMU

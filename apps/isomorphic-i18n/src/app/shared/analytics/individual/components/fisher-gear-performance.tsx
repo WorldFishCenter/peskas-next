@@ -13,6 +13,8 @@ import { MetricKey } from "../../charts/utils/chart-types";
 import { getTimeRangeStartDate } from "../../core/utils/time-range-filter";
 import GearPerformanceBarChart from "./gear-performance-chart";
 import GearPerformanceCard from "./gear-performance-card";
+// Import gear translation utilities
+import { getGearTypeLabel } from "../../gear/utils/gear-translations";
 
 const COLORS = {
   blue: "#3b82f6",
@@ -40,13 +42,8 @@ const formatNumber = (value: number) => {
   return value.toFixed(1);
 };
 
-const capitalizeGearType = (gear: string) => {
-  if (!gear || gear === "NA") return "Unknown";
-  return gear
-    .split(" ")
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-    .join(" ");
-};
+// Use the centralized gear translation utility
+// const capitalizeGearType function removed - now using getGearTypeLabel from gear-translations
 
 type MetricType = "fisher_cpue" | "fisher_rpue" | "fisher_cost";
 
@@ -159,14 +156,14 @@ export default function IndividualFisherGearPerformance({
     }, {});
     return Object.entries(grouped).map(([gear, stats]: any) => ({
       gear,
-      name: capitalizeGearType(gear),
+      name: getGearTypeLabel(gear, t),
       avgCpue: stats.sumCpue / stats.count,
       avgRpue: stats.sumRpue / stats.count,
       avgCost: stats.sumCost / stats.count,
       avgProfit: stats.sumProfit / stats.count,
       trips: stats.count,
     }));
-  }, [fisherGearData]);
+  }, [fisherGearData, t]);
 
   const aggregatedBmuGearPerformance = useMemo(() => {
     if (!bmuGearData || !canCompareWithOthers) return [];
@@ -208,14 +205,14 @@ export default function IndividualFisherGearPerformance({
       ) : 0;
       
       return {
-        name: capitalizeGearType(fisherGear.gear),
+        name: getGearTypeLabel(fisherGear.gear, t),
         yourValue,
         bmuAverage: bmuAverageValue,
         difference: canCompareWithOthers ? yourValue - bmuAverageValue : 0,
         trips: fisherGear.trips,
       };
     });
-  }, [aggregatedGearPerformanceData, aggregatedBmuGearPerformance, selectedMetric, canCompareWithOthers]);
+  }, [aggregatedGearPerformanceData, aggregatedBmuGearPerformance, selectedMetric, canCompareWithOthers, t]);
 
   // Only render for users who should see individual data (IIA users or admin-fishers)
   if (!shouldShowIndividualData || !userFisherId) {
