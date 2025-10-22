@@ -436,7 +436,7 @@ export default function TrendsChart({
                 strokeWidth={1.5}
                 label={{
                   value: t("text-living-wage"),
-                  position: "insideTopRight",
+                  position: "insideBottomRight",
                   fill: "#22c55e",
                   fontSize: 11,
                   offset: 10
