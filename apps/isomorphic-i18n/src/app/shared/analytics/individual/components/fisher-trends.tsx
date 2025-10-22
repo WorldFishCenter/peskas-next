@@ -408,7 +408,7 @@ export default function IndividualFisherTrends({
                 <Bar
                   dataKey={selectedMetric === "mean_cpue" ? "cpue" : selectedMetric === "mean_rpue" ? "rpue" : selectedMetric === "mean_cost" ? "cost" : "profit"}
                   fill="#F79F79"
-                  name="You"
+                  name={t('text-you')}
                   radius={[4, 4, 0, 0]}
                   barSize={18}
                 />

@@ -167,7 +167,7 @@ export default function IndividualFishCompositionChart({
             <Bar
               dataKey="you"
               fill="#F79F79"
-              name="You"
+              name={t('text-you')}
               radius={[4, 4, 0, 0]}
               barSize={18}
             />

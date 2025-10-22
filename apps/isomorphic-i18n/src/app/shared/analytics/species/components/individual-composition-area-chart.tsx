@@ -103,7 +103,7 @@ export default function IndividualFishCompositionAreaChart({
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
       // Group entries by 'You' and 'Other BMU fishers', only show non-zero values
-      const youEntries = payload.filter((entry: any) => entry.name.startsWith('You:') && entry.value > 0);
+      const youEntries = payload.filter((entry: any) => entry.name.startsWith(`${t('text-you')}:`) && entry.value > 0);
       const othersEntries = canCompareWithOthers ? payload.filter((entry: any) => entry.name.startsWith(`Other ${bmuName ? bmuName + ' ' : ''}fishers`) && entry.value > 0) : [];
       if (youEntries.length === 0 && othersEntries.length === 0) return null;
       return (
@@ -112,11 +112,11 @@ export default function IndividualFishCompositionAreaChart({
           <div className="space-y-2 mt-2">
             {youEntries.length > 0 && (
               <div>
-                <div className="font-semibold text-gray-900 mb-1">You</div>
+                <div className="font-semibold text-gray-900 mb-1">{t('text-you')}</div>
                 {youEntries.map((entry: any, idx: number) => (
                   <div key={`tooltip-you-${idx}`} className="flex items-center gap-2">
                     <div className="w-3 h-3 rounded-full" style={{ backgroundColor: entry.color }} />
-                    <span className="text-sm text-gray-700">{entry.name.replace('You: ', '')}: {entry.value.toFixed(2)}{chartMode === 'absolute' ? ' kg (avg. per month)' : '%'}</span>
+                    <span className="text-sm text-gray-700">{entry.name.replace(`${t('text-you')}: `, '')}: {entry.value.toFixed(2)}{chartMode === 'absolute' ? ' kg (avg. per month)' : '%'}</span>
                   </div>
                 ))}
               </div>
@@ -234,7 +234,7 @@ export default function IndividualFishCompositionAreaChart({
                 key={`you_${category.id}`}
                 type="monotone"
                 dataKey={`you_${category.id}`}
-                name={`You: ${category.name}`}
+                name={`${t('text-you')}: ${category.name}`}
                 stackId="you"
                 stroke={category.color}
                 fill={category.color}

@@ -73,7 +73,7 @@ export default function IndividualFishCompositionComparison({
         othersSum += item.mean_catch_kg || 0;
       }
     });
-    const youRow: Record<string, any> = { label: "You" };
+    const youRow: Record<string, any> = { label: t('text-you') };
     const othersRow: Record<string, any> = { label: "Other BMU fishers" };
     let youTotalPct = 0;
     let othersTotalPct = 0;
@@ -110,10 +110,10 @@ export default function IndividualFishCompositionComparison({
   }));
   // Row labels for the chart
   const rowLabels = canCompareWithOthers ? [
-    { label: "You" },
+    { label: t('text-you') },
     { label: `Other ${bmuName ? bmuName + ' ' : ''}fishers (mean, avg. per month)` }
   ] : [
-    { label: "You" }
+    { label: t('text-you') }
   ];
 
   // Interactive legend logic
@@ -142,7 +142,7 @@ export default function IndividualFishCompositionComparison({
     if (active && payload && payload.length) {
       // Group by label ("You" or full others label)
       const othersLabel = `Other ${bmuName ? bmuName + ' ' : ''}fishers (mean, avg. per month)`;
-      const youEntries = payload.filter((entry: any) => entry.payload.label === "You" && entry.value > 0);
+      const youEntries = payload.filter((entry: any) => entry.payload.label === t('text-you') && entry.value > 0);
       const othersEntries = payload.filter((entry: any) => entry.payload.label === othersLabel && entry.value > 0);
       if (youEntries.length === 0 && othersEntries.length === 0) return null;
       return (
@@ -150,7 +150,7 @@ export default function IndividualFishCompositionComparison({
           <div className="space-y-2">
             {youEntries.length > 0 && (
               <div>
-                <div className="font-semibold text-gray-900 mb-1">You</div>
+                <div className="font-semibold text-gray-900 mb-1">{t('text-you')}</div>
                 {youEntries.map((entry: any, idx: number) => (
                   <div key={`tooltip-you-${idx}`} className="flex items-center gap-2">
                     <div className="w-3 h-3 rounded-full" style={{ backgroundColor: entry.color }} />

@@ -358,7 +358,7 @@ className={cn(
             {shouldShowIndividualData && userFisherId && stat.chart.some(point => point.individualValue !== undefined) && (
               <div className="flex items-center gap-1">
                 <div className="w-1.5 h-1.5 rounded-full bg-[#F79F79]" />
-                <span>You</span>
+                <span>{t('text-you')}</span>
               </div>
             )}
           </div>
@@ -381,7 +381,7 @@ className={cn(
                   hide={false}
                   tick={(props) => {
                     const { x, y, payload } = props;
-                    const isUserData = payload.value === 'You' || payload.value === effectiveBMU;
+                    const isUserData = false; // This chart shows months, not BMU names
                     return (
                       <g transform={`translate(${x},${y})`}>
                         <text
@@ -443,7 +443,7 @@ className={cn(
                 {shouldShowIndividualData && userFisherId && stat.chart.some(point => point.individualValue !== undefined) && (
                   <Bar
                     dataKey="individualValue"
-                    name="You"
+                    name={t('text-you')}
                     fill="#F79F79"
                     radius={[2, 2, 0, 0]}
                     maxBarSize={8}

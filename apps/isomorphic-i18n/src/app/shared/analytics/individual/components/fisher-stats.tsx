@@ -399,7 +399,7 @@ export default function IndividualFisherStats({
                   {/* Individual Fisher Data Bars */}
                   <Bar
                     dataKey="value"
-                    name="You"
+                    name={t('text-you')}
                     fill="#F79F79"
                     radius={[2, 2, 0, 0]}
                     maxBarSize={8}

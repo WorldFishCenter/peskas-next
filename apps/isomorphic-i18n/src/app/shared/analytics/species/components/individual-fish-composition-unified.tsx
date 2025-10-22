@@ -357,7 +357,7 @@ export default function IndividualFishCompositionUnified({
                 <Bar
                   dataKey="you"
                   fill={selectedCategoryColor}
-                  name="You"
+                  name={t('text-you')}
                   radius={[4, 4, 0, 0]}
                   barSize={18}
                 />

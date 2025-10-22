@@ -230,7 +230,7 @@ export function FileStatWBCIAGrid({ className, lang }: { className?: string; lan
               const individualValue = sum / validRecords.length;
               
               bmuValues.push({
-                bmu: `You`,
+                bmu: t('text-you'),
                 value: individualValue,
                 index: bmuValues.length,
                 isIndividual: true
@@ -479,7 +479,7 @@ export function FileStatWBCIAGrid({ className, lang }: { className?: string; lan
                   hide={false}
                   tick={(props) => {
                     const { x, y, payload } = props;
-                    const isUserData = payload.value === 'You' || payload.value === userBMU;
+                    const isUserData = payload.value === t('text-you') || payload.value === userBMU;
                     return (
                       <g transform={`translate(${x},${y})`}>
                         <text
