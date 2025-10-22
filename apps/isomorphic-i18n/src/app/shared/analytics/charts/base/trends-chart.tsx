@@ -14,7 +14,7 @@ import { ChartDataPoint, MetricOption, VisibilityState } from "../utils/chart-ty
 import { CustomYAxisTick } from "../utils/chart-components";
 import { useTranslation } from "@/app/i18n/client";
 import { useEffect, useRef, useCallback, useMemo } from "react";
-import { BASELINE_DATA, isIslandSite } from "../utils/site-config";
+import { BASELINE_DATA, getCpuaBaseline, isIslandSite } from "../utils/site-config";
 
 interface TrendsChartProps {
   chartData: ChartDataPoint[];
@@ -29,6 +29,7 @@ interface TrendsChartProps {
   selectedMetric?: string;
   individualFisherData?: any[];
   userFisherId?: string;
+  userBMU?: string;
 }
 
 export default function TrendsChart({
@@ -44,6 +45,7 @@ export default function TrendsChart({
   selectedMetric,
   individualFisherData,
   userFisherId,
+  userBMU,
 }: TrendsChartProps) {
   // Check if there's a parent language context we should use
   const contextLang = document.documentElement.getAttribute('data-language');
@@ -343,63 +345,51 @@ export default function TrendsChart({
             />
           )}
           
-          {/* Add MSY baseline reference lines for CPUA and Revenue metrics */}
-          {selectedMetric === "mean_cpua" && (
-            <>
-              <ReferenceLine
-                y={BASELINE_DATA.CPUA.MSY.FRINGING}
-                stroke="#22c55e"
-                strokeDasharray="8 4"
-                strokeWidth={2}
-                label={{
-                  value: "MSY Fringing",
-                  position: "insideTopRight",
-                  fill: "#22c55e",
-                  fontSize: 11,
-                  offset: 10
-                }}
-              />
-              <ReferenceLine
-                y={BASELINE_DATA.CPUA.MSY.ISLAND}
-                stroke="#16a34a"
-                strokeDasharray="8 4"
-                strokeWidth={2}
-                label={{
-                  value: "MSY Island",
-                  position: "insideTopRight",
-                  fill: "#16a34a",
-                  fontSize: 11,
-                  offset: 10
-                }}
-              />
-              <ReferenceLine
-                y={BASELINE_DATA.CPUA.CURRENT.FRINGING}
-                stroke="#f59e0b"
-                strokeDasharray="4 4"
-                strokeWidth={1.5}
-                label={{
-                  value: "Current Fringing",
-                  position: "insideBottomRight",
-                  fill: "#f59e0b",
-                  fontSize: 11,
-                  offset: 10
-                }}
-              />
-              <ReferenceLine
-                y={BASELINE_DATA.CPUA.CURRENT.ISLAND}
-                stroke="#ea580c"
-                strokeDasharray="4 4"
-                strokeWidth={1.5}
-                label={{
-                  value: "Current Island",
-                  position: "insideBottomRight",
-                  fill: "#ea580c",
-                  fontSize: 11,
-                  offset: 10
-                }}
-              />
-            </>
-          )}
+          {/* Add simplified baseline reference lines for CPUA metric */}
+          {selectedMetric === "mean_cpua" && userBMU && (() => {
+            // Get BMU-specific recommended catch density baseline
+            const cpuaBaseline = getCpuaBaseline(userBMU);
+
+            // Determine MSY value based on seascape type (island vs fringing)
+            const msyValue = isIslandSite(userBMU)
+              ? BASELINE_DATA.CPUA.MSY.ISLAND
+              : BASELINE_DATA.CPUA.MSY.FRINGING;
+
+            return (
+              <>
+                {/* Recommended Catch Density (BMU-specific) */}
+                {cpuaBaseline !== null && (
+                  <ReferenceLine
+                    y={cpuaBaseline}
+                    stroke="#f59e0b"
+                    strokeDasharray="4 4"
+                    strokeWidth={1.5}
+                    label={{
+                      value: t("text-recommended-catch-density"),
+                      position: "insideBottomRight",
+                      fill: "#f59e0b",
+                      fontSize: 11,
+                      offset: 5
+                    }}
+                  />
+                )}
+                {/* Maximum Sustained Yield (seascape-specific) */}
+                <ReferenceLine
+                  y={msyValue}
+                  stroke="#22c55e"
+                  strokeDasharray="8 4"
+                  strokeWidth={2}
+                  label={{
+                    value: t("text-maximum-sustained-yield"),
+                    position: "insideBottomRight",
+                    fill: "#22c55e",
+                    fontSize: 11,
+                    offset: 5
+                  }}
+                />
+              </>
+            );
+          })()}
           
           {selectedMetric === "mean_rpue" && (
             <>

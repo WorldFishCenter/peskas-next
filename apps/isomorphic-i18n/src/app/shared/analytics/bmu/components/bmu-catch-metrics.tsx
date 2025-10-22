@@ -1063,6 +1063,7 @@ export default function CatchMetricsChart({
               selectedMetric={selectedMetric}
               individualFisherData={memoizedFisherData}
               userFisherId={userFisherId}
+              userBMU={effectiveBMU}
               CustomLegend={(props) => (
                 <CustomLegend 
                   {...props} 

@@ -1,5 +1,5 @@
 // Site classifications
-export const ISLAND_SITES = ['Kibuyuni', 'Shimoni', 'Vanga', 'Mkwiro', 'Wasini'];
+export const ISLAND_SITES = ['Kibuyuni', 'Shimoni', 'Vanga', 'Mkwiro', 'Wasini', 'Jimbo'];
 
 // Check if a site is an island seascape
 export const isIslandSite = (siteName: string): boolean => {
@@ -64,7 +64,9 @@ export const BASELINE_DATA = {
     'Wasini': 4.6,
     'Vavaro': 4.7,
     'Yanga': 1.0,
-    'Jimbo': 1.0
+    'Jimbo': 1.0,
+    'Vanga': 1.0,
+    'Kibuyuni': 1.0
   },
   CPUE: {
     // BMU-specific CPUE baselines (kg/fisher/day)
@@ -95,7 +97,9 @@ export const BASELINE_DATA = {
     'Wasini': 3.64,
     'Vavaro': 4.19,
     'Yanga': 2.43,
-    'Jimbo': 2.43
+    'Jimbo': 2.43,
+    'Vanga': 2.43,
+    'Kibuyuni': 2.43
   },
   CPUA_BMU_SPECIFIC: {
     // BMU-specific CPUA baselines (kg/km²/day)
@@ -126,7 +130,9 @@ export const BASELINE_DATA = {
     'Wasini': 14.1,
     'Vavaro': 14.1,
     'Yanga': 14.1,
-    'Jimbo': 14.1
+    'Jimbo': 14.1,
+    'Vanga': 14.1,
+    'Kibuyuni': 14.1
   }
 };
 
