@@ -55,6 +55,8 @@ export default function AnnualChart({
   // Keep a reference to translation state
   const translationsRef = useRef<Record<string, string>>({});
   
+  // Keep chart data as-is to preserve color mappings
+  
   // Pre-load critical translations to avoid flicker
   useEffect(() => {
     // Cache the most commonly used translations
@@ -213,7 +215,7 @@ export default function AnnualChart({
                         ? t("text-historical-average") || "Historical Average"
                         : entry.dataKey === "individualFisher"
                         ? t("text-your-performance") || "Your Performance"
-                        : entry.dataKey}
+                        : entry.name}
                     </span>{" "}
                     {entry.value?.toFixed(1)}
                   </p>
@@ -233,19 +235,24 @@ export default function AnnualChart({
       site !== "average" && site !== "historical_average"
     );
     
-    return sites.map((site) => (
-      <Bar
-        key={site}
-        dataKey={site}
-        name={site}
-        fill={siteColors[site]}
-        stroke={siteColors[site]}
-        fillOpacity={(visibilityState[site]?.opacity || 1) * 0.85}
-        strokeOpacity={visibilityState[site]?.opacity || 1}
-        radius={[4, 4, 0, 0]}
-        isAnimationActive={false}
-      />
-    ));
+    return sites.map((site) => {
+      const { normalizeBmuForDisplay } = require('../utils/bmu-display-normalizer');
+      const displayName = normalizeBmuForDisplay(site);
+      
+      return (
+        <Bar
+          key={site}
+          dataKey={site}
+          name={displayName}
+          fill={siteColors[site]}
+          stroke={siteColors[site]}
+          fillOpacity={(visibilityState[site]?.opacity || 1) * 0.85}
+          strokeOpacity={visibilityState[site]?.opacity || 1}
+          radius={[4, 4, 0, 0]}
+          isAnimationActive={false}
+        />
+      );
+    });
   };
 
   return (

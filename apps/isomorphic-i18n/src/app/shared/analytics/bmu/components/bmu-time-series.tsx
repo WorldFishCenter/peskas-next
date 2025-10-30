@@ -431,7 +431,7 @@ export default function CatchMetricsChart({
       const initialVisibility = uniqueSites.reduce<VisibilityState>(
           (acc, site) => ({
             ...acc,
-            [site as string]: { opacity: site === bmu ? 1 : 0.2 },
+            [site as string]: { opacity: (bmu && (site as string).toLowerCase().replace(/[-_]/g, '') === bmu.toLowerCase().replace(/[-_]/g, '') ? 1 : 0.2) },
           }),
           {}
       );
@@ -716,7 +716,8 @@ export default function CatchMetricsChart({
       const newVisibilityState = { ...visibilityState };
       Object.keys(siteColors).forEach(site => {
         if (site !== 'average' && !newVisibilityState[site]) {
-          newVisibilityState[site] = { opacity: site === bmu ? 1 : 0.2 };
+          const matchesBmu = bmu && site.toLowerCase().replace(/[-_]/g, '') === bmu.toLowerCase().replace(/[-_]/g, '');
+          newVisibilityState[site] = { opacity: matchesBmu ? 1 : 0.2 };
         }
       });
       setVisibilityState(newVisibilityState);
@@ -755,9 +756,13 @@ export default function CatchMetricsChart({
         color: entry.color
       }))
       .sort((a: any, b: any) => {
+        // Helper to normalize BMU names for comparison
+        const normalizeBmuName = (name: string) => name.toLowerCase().replace(/[-_]/g, '');
+        const normalizedBmu = bmu ? normalizeBmuName(bmu) : '';
+        
         // Put the reference BMU first, then sort alphabetically
-        if (a.name === bmu) return -1;
-        if (b.name === bmu) return 1;
+        if (normalizeBmuName(a.name) === normalizedBmu) return -1;
+        if (normalizeBmuName(b.name) === normalizedBmu) return 1;
         return a.name.localeCompare(b.name);
       });
     

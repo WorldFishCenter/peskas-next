@@ -10,6 +10,7 @@ import { BmuModel, GroupModel, UserModel } from "@repo/nosql/schema/auth";
 
 import { MailService, Templates } from "../lib/mail";
 import { createTRPCRouter, protectedProcedure, publicProcedure } from "../trpc";
+import { normalizeBmusForQuery } from "../utils/bmu-normalizer";
 
 const EXCLUDED_BMUS = ["Ngomeni"];
 
@@ -195,12 +196,23 @@ export const userRouter = createTRPCRouter({
     .input(UpsertUserSchema)
     .mutation(async ({ input }) => {
       const userGroup = await GroupModel.findOne({ name: input.role });
+      
+      // Normalize BMU names to handle both hyphen and underscore formats
+      const bmuLabels = input.bmuNames.map((bmu) => bmu.label);
+      const normalizedBmuLabels = normalizeBmusForQuery(bmuLabels);
+      const allBmuLabels = Array.from(new Set([...bmuLabels, ...normalizedBmuLabels]));
+      
       const bmuGroups = await BmuModel.find({
-        BMU: { $in: input.bmuNames.map((bmu) => bmu.label) },
+        BMU: { $in: allBmuLabels },
       });
-      const userBmu = input.userBmu ? await BmuModel.findOne({
-        BMU: input.userBmu.label,
-      }) : null;
+      
+      let userBmu = null;
+      if (input.userBmu) {
+        const normalizedUserBmu = normalizeBmusForQuery([input.userBmu.label]);
+        userBmu = await BmuModel.findOne({
+          BMU: { $in: [input.userBmu.label, ...normalizedUserBmu] },
+        });
+      }
       const findOne = input._id ? { _id: input._id } : { email: input.email };
       const _user = await UserModel.findOneAndUpdate(
         findOne,

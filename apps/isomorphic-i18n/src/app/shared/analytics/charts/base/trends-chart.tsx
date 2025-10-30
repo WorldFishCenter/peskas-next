@@ -55,12 +55,9 @@ export default function TrendsChart({
   // Keep a reference to translation state
   const translationsRef = useRef<Record<string, string>>({});
   
-  // Use chart data as-is, respecting the global time range filter
+  // Just sort chart data by date without changing keys - preserve original structure
   const filteredChartData = useMemo(() => {
     if (!chartData || chartData.length === 0) return [];
-    
-    // Just sort by date without additional filtering
-    // The time range filtering is handled by the global time range selector
     return [...chartData].sort((a, b) => a.date - b.date);
   }, [chartData]);
   
@@ -184,20 +181,26 @@ export default function TrendsChart({
       return site !== "average";
     });
     
-    return sites.map((site) => (
-      <Line
-        key={site}
-        dataKey={site}
-        stroke={siteColors[site]}
-        strokeWidth={2}
-        dot={{ fill: siteColors[site], strokeWidth: 0, r: 3 }}
-        activeDot={{ r: 6, strokeWidth: 0 }}
-        hide={visibilityState[site]?.opacity === 0}
-        strokeOpacity={visibilityState[site]?.opacity}
-        isAnimationActive={false}
-        connectNulls={false}
-      />
-    ));
+    return sites.map((site) => {
+      const { normalizeBmuForDisplay } = require('../utils/bmu-display-normalizer');
+      const displayName = normalizeBmuForDisplay(site);
+      
+      return (
+        <Line
+          key={site}
+          dataKey={site}
+          name={displayName}
+          stroke={siteColors[site]}
+          strokeWidth={2}
+          dot={{ fill: siteColors[site], strokeWidth: 0, r: 3 }}
+          activeDot={{ r: 6, strokeWidth: 0 }}
+          hide={visibilityState[site]?.opacity === 0}
+          strokeOpacity={visibilityState[site]?.opacity}
+          isAnimationActive={false}
+          connectNulls={false}
+        />
+      );
+    });
   };
 
   // Custom tooltip component
@@ -234,7 +237,7 @@ export default function TrendsChart({
                     <span className="font-medium">
                       {entry.dataKey === "average" ? getTranslation("text-average-of-all-bmus") : 
                        entry.dataKey === "individualFisher" ? (t("text-your-performance") || "Your Performance") :
-                       entry.dataKey}:
+                       entry.name}:
                     </span>{" "}
                     {entry.value?.toFixed(1)}
                   </p>

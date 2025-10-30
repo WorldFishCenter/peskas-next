@@ -3,6 +3,7 @@ import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "../trpc";
 import { TRPCError } from "@trpc/server";
 import getDb from "@repo/nosql";
+import { normalizeBmusForQuery } from "../utils/bmu-normalizer";
 
 const metricSchema = z.enum([
   "mean_effort",
@@ -20,10 +21,15 @@ export const aggregatedCatchRouter = createTRPCRouter({
     .query(async ({ input }) => {
       try {
         await getDb(); // Ensure DB connection is established
+        
+        // Normalize BMU names to handle both hyphen and underscore formats
+        const normalizedBmus = normalizeBmusForQuery(input.bmus);
+        const allBmus = Array.from(new Set([...input.bmus, ...normalizedBmus]));
+        
         return await CatchMonthlyModel.aggregate([
           {
             $match: {
-              BMU: { $in: input.bmus },
+              BMU: { $in: allBmus },
               $or: [
                 { mean_effort: { $ne: null } },
                 { mean_cpue: { $ne: null } },
@@ -70,10 +76,15 @@ export const aggregatedCatchRouter = createTRPCRouter({
     .query(async ({ input }) => {
       try {
         await getDb(); // Ensure DB connection is established
+        
+        // Normalize BMU names to handle both hyphen and underscore formats
+        const normalizedBmus = normalizeBmusForQuery(input.bmus);
+        const allBmus = Array.from(new Set([...input.bmus, ...normalizedBmus]));
+        
         return await CatchMonthlyModel.aggregate([
           {
             $match: {
-              BMU: { $in: input.bmus },
+              BMU: { $in: allBmus },
               $or: [
                 { mean_effort: { $ne: null } },
                 { mean_cpue: { $ne: null } },
@@ -241,12 +252,16 @@ export const aggregatedCatchRouter = createTRPCRouter({
       try {
         await getDb(); // Ensure DB connection is established
         
+        // Normalize BMU names to handle both hyphen and underscore formats
+        const normalizedBmus = normalizeBmusForQuery(input.bmus);
+        const allBmus = Array.from(new Set([...input.bmus, ...normalizedBmus]));
+        
         // For radar chart, use fdays instead of mean_effort when metric is effort
         const actualMetric = input.metric === "mean_effort" ? "fdays" : input.metric;
         
         // Prepare match stage with optional date filtering
         const matchStage: any = {
-          BMU: { $in: input.bmus },
+          BMU: { $in: allBmus },
           [actualMetric]: { $ne: null },
         };
         

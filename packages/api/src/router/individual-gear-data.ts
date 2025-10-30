@@ -2,6 +2,7 @@ import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "../trpc";
 import { IndividualGearStatsModel } from "@repo/nosql/schema/individual-gear-data";
 import getDb from "@repo/nosql";
+import { generateBmuVariants } from "../utils/bmu-normalizer";
 
 export const individualGearDataRouter = createTRPCRouter({
   // Get all gear stats for a specific fisher
@@ -23,7 +24,9 @@ export const individualGearDataRouter = createTRPCRouter({
     .input(z.object({ BMU: z.string() }))
     .query(async ({ input }) => {
       await getDb();
-      return IndividualGearStatsModel.find({ BMU: input.BMU });
+      // Generate all possible BMU name variants to handle naming inconsistencies
+      const bmuVariants = generateBmuVariants(input.BMU);
+      return IndividualGearStatsModel.find({ BMU: { $in: bmuVariants } });
     }),
 
   // Get all gear stats for a BMU excluding a specific fisher (for BMU average)
@@ -31,7 +34,9 @@ export const individualGearDataRouter = createTRPCRouter({
     .input(z.object({ BMU: z.string(), excludeFisherId: z.string(), startDate: z.string().optional(), endDate: z.string().optional() }))
     .query(async ({ input }) => {
       await getDb();
-      const query: any = { BMU: input.BMU, fisher_id: { $ne: input.excludeFisherId } };
+      // Generate all possible BMU name variants to handle naming inconsistencies
+      const bmuVariants = generateBmuVariants(input.BMU);
+      const query: any = { BMU: { $in: bmuVariants }, fisher_id: { $ne: input.excludeFisherId } };
       if (input.startDate || input.endDate) {
         query.date = {};
         if (input.startDate) query.date.$gte = new Date(input.startDate);

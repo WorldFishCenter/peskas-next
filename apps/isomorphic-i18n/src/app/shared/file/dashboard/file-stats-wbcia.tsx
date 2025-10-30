@@ -250,8 +250,12 @@ export function FileStatWBCIAGrid({ className, lang }: { className?: string; lan
           ? bmuOnlyValues.reduce((sum, v) => sum + (v.value || 0), 0) / bmuOnlyValues.length
           : 0;
         
-        // Find user's BMU value
-        const userBMUData = bmuValues.find(v => v.bmu === userBMU && !v.isIndividual);
+        // Helper to normalize BMU names for comparison
+        const normalizeBmuName = (name: string) => name.toLowerCase().replace(/[-_]/g, '');
+        const normalizedUserBMU = normalizeBmuName(userBMU || '');
+        
+        // Find user's BMU value (use flexible matching)
+        const userBMUData = bmuValues.find(v => normalizeBmuName(v.bmu) === normalizedUserBMU && !v.isIndividual);
         
         return {
           id: metric.id,
@@ -350,10 +354,13 @@ export function FileStatWBCIAGrid({ className, lang }: { className?: string; lan
     const baseColor = isRevenueMetric ? "rgba(245, 158, 11, 0.5)" : "rgba(59, 130, 246, 0.5)"; // amber vs blue - more opaque
     
     // Different colors for different data types
+    // Helper to normalize BMU names for comparison
+    const normalizeBmuName = (name: string) => name.toLowerCase().replace(/[-_]/g, '');
+    
     let fill = baseColor;
     if (payload?.isIndividual) {
       fill = "#F79F79"; // Coral/orange for individual performance (consistent with other components)
-    } else if (payload?.bmu === userBMU) {
+    } else if (payload?.bmu && userBMU && normalizeBmuName(payload.bmu) === normalizeBmuName(userBMU)) {
       fill = "#fc3468"; // Pink for user's BMU
     }
     
@@ -479,7 +486,9 @@ export function FileStatWBCIAGrid({ className, lang }: { className?: string; lan
                   hide={false}
                   tick={(props) => {
                     const { x, y, payload } = props;
-                    const isUserData = payload.value === t('text-you') || payload.value === userBMU;
+                    const normalizeBmuName = (name: string) => name.toLowerCase().replace(/[-_]/g, '');
+                    const isUserData = payload.value === t('text-you') || 
+                      (userBMU && normalizeBmuName(payload.value) === normalizeBmuName(userBMU));
                     return (
                       <g transform={`translate(${x},${y})`}>
                         <text

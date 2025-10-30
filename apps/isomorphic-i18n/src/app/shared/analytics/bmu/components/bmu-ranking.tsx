@@ -152,7 +152,9 @@ const CustomTooltip = ({ active, payload, selectedMetricOption }: any) => {
 
 // Custom Y-axis tick to highlight effective BMU and individual fisher data
 const CustomYAxisTick = ({ x = 0, y = 0, payload = { value: '' }, effectiveBMU, isIndividualFisher }: any) => {
-  const isEffectiveBMU = payload.value === effectiveBMU;
+  // Helper to normalize BMU names for comparison
+  const normalizeBmuName = (name: string) => name.toLowerCase().replace(/[-_]/g, '');
+  const isEffectiveBMU = effectiveBMU && normalizeBmuName(payload.value) === normalizeBmuName(effectiveBMU);
   const isYourPerformance = isIndividualFisher;
 
   return (

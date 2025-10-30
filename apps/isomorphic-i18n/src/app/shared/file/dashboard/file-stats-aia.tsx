@@ -113,14 +113,22 @@ export function FileStatGridAIA({ className, lang, bmu }: { className?: string; 
     { id: 'profit', field: 'mean_profit', title: t('text-metrics-profit'), unit: t('text-unit-kes-fisher-day'), category: 'revenue' as const }
   ] as const, [t]);
 
+  // Helper function to normalize BMU names for comparison
+  const normalizeBmuName = (name: string) => {
+    return name.toLowerCase().replace(/[-_]/g, '');
+  };
+
   // Process data - get the latest 3 months (AIA mode: BMU data only, no individual overlay)
   const processedData = useMemo(() => {
     if (!monthlyData || !effectiveBMU) return null;
     
     try {
+      // Normalize effectiveBMU for flexible matching
+      const normalizedEffectiveBMU = normalizeBmuName(effectiveBMU);
+      
       // Sort data by date and get latest 3 months
       const sortedData = monthlyData
-        .filter(record => record.landing_site === effectiveBMU)
+        .filter(record => normalizeBmuName(record.landing_site) === normalizedEffectiveBMU)
         .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
         .slice(0, 3)
         .reverse(); // Reverse to show chronological order (oldest to newest)

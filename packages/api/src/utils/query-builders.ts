@@ -1,5 +1,6 @@
 import { TRPCError } from "@trpc/server";
 import getDb from "@repo/nosql";
+import { normalizeBmusForQuery } from "./bmu-normalizer";
 
 /**
  * Build MongoDB date filter stage for aggregation pipelines
@@ -23,14 +24,22 @@ export const buildDateFilterStage = (startDate?: string, endDate?: string) => {
 
 /**
  * Build MongoDB match stage for BMU filtering
- * @param bmus - Array of BMU names
+ * Automatically normalizes BMU names to handle hyphen/underscore inconsistencies
+ * @param bmus - Array of BMU names (will be normalized for database queries)
  * @param additionalFilters - Additional filter conditions
  * @returns MongoDB match stage object
  */
-export const buildBMUMatchStage = (bmus: string[], additionalFilters: any = {}) => ({
-  BMU: { $in: bmus },
-  ...additionalFilters
-});
+export const buildBMUMatchStage = (bmus: string[], additionalFilters: any = {}) => {
+  // Normalize BMU names to handle both "Shelly-Timbwani" and "Shelly_timbwani" formats
+  const normalizedBmus = normalizeBmusForQuery(bmus);
+  const allBmus = Array.from(new Set([...bmus, ...normalizedBmus]));
+  
+  return {
+    // Use $in with both original and normalized names to ensure compatibility
+    BMU: { $in: allBmus },
+    ...additionalFilters
+  };
+};
 
 /**
  * Build MongoDB match stage with BMUs and date filtering

@@ -3,6 +3,7 @@ import isEmpty from 'lodash/isEmpty';
 import getDb from "@repo/nosql";
 import { MonthlyStatsModel } from "@repo/nosql/schema/monthly-stats";
 import { createTRPCRouter, protectedProcedure } from "../trpc";
+import { normalizeBmusForQuery } from "../utils/bmu-normalizer";
 
 function calculatePercentageChange(current: number, previous: number | undefined): number {
   if (!previous) return 0;
@@ -17,13 +18,15 @@ export const monthlyStatsRouter = createTRPCRouter({
       
       if (isEmpty(input.bmus)) return null;
 
-      
+      // Normalize BMU names to handle both hyphen and underscore formats
+      const normalizedBmus = normalizeBmusForQuery(input.bmus);
+      const allBmus = Array.from(new Set([...input.bmus, ...normalizedBmus]));
 
       const data = await MonthlyStatsModel.aggregate([
         {
           $match: {
             BMU: {
-              $in: input.bmus
+              $in: allBmus
             }
           }
         },

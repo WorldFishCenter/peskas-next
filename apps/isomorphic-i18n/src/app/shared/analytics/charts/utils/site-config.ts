@@ -51,7 +51,7 @@ export const BASELINE_DATA = {
     'Reef': 4.6,
     'Msumarini': 4.6,
     'Nyali': 4.6,
-    'Shelty Timbx': 2.5,
+    'Shelly_timbwani': 2.5,
     'Tradewinds': 1.0,
     'Mtwape': 4.6,
     'Mvuleni': 4.6,
@@ -84,7 +84,7 @@ export const BASELINE_DATA = {
     'Reef': 3.64,
     'Msumarini': 3.64,
     'Nyali': 3.64,
-    'Shelty Timbx': 3.80,
+    'Shelly_timbwani': 3.80,
     'Tradewinds': 2.43,
     'Mtwape': 3.64,
     'Mvuleni': 3.64,
@@ -117,7 +117,7 @@ export const BASELINE_DATA = {
     'Reef': 11.5,
     'Msumarini': 11.5,
     'Nyali': 11.5,
-    'Shelty Timbx': 11.5,
+    'Shelly_timbwani': 11.5,
     'Tradewinds': 11.5,
     'Mtwape': 11.5,
     'Mvuleni': 11.5,
@@ -138,7 +138,7 @@ export const BASELINE_DATA = {
 
 // Helper function to get effort baseline for a specific BMU
 export const getEffortBaseline = (bmuName: string): number | null => {
-  // Normalize BMU name for case-insensitive lookup
+  // Normalize BMU name for lookup (trim, handle hyphen/underscore variations)
   const normalizedName = bmuName.trim();
 
   // Direct lookup
@@ -146,9 +146,12 @@ export const getEffortBaseline = (bmuName: string): number | null => {
     return BASELINE_DATA.EFFORT[normalizedName as keyof typeof BASELINE_DATA.EFFORT];
   }
 
-  // Case-insensitive fallback
+  // Flexible fallback: case-insensitive and hyphen/underscore agnostic
+  const normalize = (name: string) => name.toLowerCase().replace(/[-_]/g, '');
+  const searchKey = normalize(normalizedName);
+  
   const key = Object.keys(BASELINE_DATA.EFFORT).find(
-    k => k.toLowerCase() === normalizedName.toLowerCase()
+    k => normalize(k) === searchKey
   );
 
   return key ? BASELINE_DATA.EFFORT[key as keyof typeof BASELINE_DATA.EFFORT] : null;
@@ -156,7 +159,7 @@ export const getEffortBaseline = (bmuName: string): number | null => {
 
 // Helper function to get CPUE baseline for a specific BMU
 export const getCpueBaseline = (bmuName: string): number | null => {
-  // Normalize BMU name for case-insensitive lookup
+  // Normalize BMU name for lookup (trim, handle hyphen/underscore variations)
   const normalizedName = bmuName.trim();
 
   // Direct lookup
@@ -164,9 +167,12 @@ export const getCpueBaseline = (bmuName: string): number | null => {
     return BASELINE_DATA.CPUE[normalizedName as keyof typeof BASELINE_DATA.CPUE];
   }
 
-  // Case-insensitive fallback
+  // Flexible fallback: case-insensitive and hyphen/underscore agnostic
+  const normalize = (name: string) => name.toLowerCase().replace(/[-_]/g, '');
+  const searchKey = normalize(normalizedName);
+  
   const key = Object.keys(BASELINE_DATA.CPUE).find(
-    k => k.toLowerCase() === normalizedName.toLowerCase()
+    k => normalize(k) === searchKey
   );
 
   return key ? BASELINE_DATA.CPUE[key as keyof typeof BASELINE_DATA.CPUE] : null;
@@ -174,7 +180,7 @@ export const getCpueBaseline = (bmuName: string): number | null => {
 
 // Helper function to get BMU-specific CPUA baseline
 export const getCpuaBaseline = (bmuName: string): number | null => {
-  // Normalize BMU name for case-insensitive lookup
+  // Normalize BMU name for lookup (trim, handle hyphen/underscore variations)
   const normalizedName = bmuName.trim();
 
   // Direct lookup
@@ -182,9 +188,12 @@ export const getCpuaBaseline = (bmuName: string): number | null => {
     return BASELINE_DATA.CPUA_BMU_SPECIFIC[normalizedName as keyof typeof BASELINE_DATA.CPUA_BMU_SPECIFIC];
   }
 
-  // Case-insensitive fallback
+  // Flexible fallback: case-insensitive and hyphen/underscore agnostic
+  const normalize = (name: string) => name.toLowerCase().replace(/[-_]/g, '');
+  const searchKey = normalize(normalizedName);
+  
   const key = Object.keys(BASELINE_DATA.CPUA_BMU_SPECIFIC).find(
-    k => k.toLowerCase() === normalizedName.toLowerCase()
+    k => normalize(k) === searchKey
   );
 
   return key ? BASELINE_DATA.CPUA_BMU_SPECIFIC[key as keyof typeof BASELINE_DATA.CPUA_BMU_SPECIFIC] : null;

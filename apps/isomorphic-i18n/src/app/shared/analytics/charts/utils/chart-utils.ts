@@ -37,8 +37,11 @@ export const getSortedBmuList = (bmuNames: string[]): string[] => {
 
 // Standard color function for all charts - using consistent mapping without hardcoding BMUs
 export const generateColor = (index: number, site: string, referenceBmu: string | undefined): string => {
-  // Special case for reference BMU
-  if (site === referenceBmu) {
+  // Helper to normalize BMU names for comparison
+  const normalizeBmuName = (name: string) => name.toLowerCase().replace(/[-_]/g, '');
+  
+  // Special case for reference BMU (use flexible matching)
+  if (referenceBmu && normalizeBmuName(site) === normalizeBmuName(referenceBmu)) {
     return "#fc3468"; // Red color for reference BMU
   }
   

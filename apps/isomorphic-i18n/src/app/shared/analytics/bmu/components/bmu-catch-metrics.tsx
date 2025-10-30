@@ -84,6 +84,17 @@ const prepareDataForCiaComparison = (chartData: ChartDataPoint[], bmuName: strin
   // Import baseline data and helper function
   const { BASELINE_DATA, isIslandSite } = require('../../charts/utils/site-config');
   
+  // Helper to normalize BMU names for comparison
+  const normalizeBmuName = (name: string) => name.toLowerCase().replace(/[-_]/g, '');
+  
+  // Helper to find the actual BMU key in data point
+  const findBmuKey = (point: ChartDataPoint, targetBmu: string): string | null => {
+    const normalizedTarget = normalizeBmuName(targetBmu);
+    return Object.keys(point).find(key => 
+      key !== 'date' && normalizeBmuName(key) === normalizedTarget
+    ) || null;
+  };
+  
   // First, filter to only the most recent 24 months
   const sortedData = [...chartData].sort((a, b) => b.date - a.date);
   const recentData = sortedData.slice(0, 24).reverse();
@@ -119,7 +130,8 @@ const prepareDataForCiaComparison = (chartData: ChartDataPoint[], bmuName: strin
     let count = 0;
     
     for (let i = 0; i < recentData.length; i++) {
-      const value = recentData[i][bmuName];
+      const actualBmuKey = findBmuKey(recentData[i], bmuName);
+      const value = actualBmuKey ? recentData[i][actualBmuKey] : undefined;
       if (value !== undefined && !isNaN(Number(value))) {
         sum += Number(value);
         count++;
@@ -137,7 +149,8 @@ const prepareDataForCiaComparison = (chartData: ChartDataPoint[], bmuName: strin
     let count = 0;
     
     for (let i = 0; i < recentData.length; i++) {
-      const value = recentData[i][bmuName];
+      const actualBmuKey = findBmuKey(recentData[i], bmuName);
+      const value = actualBmuKey ? recentData[i][actualBmuKey] : undefined;
       if (value !== undefined && !isNaN(Number(value))) {
         sum += Number(value);
         count++;
@@ -155,7 +168,8 @@ const prepareDataForCiaComparison = (chartData: ChartDataPoint[], bmuName: strin
     let count = 0;
     
     for (let i = 0; i < recentData.length; i++) {
-      const value = recentData[i][bmuName];
+      const actualBmuKey = findBmuKey(recentData[i], bmuName);
+      const value = actualBmuKey ? recentData[i][actualBmuKey] : undefined;
       if (value !== undefined && !isNaN(Number(value))) {
         sum += Number(value);
         count++;
@@ -176,9 +190,12 @@ const prepareDataForCiaComparison = (chartData: ChartDataPoint[], bmuName: strin
     // Set the same baseline for all points (stored as historical_average for compatibility)
     currentPoint['historical_average'] = baseline;
     
+    // Find the actual BMU key in the data point (handles naming variations)
+    const actualBmuKey = findBmuKey(point, bmuName);
+    
     // Calculate the difference from the baseline
-    if (currentPoint[bmuName] !== undefined) {
-      const actualValue = Number(currentPoint[bmuName]);
+    if (actualBmuKey && currentPoint[actualBmuKey] !== undefined) {
+      const actualValue = Number(currentPoint[actualBmuKey]);
       const difference = actualValue - baseline;
       
       // Store the difference directly
@@ -207,6 +224,18 @@ const prepareMultiBMUBaselineComparison = (chartData: ChartDataPoint[], selected
   // Import baseline data and helper function
   const { BASELINE_DATA, isIslandSite } = require('../../charts/utils/site-config');
   
+  // Helper to normalize BMU names for comparison
+  const normalizeBmuName = (name: string) => name.toLowerCase().replace(/[-_]/g, '');
+
+  // Helper to find the actual BMU key in data point
+  const findBmuKey = (point: ChartDataPoint, targetBmu: string): string | null => {
+    const normalizedTarget = normalizeBmuName(targetBmu);
+    return Object.keys(point).find(key =>
+      key !== 'date' && key !== 'average' && key !== 'historical_average' &&
+      normalizeBmuName(key) === normalizedTarget
+    ) || null;
+  };
+
   // Get the last 24 months of data
   const sortedData = [...chartData].sort((a, b) => b.date - a.date);
   const lastSixMonths = sortedData.slice(0, 24).reverse();
@@ -245,8 +274,9 @@ const prepareMultiBMUBaselineComparison = (chartData: ChartDataPoint[], selected
         // Need to calculate this BMU's average across all time points
         const bmuValues: number[] = [];
         lastSixMonths.forEach(point => {
-          if (point[bmuName] !== undefined && point[bmuName] !== null) {
-            bmuValues.push(point[bmuName] as number);
+          const actualKey = findBmuKey(point, bmuName);
+          if (actualKey && point[actualKey] !== undefined && point[actualKey] !== null) {
+            bmuValues.push(point[actualKey] as number);
           }
         });
         baseline = bmuValues.length > 0 ? bmuValues.reduce((sum, val) => sum + val, 0) / bmuValues.length : 0;
@@ -254,8 +284,9 @@ const prepareMultiBMUBaselineComparison = (chartData: ChartDataPoint[], selected
         // For costs, calculate BMU's own average as baseline (same as profit logic)
         const bmuValues: number[] = [];
         lastSixMonths.forEach(point => {
-          if (point[bmuName] !== undefined && point[bmuName] !== null) {
-            bmuValues.push(point[bmuName] as number);
+          const actualKey = findBmuKey(point, bmuName);
+          if (actualKey && point[actualKey] !== undefined && point[actualKey] !== null) {
+            bmuValues.push(point[actualKey] as number);
           }
         });
         baseline = bmuValues.length > 0 ? bmuValues.reduce((sum, val) => sum + val, 0) / bmuValues.length : 0;
@@ -579,7 +610,9 @@ export default function CatchMetricsChart({
       
       Object.keys(siteColors).forEach(site => {
         if (site !== 'average' && site !== 'historical_average' && !newState[site]) {
-          newState[site] = { opacity: site === effectiveBMU ? 1 : 0.05 };
+          const normalizeBmuName = (name: string) => name.toLowerCase().replace(/[-_]/g, '');
+          const matchesEffectiveBMU = effectiveBMU && normalizeBmuName(site) === normalizeBmuName(effectiveBMU);
+          newState[site] = { opacity: matchesEffectiveBMU ? 1 : 0.05 };
           
           // Also set positive/negative variants for comparison view
           const positiveKey = `${site}Positive`;
@@ -670,10 +703,10 @@ export default function CatchMetricsChart({
       const initialVisibility = uniqueSites.reduce<VisibilityState>(
         (acc, site) => ({
           ...acc,
-          [site as string]: { 
+          [site as string]:           {
             opacity: hasRestrictedAccess
               ? (accessibleSites.includes(site as string) ? 1 : 0.05)
-              : (site === effectiveBMU ? 1 : 0.05) 
+              : (effectiveBMU && (site as string).toLowerCase().replace(/[-_]/g, '') === effectiveBMU.toLowerCase().replace(/[-_]/g, '') ? 1 : 0.05)
           },
         }),
         {}

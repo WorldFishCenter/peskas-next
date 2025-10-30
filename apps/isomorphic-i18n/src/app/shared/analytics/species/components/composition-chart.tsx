@@ -44,6 +44,18 @@ import { filterDataByTimeRange } from "../../core/utils/time-range-filter";
 const prepareDataForCiaComparison = (chartData: ChartDataPoint[], bmuName: string) => {
   if (!chartData.length) return [];
   
+  // Helper to normalize BMU names for comparison
+  const normalizeBmuName = (name: string) => name.toLowerCase().replace(/[-_]/g, '');
+  
+  // Helper to find the actual BMU key in data point
+  const findBmuKey = (point: ChartDataPoint, targetBmu: string): string | null => {
+    const normalizedTarget = normalizeBmuName(targetBmu);
+    return Object.keys(point).find(key => 
+      key !== 'date' && key !== 'average' && key !== 'historical_average' && 
+      normalizeBmuName(key) === normalizedTarget
+    ) || null;
+  };
+  
   // First, filter to only the most recent 24 months
   const sortedData = [...chartData].sort((a, b) => b.date - a.date);
   const recentData = sortedData.slice(0, 24).reverse();
@@ -59,7 +71,8 @@ const prepareDataForCiaComparison = (chartData: ChartDataPoint[], bmuName: strin
   let count = 0;
   
   for (let i = 0; i < recentSixMonths.length; i++) {
-    const value = recentSixMonths[i][bmuName];
+    const actualBmuKey = findBmuKey(recentSixMonths[i], bmuName);
+    const value = actualBmuKey ? recentSixMonths[i][actualBmuKey] : undefined;
     if (value !== undefined && !isNaN(Number(value))) {
       sum += Number(value);
       count++;
@@ -80,9 +93,12 @@ const prepareDataForCiaComparison = (chartData: ChartDataPoint[], bmuName: strin
     // Set the same historical average for all points
     currentPoint['historical_average'] = historicalAverage;
     
+    // Find the actual BMU key in the data point (handles naming variations)
+    const actualBmuKey = findBmuKey(point, bmuName);
+    
     // Calculate the difference from the historical average
-    if (currentPoint[bmuName] !== undefined) {
-      const actualValue = Number(currentPoint[bmuName]);
+    if (actualBmuKey && currentPoint[actualBmuKey] !== undefined) {
+      const actualValue = Number(currentPoint[actualBmuKey]);
       const difference = actualValue - historicalAverage;
       
       // Store the difference directly
@@ -506,7 +522,9 @@ export default function FishCompositionChart({
       
       Object.keys(siteColors).forEach(site => {
         if (site !== 'average' && site !== 'historical_average' && !newState[site]) {
-          newState[site] = { opacity: site === effectiveBMU ? 1 : 0.2 };
+          const normalizeBmuName = (name: string) => name.toLowerCase().replace(/[-_]/g, '');
+          const matchesEffectiveBMU = effectiveBMU && normalizeBmuName(site) === normalizeBmuName(effectiveBMU);
+          newState[site] = { opacity: matchesEffectiveBMU ? 1 : 0.2 };
           
           // Also set positive/negative variants for comparison view
           const positiveKey = `${site}Positive`;
@@ -581,16 +599,24 @@ export default function FishCompositionChart({
         
         // Get landing site (BMU) from the data
         const landingSite = month.landing_site;
-        
-        // Skip if this BMU isn't in our list
-        if (!effectiveBmus.includes(landingSite)) return;
-        
+
+        // Helper to normalize BMU names for comparison
+        const normalizeBmuName = (name: string) => name.toLowerCase().replace(/[-_]/g, '');
+
+        // Skip if this BMU isn't in our list (use flexible matching)
+        const matchesBmu = effectiveBmus.some(bmu => normalizeBmuName(bmu) === normalizeBmuName(landingSite));
+        if (!matchesBmu) return;
+
+        // Find the actual matching query BMU to use for indexing (to handle name format differences)
+        const matchedQueryBmu = effectiveBmus.find(bmu => normalizeBmuName(bmu) === normalizeBmuName(landingSite));
+        if (!matchedQueryBmu) return;
+
         // Find the category that matches our selected category
         const categoryData = month.categories.find((cat: any) => cat.category === selectedCategory);
-        
-        // Add the data point if we have it
+
+        // Add the data point if we have it - use matchedQueryBmu instead of landingSite
         if (categoryData && categoryData.total_catch !== undefined && categoryData.total_catch !== null) {
-          dataMap[timestamp][landingSite] = categoryData.total_catch;
+          dataMap[timestamp][matchedQueryBmu] = categoryData.total_catch;
         }
       });
       
@@ -675,10 +701,10 @@ export default function FishCompositionChart({
       const initialVisibility = uniqueSites.reduce<VisibilityState>(
         (acc, site) => ({
           ...acc,
-          [site]: { 
+          [site]:           {
             opacity: hasRestrictedAccess
               ? (accessibleSites.includes(site) ? 1 : 0.2)
-              : (site === effectiveBMU ? 1 : 0.2) 
+              : (effectiveBMU && site.toLowerCase().replace(/[-_]/g, '') === effectiveBMU.toLowerCase().replace(/[-_]/g, '') ? 1 : 0.2)
           },
         }),
         {}

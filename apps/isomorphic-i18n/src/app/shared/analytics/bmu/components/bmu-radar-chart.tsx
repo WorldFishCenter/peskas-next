@@ -398,7 +398,7 @@ export default function CatchRadarChart({
             [site]: { 
               opacity: hasRestrictedAccess
                 ? accessibleSites.includes(site) ? 1 : 0.05
-                : site === effectiveBMU ? 1 : 0.05 
+                : (effectiveBMU && site.toLowerCase().replace(/[-_]/g, '') === effectiveBMU.toLowerCase().replace(/[-_]/g, '') ? 1 : 0.05)
             },
           }),
           {}
@@ -669,6 +669,9 @@ export default function CatchRadarChart({
               strokeWidth={0.5}
             />
             {Object.entries(siteColors).map(([site, color]) => {
+              const { normalizeBmuForDisplay } = require('../../charts/utils/bmu-display-normalizer');
+              const displayName = normalizeBmuForDisplay(site);
+              
               // In differenced mode, only show the selected BMU
               if (activeTab === 'differenced' && site !== effectiveBMU) {
                 return null;
@@ -677,7 +680,7 @@ export default function CatchRadarChart({
               return (
                 <Radar
                   key={site}
-                  name={site}
+                  name={displayName}
                   dataKey={site}
                   stroke={activeTab === 'differenced' ? "#fc3468" : color}
                   fill={activeTab === 'differenced' ? "#fc3468" : color}

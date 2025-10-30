@@ -474,6 +474,11 @@ export default function GearHeatmap({
     }));
   }, []);
 
+  // Helper function to normalize BMU names for comparison
+  const normalizeBmuName = useCallback((name: string) => {
+    return name.toLowerCase().replace(/[-_]/g, '');
+  }, []);
+
   // Reset to distribution tab if CIA or AIA user somehow gets to comparison tab
   useEffect(() => {
     if ((isCiaUser || isAiaUser) && activeTab === 'comparison') {
@@ -690,11 +695,11 @@ export default function GearHeatmap({
       // Filter data based on user permissions
       const filteredRankingData = rawData.filter((d: GearData) => {
         if (hasRestrictedAccess) {
-          // For CIA users, only show their assigned BMU
-          return d.BMU === effectiveBMU;
+          // For CIA users, only show their assigned BMU (use flexible matching)
+          return effectiveBMU && normalizeBmuName(d.BMU) === normalizeBmuName(effectiveBMU);
         } else if (isWbciaUser && effectiveBMU) {
-          // For WBCIA users with a selected BMU, filter to that BMU
-          return d.BMU === effectiveBMU;
+          // For WBCIA users with a selected BMU, filter to that BMU (use flexible matching)
+          return normalizeBmuName(d.BMU) === normalizeBmuName(effectiveBMU);
         }
         // For admins and users without restrictions, show all data
         return true;
@@ -728,20 +733,23 @@ export default function GearHeatmap({
       // For the user's BMU compared to average of others
       // Only generate for users who can compare with others (not CIA or AIA users)
       if (effectiveBMU && !isCiaUser && !isAiaUser) {
+        const normalizedEffectiveBMU = normalizeBmuName(effectiveBMU);
+        
         const comparisonData = gearTypes.map((gear, index) => {
-          // Get value for user's BMU
+          // Get value for user's BMU (use flexible matching)
           const bmuValue = rawData.find(
-            d => d.BMU === effectiveBMU && d.gear === gear && typeof (d as any)[mappedMetricField] === "number"
+            d => normalizeBmuName(d.BMU) === normalizedEffectiveBMU && d.gear === gear && typeof (d as any)[mappedMetricField] === "number"
           )?.[mappedMetricField as keyof typeof rawData[0]] || 0;
 
-          // Get average value for other BMUs
-          const otherBMUs = uniqueBMUs.filter(b => b !== effectiveBMU);
+          // Get average value for other BMUs (use flexible matching)
+          const otherBMUs = uniqueBMUs.filter(b => normalizeBmuName(b) !== normalizedEffectiveBMU);
           let otherBMUsTotal = 0;
           let otherBMUsCount = 0;
 
           otherBMUs.forEach(otherBMU => {
+            const normalizedOtherBMU = normalizeBmuName(otherBMU);
             const value = rawData.find(
-              d => d.BMU === otherBMU && d.gear === gear && typeof (d as any)[mappedMetricField] === "number"
+              d => normalizeBmuName(d.BMU) === normalizedOtherBMU && d.gear === gear && typeof (d as any)[mappedMetricField] === "number"
             )?.[mappedMetricField as keyof typeof rawData[0]];
 
             if (value) {

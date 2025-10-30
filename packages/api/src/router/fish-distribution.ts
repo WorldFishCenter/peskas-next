@@ -3,6 +3,7 @@ import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "../trpc";
 import { TRPCError } from "@trpc/server";
 import getDb from "@repo/nosql";
+import { normalizeBmusForQuery } from "../utils/bmu-normalizer";
 
 export const fishDistributionRouter = createTRPCRouter({
   // Get monthly distribution by fish category
@@ -11,10 +12,15 @@ export const fishDistributionRouter = createTRPCRouter({
     .query(async ({ input }) => {
       try {
         await getDb(); // Ensure DB connection is established
+        
+        // Normalize BMU names to handle both hyphen and underscore formats
+        const normalizedBmus = normalizeBmusForQuery(input.bmus);
+        const allBmus = Array.from(new Set([...input.bmus, ...normalizedBmus]));
+        
         return await FishDistributionModel.aggregate([
           {
             $match: {
-              landing_site: { $in: input.bmus },
+              landing_site: { $in: allBmus },
               mean_catch_kg: { $ne: null },
             },
           },
@@ -53,9 +59,13 @@ export const fishDistributionRouter = createTRPCRouter({
       try {
         await getDb();
         
+        // Normalize BMU names to handle both hyphen and underscore formats
+        const normalizedBmus = normalizeBmusForQuery(input.bmus);
+        const allBmus = Array.from(new Set([...input.bmus, ...normalizedBmus]));
+        
         // Prepare match stage with optional date filtering
         const matchStage: any = {
-          landing_site: { $in: input.bmus },
+          landing_site: { $in: allBmus },
           mean_catch_kg: { $ne: null },
         };
         
@@ -113,10 +123,14 @@ export const fishDistributionRouter = createTRPCRouter({
       try {
         await getDb();
         
+        // Normalize BMU names to handle both hyphen and underscore formats
+        const normalizedBmus = normalizeBmusForQuery(input.bmus);
+        const allBmus = Array.from(new Set([...input.bmus, ...normalizedBmus]));
+        
         // Prepare match stage with optional category filtering
         const fieldToUse = input.useTotal ? 'total_catch_kg' : 'mean_catch_kg';
         const matchStage: any = {
-          landing_site: { $in: input.bmus },
+          landing_site: { $in: allBmus },
           [fieldToUse]: { $ne: null },
         };
         

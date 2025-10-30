@@ -230,30 +230,38 @@ export default function FishCompositionComparison({
         totals[bmu] = {};
       });
       
+      // Helper to normalize BMU names for comparison
+      const normalizeBmuName = (name: string) => name.toLowerCase().replace(/[-_]/g, '');
+      
       // Process the filtered monthly data
       filteredFishDistributionData.forEach(monthData => {
         const bmuName = monthData.landing_site;
-        
-        // Skip if this BMU isn't in our query list
-        if (!queryBmus.includes(bmuName)) return;
-        
+
+        // Skip if this BMU isn't in our query list (use flexible matching)
+        const matchesBmu = queryBmus.some(qBmu => normalizeBmuName(qBmu) === normalizeBmuName(bmuName));
+        if (!matchesBmu) return;
+
+        // Find the actual matching query BMU to use for indexing (to handle name format differences)
+        const matchedQueryBmu = queryBmus.find(qBmu => normalizeBmuName(qBmu) === normalizeBmuName(bmuName));
+        if (!matchedQueryBmu) return;
+
         // Process categories for this month/BMU
         if (monthData.categories && Array.isArray(monthData.categories)) {
           monthData.categories.forEach((cat: { category: string; total_catch: number }) => {
             // Ensure we have a valid category name and catch value
             if (!cat.category) return;
-            
+
             const categoryName = cat.category;
             categories.add(categoryName);
-            
-            // Initialize category for this BMU if it doesn't exist
-            if (!totals[bmuName][categoryName]) {
-              totals[bmuName][categoryName] = 0;
+
+            // Initialize category for this BMU if it doesn't exist - use matchedQueryBmu instead of bmuName
+            if (!totals[matchedQueryBmu][categoryName]) {
+              totals[matchedQueryBmu][categoryName] = 0;
             }
-            
+
             // Only add to the total if we have a valid catch amount
             if (cat.total_catch !== undefined && cat.total_catch !== null) {
-              totals[bmuName][categoryName] += cat.total_catch;
+              totals[matchedQueryBmu][categoryName] += cat.total_catch;
             }
           });
         }
@@ -403,7 +411,9 @@ export default function FishCompositionComparison({
 
   // Custom Y-axis tick to highlight user's BMU
 const CustomYAxisTick = ({ x = 0, y = 0, payload = { value: '' }, userBMU }: any) => {
-  const isUserBMU = payload.value === userBMU;
+  // Helper to normalize BMU names for comparison
+  const normalizeBmuName = (name: string) => name.toLowerCase().replace(/[-_]/g, '');
+  const isUserBMU = userBMU && normalizeBmuName(payload.value) === normalizeBmuName(userBMU);
 
   return (
     <g transform={`translate(${x},${y})`}>

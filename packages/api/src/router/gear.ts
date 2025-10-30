@@ -4,6 +4,7 @@ import getDb from "@repo/nosql";
 
 import { GearSummaryModel } from "@repo/nosql/schema/gear-summary";
 import { createTRPCRouter, protectedProcedure } from "../trpc";
+import { normalizeBmusForQuery } from "../utils/bmu-normalizer";
 
 export const gearRouter = createTRPCRouter({
   summaries: protectedProcedure
@@ -16,9 +17,13 @@ export const gearRouter = createTRPCRouter({
       try {
         await getDb(); // Ensure DB connection is established
         
+        // Normalize BMU names to handle both hyphen and underscore formats
+        const normalizedBmus = normalizeBmusForQuery(input.bmus);
+        const allBmus = Array.from(new Set([...input.bmus, ...normalizedBmus]));
+        
         // Prepare match stage with optional date filtering
         const matchStage: any = {
-          BMU: { $in: input.bmus },
+          BMU: { $in: allBmus },
         };
         
         if (input.startDate || input.endDate) {

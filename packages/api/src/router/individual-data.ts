@@ -4,6 +4,7 @@ import { createTRPCRouter, protectedProcedure } from "../trpc";
 import { IndividualFishDistributionModel } from "@repo/nosql/schema/individual-fish-distribution";
 import { TRPCError } from "@trpc/server";
 import getDb from "@repo/nosql";
+import { normalizeBmusForQuery } from "../utils/bmu-normalizer";
 
 export const individualDataRouter = createTRPCRouter({
   // Get all individual data for specified BMUs
@@ -13,8 +14,12 @@ export const individualDataRouter = createTRPCRouter({
       try {
         await getDb();
         
+        // Normalize BMU names to handle both hyphen and underscore formats
+        const normalizedBmus = normalizeBmusForQuery(input.bmus);
+        const allBmus = Array.from(new Set([...input.bmus, ...normalizedBmus]));
+        
         const matchStage = {
-          BMU: { $in: input.bmus },
+          BMU: { $in: allBmus },
         };
         
         return await IndividualStatsModel.find(matchStage)
@@ -159,9 +164,13 @@ export const individualDataRouter = createTRPCRouter({
       try {
         await getDb();
         
+        // Normalize BMU names to handle both hyphen and underscore formats
+        const normalizedBmus = normalizeBmusForQuery(input.bmus);
+        const allBmus = Array.from(new Set([...input.bmus, ...normalizedBmus]));
+        
         // Prepare match stage with optional date filtering
         const matchStage: any = {
-          BMU: { $in: input.bmus },
+          BMU: { $in: allBmus },
         };
         
         if (input.startDate || input.endDate) {
@@ -225,10 +234,14 @@ export const individualDataRouter = createTRPCRouter({
       try {
         await getDb();
         
+        // Normalize BMU names to handle both hyphen and underscore formats
+        const normalizedBmus = normalizeBmusForQuery(input.bmus);
+        const allBmus = Array.from(new Set([...input.bmus, ...normalizedBmus]));
+        
         return await IndividualStatsModel.aggregate([
           {
             $match: {
-              BMU: { $in: input.bmus },
+              BMU: { $in: allBmus },
               mean_cpue: { $ne: null },
               mean_rpue: { $ne: null },
             },
@@ -287,10 +300,14 @@ export const individualDataRouter = createTRPCRouter({
       try {
         await getDb();
         
+        // Normalize BMU names to handle both hyphen and underscore formats
+        const normalizedBmus = normalizeBmusForQuery(input.bmus);
+        const allBmus = Array.from(new Set([...input.bmus, ...normalizedBmus]));
+        
         return await IndividualStatsModel.aggregate([
           {
             $match: {
-              BMU: { $in: input.bmus },
+              BMU: { $in: allBmus },
               [input.metric]: { $ne: null },
             },
           },

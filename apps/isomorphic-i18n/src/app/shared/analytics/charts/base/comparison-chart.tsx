@@ -56,6 +56,8 @@ export default function ComparisonChart({
   // Keep a reference to translation state
   const translationsRef = useRef<Record<string, string>>({});
   
+  // Keep chart data as-is to preserve color mappings
+  
   // Helper function to get time range label for translations
   const getTimeRangeLabel = useCallback((timeRange: TimeRangeOption): string => {
     switch (timeRange) {
@@ -307,6 +309,9 @@ export default function ComparisonChart({
     if (sites.length === 0) return null;
     
     return sites.flatMap((site) => {
+      const { normalizeBmuForDisplay } = require('../utils/bmu-display-normalizer');
+      const displayName = normalizeBmuForDisplay(site);
+      
       // Check if we're in baseline comparison mode for WBCIA users
       const isBaselineComparison = isCiaHistoricalMode && (selectedMetric === 'mean_cpua' || selectedMetric === 'mean_rpue');
       
@@ -317,7 +322,7 @@ export default function ComparisonChart({
           <Bar
             key={`${site}Bar`}
             dataKey={site}
-            name={site}
+            name={displayName}
             fill={siteColors[site]}
             stroke={siteColors[site]}
             fillOpacity={(visibilityState[site]?.opacity || 1) * 0.85}
@@ -333,7 +338,7 @@ export default function ComparisonChart({
       <Bar
         key={`${site}Bar`}
         dataKey={site}
-        name={site}
+        name={displayName}
         fill={siteColors[site]}
         stroke={siteColors[site]}
         fillOpacity={(visibilityState[site]?.opacity || 1) * 0.85}

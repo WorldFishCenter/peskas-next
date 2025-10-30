@@ -134,14 +134,22 @@ export function FileStatGridAdmin({ className, lang }: { className?: string; lan
     { id: 'profit', field: 'mean_profit', title: t('text-metrics-profit'), unit: t('text-unit-kes-fisher-day'), category: 'revenue' as const }
   ] as const, [t]);
 
+  // Helper function to normalize BMU names for comparison
+  const normalizeBmuName = (name: string) => {
+    return name.toLowerCase().replace(/[-_]/g, '');
+  };
+
   // Process data - get the latest 3 months
   const processedData = useMemo(() => {
     if (!starredBMUData || !selectedBMUsData || !starredBMU || selectedBMUs.length === 0) return null;
     
     try {
+      // Normalize starredBMU for flexible matching
+      const normalizedStarredBMU = normalizeBmuName(starredBMU);
+      
       // Process starred BMU data
       const starredSortedData = starredBMUData
-        .filter(record => record.landing_site === starredBMU)
+        .filter(record => normalizeBmuName(record.landing_site) === normalizedStarredBMU)
         .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
         .slice(0, 3)
         .reverse(); // Reverse to show chronological order

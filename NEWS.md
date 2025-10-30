@@ -1,3 +1,16 @@
+# peskas-next 2.5.1
+
+## Enhancements
+- Enhanced BMU name normalization for consistent data handling and visualization
+- Improved BMU display normalization for consistent display of BMU names across all charts and UI components
+- Refined BMU name normalization for improved data querying and filtering capabilities
+
+## Fixes
+- Fixed BMU name normalization issues for consistent data handling and visualization
+- Fixed BMU display normalization issues for consistent display of BMU names across all charts and UI components
+---
+
+
 # peskas-next 2.5.0
 
 ## Enhancements
