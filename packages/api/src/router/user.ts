@@ -12,8 +12,6 @@ import { MailService, Templates } from "../lib/mail";
 import { createTRPCRouter, protectedProcedure, publicProcedure } from "../trpc";
 import { normalizeBmusForQuery } from "../utils/bmu-normalizer";
 
-const EXCLUDED_BMUS = ["Ngomeni"];
-
 /**
  * We need to duplicate the validators here.
  * Since it will create a cyclic dependency in apps/isomorphic-i18n/src/validators/user.schema.ts
@@ -190,7 +188,7 @@ export const userRouter = createTRPCRouter({
     }),
   allBmus: publicProcedure.query(async () => {
     const bmus = await BmuModel.find({});
-    return bmus.filter((bmu) => !EXCLUDED_BMUS.includes(bmu.BMU));
+    return bmus;
   }),
   upsert: protectedProcedure
     .input(UpsertUserSchema)
