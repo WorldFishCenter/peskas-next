@@ -13,6 +13,7 @@ import { getClientLanguage } from "@/app/i18n/language-link";
 import { api } from "@/trpc/react";
 import { useUserPermissions } from "../../analytics/core/hooks/use-user-permissions";
 import { bmusAtom } from "@/app/components/filter-selector";
+import { normalizeBmuForDisplay } from "../../analytics/charts/utils/bmu-display-normalizer";
 
 type FileStatsAdminType = {
   className?: string;
@@ -134,9 +135,9 @@ export function FileStatGridAdmin({ className, lang }: { className?: string; lan
     { id: 'profit', field: 'mean_profit', title: t('text-metrics-profit'), unit: t('text-unit-kes-fisher-day'), category: 'revenue' as const }
   ] as const, [t]);
 
-  // Helper function to normalize BMU names for comparison
+  // Helper function to normalize BMU names for comparison (handles spaces, hyphens, underscores)
   const normalizeBmuName = (name: string) => {
-    return name.toLowerCase().replace(/[-_]/g, '');
+    return name.toLowerCase().replace(/[-_\s]/g, '');
   };
 
   // Process data - get the latest 3 months
@@ -144,17 +145,48 @@ export function FileStatGridAdmin({ className, lang }: { className?: string; lan
     if (!starredBMUData || !selectedBMUsData || !starredBMU || selectedBMUs.length === 0) return null;
     
     try {
-      // Normalize starredBMU for flexible matching
+      // Normalize starredBMU for flexible matching (handles spaces, hyphens, underscores)
       const normalizedStarredBMU = normalizeBmuName(starredBMU);
       
-      // Process starred BMU data
-      const starredSortedData = starredBMUData
-        .filter(record => normalizeBmuName(record.landing_site) === normalizedStarredBMU)
+      // Process starred BMU data - use flexible matching to handle format differences
+      let starredSortedData = starredBMUData
+        .filter(record => {
+          if (!record.landing_site) return false;
+          // Normalize both sides for comparison (handles all format variations)
+          return normalizeBmuName(record.landing_site) === normalizedStarredBMU;
+        })
         .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
         .slice(0, 3)
         .reverse(); // Reverse to show chronological order
       
-      if (starredSortedData.length === 0) return null;
+      // If no exact match found, try to find any Kiwayuu BMU data if the starred BMU is a Kiwayuu BMU
+      // This handles cases where the BMU name format doesn't match exactly
+      if (starredSortedData.length === 0) {
+        const isKiwayuu = normalizeBmuName(starredBMU).includes('kiwayuu');
+        if (isKiwayuu && starredBMUData.length > 0) {
+          // For Kiwayuu BMUs, if we have data but no exact match, try to match by Kiwayuu type (inde/nje/ndani)
+          // Check if the starred BMU contains "inde", "nje", or "ndani"
+          const kiwayuuType = normalizedStarredBMU.includes('inde') ? 'inde' : 
+                             normalizedStarredBMU.includes('nje') ? 'nje' :
+                             normalizedStarredBMU.includes('ndani') ? 'ndani' : null;
+          
+          if (kiwayuuType) {
+            starredSortedData = starredBMUData
+              .filter((record: any) => {
+                if (!record.landing_site) return false;
+                const normalized = normalizeBmuName(record.landing_site);
+                return normalized.includes('kiwayuu') && normalized.includes(kiwayuuType);
+              })
+              .sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime())
+              .slice(0, 3)
+              .reverse();
+          }
+        }
+        
+        if (starredSortedData.length === 0) {
+          return null;
+        }
+      }
       
       // Process selected BMUs data and calculate averages
       const selectedBMUsGrouped = selectedBMUsData
@@ -209,7 +241,7 @@ export function FileStatGridAdmin({ className, lang }: { className?: string; lan
           metric: Math.round(latestValue).toLocaleString(),
           unit: metric.unit,
           chart: starredMonthValues,
-          starredBMU: starredBMU,
+          starredBMU: normalizeBmuForDisplay(starredBMU),
           monthName: t('text-last-3-months')
         };
       });

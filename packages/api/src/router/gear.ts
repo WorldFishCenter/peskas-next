@@ -6,6 +6,41 @@ import { GearSummaryModel } from "@repo/nosql/schema/gear-summary";
 import { createTRPCRouter, protectedProcedure } from "../trpc";
 import { normalizeBmusForQuery } from "../utils/bmu-normalizer";
 
+/**
+ * Get all BMU variants including special handling for Kiwayuu BMUs
+ * This ensures that when querying for any Kiwayuu BMU, we also include
+ * related variants (Inde, Nje, Ndani) to handle cases where BMUs exist
+ * in catch data but not in the BMU collection.
+ */
+const getAllBmuVariants = (bmus: string[]): string[] => {
+  // Normalize BMU names to handle both hyphen and underscore formats
+  const normalizedBmus = normalizeBmusForQuery(bmus);
+  
+  // Special handling: if querying for Kiwayuu BMUs, also include related variants
+  // This handles cases where "Kiwayuu cha Inde" exists in catch data but not in BMU collection
+  const additionalBmus: string[] = [];
+  bmus.forEach(bmu => {
+    const normalized = bmu.toLowerCase().replace(/[-_\s]/g, '');
+    // If querying for any Kiwayuu BMU, also include common Kiwayuu variants
+    if (normalized.includes('kiwayuu')) {
+      // Add "Kiwayuu cha Inde" variants if not already included
+      if (!normalized.includes('inde')) {
+        additionalBmus.push('Kiwayuu cha Inde', 'Kiwayuu_cha_inde', 'Kiwayuu_cha_Inde', 'kiwayuu_cha_inde');
+      }
+      // Add "Kiwayuu cha Nje" variants if not already included
+      if (!normalized.includes('nje')) {
+        additionalBmus.push('Kiwayuu cha Nje', 'Kiwayuu_cha_nje', 'Kiwayuu_cha_Nje', 'kiwayuu_cha_nje');
+      }
+      // Add "Kiwayuu cha Ndani" variants if not already included
+      if (!normalized.includes('ndani')) {
+        additionalBmus.push('Kiwayuu cha Ndani', 'Kiwayuu_cha_ndani', 'Kiwayuu_cha_Ndani', 'kiwayuu_cha_ndani');
+      }
+    }
+  });
+  
+  return Array.from(new Set([...bmus, ...normalizedBmus, ...additionalBmus]));
+};
+
 export const gearRouter = createTRPCRouter({
   summaries: protectedProcedure
     .input(z.object({ 
@@ -17,9 +52,7 @@ export const gearRouter = createTRPCRouter({
       try {
         await getDb(); // Ensure DB connection is established
         
-        // Normalize BMU names to handle both hyphen and underscore formats
-        const normalizedBmus = normalizeBmusForQuery(input.bmus);
-        const allBmus = Array.from(new Set([...input.bmus, ...normalizedBmus]));
+        const allBmus = getAllBmuVariants(input.bmus);
         
         // Prepare match stage with optional date filtering
         const matchStage: any = {

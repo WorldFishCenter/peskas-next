@@ -26,6 +26,7 @@ import { MetricOption } from "../../charts/utils/chart-types";
 import useUserPermissions from "../../core/hooks/use-user-permissions";
 import { generateColor, updateBmuColorRegistry, getSortedBmuList } from "../../charts/utils/chart-utils";
 import { useIndividualFisherDataOnly } from "../../individual/hooks/use-individual-data";
+import { normalizeBmuForDisplay } from "../../charts/utils/bmu-display-normalizer";
 
 // Import time range filtering utilities
 import { filterDataByTimeRange, getTimeRangeStartDate } from "../../core/utils/time-range-filter";
@@ -91,6 +92,7 @@ interface BMURankingData {
   fill: string;
   rank: number;
   isIndividualFisher?: boolean;
+  originalBmuName?: string; // Keep original BMU name for filtering
 }
 
 const LoadingState = () => {
@@ -152,8 +154,8 @@ const CustomTooltip = ({ active, payload, selectedMetricOption }: any) => {
 
 // Custom Y-axis tick to highlight effective BMU and individual fisher data
 const CustomYAxisTick = ({ x = 0, y = 0, payload = { value: '' }, effectiveBMU, isIndividualFisher }: any) => {
-  // Helper to normalize BMU names for comparison
-  const normalizeBmuName = (name: string) => name.toLowerCase().replace(/[-_]/g, '');
+  // Helper to normalize BMU names for comparison (handles spaces, hyphens, underscores)
+  const normalizeBmuName = (name: string) => name.toLowerCase().replace(/[-_\s]/g, '');
   const isEffectiveBMU = effectiveBMU && normalizeBmuName(payload.value) === normalizeBmuName(effectiveBMU);
   const isYourPerformance = isIndividualFisher;
 
@@ -362,14 +364,24 @@ export default function BMURanking({
       const bmuNames = getSortedBmuList(bmuNamesUnsorted);
       updateBmuColorRegistry(bmuNames);
 
+      // Get accessible BMUs using original names (before display normalization)
+      const normalizeForComparison = (name: string) => name.toLowerCase().replace(/[-_\s]/g, '');
+      const accessibleBMUsOriginal = hasRestrictedAccess
+        ? getAccessibleBMUs(bmuNames)
+        : bmuNames;
+      
+      // Normalize accessible BMUs for comparison
+      const accessibleBMUsNormalized = accessibleBMUsOriginal.map(bmu => normalizeForComparison(bmu));
+
       // Calculate averages and create ranking data
       const newRankingData: BMURankingData[] = Object.entries(bmuAverages)
         .map(([bmuName, data]) => ({
-          name: bmuName,
+          name: normalizeBmuForDisplay(bmuName),
           value: Number((data.total / data.count).toFixed(2)),
           fill: generateColor(0, bmuName, effectiveBMU),
           rank: 0, // Will be set after sorting
           isIndividualFisher: false,
+          originalBmuName: bmuName, // Keep original for filtering
         }));
 
       // Add individual fisher data if available and compatible
@@ -421,14 +433,16 @@ export default function BMURanking({
           rank: index + 1,
         }));
 
-      // Filter based on user permissions
-      const accessibleBMUs = hasRestrictedAccess
-        ? getAccessibleBMUs(sortedRankingData.map(item => item.name))
-        : sortedRankingData.map(item => item.name);
-
-      const filteredRankingData = sortedRankingData.filter(item =>
-        item.isIndividualFisher || accessibleBMUs.includes(item.name)
-      );
+      // Filter based on user permissions using original BMU names
+      const filteredRankingData = sortedRankingData.filter(item => {
+        if (item.isIndividualFisher) return true;
+        // Use original BMU name for filtering comparison
+        if (item.originalBmuName) {
+          const originalNormalized = normalizeForComparison(item.originalBmuName);
+          return accessibleBMUsNormalized.some(accessible => normalizeForComparison(accessible) === originalNormalized);
+        }
+        return true; // Include if no original name (shouldn't happen)
+      });
 
       setRankingData(filteredRankingData);
       dataProcessed.current = true;
