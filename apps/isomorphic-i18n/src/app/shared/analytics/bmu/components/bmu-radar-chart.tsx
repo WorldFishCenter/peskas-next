@@ -26,6 +26,7 @@ import { MetricKey, MetricOption } from "../../charts/utils/chart-types";
 // Import site configuration
 // Import time range filtering utilities
 import { getTimeRangeStartDate } from "../../core/utils/time-range-filter";
+import { landingSiteMatchesQueryBmu } from "../../charts/utils/bmu-display-normalizer";
 import { useIndividualData } from "../../individual/hooks/use-individual-data";
 
 interface RadarData {
@@ -397,8 +398,8 @@ export default function CatchRadarChart({
             ...acc,
             [site]: { 
               opacity: hasRestrictedAccess
-                ? accessibleSites.includes(site) ? 1 : 0.05
-                : (effectiveBMU && site.toLowerCase().replace(/[-_]/g, '') === effectiveBMU.toLowerCase().replace(/[-_]/g, '') ? 1 : 0.05)
+                ? accessibleSites.some(a => landingSiteMatchesQueryBmu(a, site)) ? 1 : 0.05
+                : (effectiveBMU && landingSiteMatchesQueryBmu(effectiveBMU, site) ? 1 : 0.05)
             },
           }),
           {}

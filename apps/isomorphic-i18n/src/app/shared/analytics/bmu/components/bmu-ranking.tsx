@@ -26,7 +26,7 @@ import { MetricOption } from "../../charts/utils/chart-types";
 import useUserPermissions from "../../core/hooks/use-user-permissions";
 import { generateColor, updateBmuColorRegistry, getSortedBmuList } from "../../charts/utils/chart-utils";
 import { useIndividualFisherDataOnly } from "../../individual/hooks/use-individual-data";
-import { normalizeBmuForDisplay } from "../../charts/utils/bmu-display-normalizer";
+import { normalizeBmuForDisplay, landingSiteMatchesQueryBmu } from "../../charts/utils/bmu-display-normalizer";
 
 // Import time range filtering utilities
 import { filterDataByTimeRange, getTimeRangeStartDate } from "../../core/utils/time-range-filter";
@@ -154,9 +154,8 @@ const CustomTooltip = ({ active, payload, selectedMetricOption }: any) => {
 
 // Custom Y-axis tick to highlight effective BMU and individual fisher data
 const CustomYAxisTick = ({ x = 0, y = 0, payload = { value: '' }, effectiveBMU, isIndividualFisher }: any) => {
-  // Helper to normalize BMU names for comparison (handles spaces, hyphens, underscores)
-  const normalizeBmuName = (name: string) => name.toLowerCase().replace(/[-_\s]/g, '');
-  const isEffectiveBMU = effectiveBMU && normalizeBmuName(payload.value) === normalizeBmuName(effectiveBMU);
+  const isEffectiveBMU =
+    effectiveBMU && landingSiteMatchesQueryBmu(effectiveBMU, payload.value as string);
   const isYourPerformance = isIndividualFisher;
 
   return (
@@ -364,14 +363,9 @@ export default function BMURanking({
       const bmuNames = getSortedBmuList(bmuNamesUnsorted);
       updateBmuColorRegistry(bmuNames);
 
-      // Get accessible BMUs using original names (before display normalization)
-      const normalizeForComparison = (name: string) => name.toLowerCase().replace(/[-_\s]/g, '');
       const accessibleBMUsOriginal = hasRestrictedAccess
         ? getAccessibleBMUs(bmuNames)
         : bmuNames;
-      
-      // Normalize accessible BMUs for comparison
-      const accessibleBMUsNormalized = accessibleBMUsOriginal.map(bmu => normalizeForComparison(bmu));
 
       // Calculate averages and create ranking data
       const newRankingData: BMURankingData[] = Object.entries(bmuAverages)
@@ -436,12 +430,12 @@ export default function BMURanking({
       // Filter based on user permissions using original BMU names
       const filteredRankingData = sortedRankingData.filter(item => {
         if (item.isIndividualFisher) return true;
-        // Use original BMU name for filtering comparison
         if (item.originalBmuName) {
-          const originalNormalized = normalizeForComparison(item.originalBmuName);
-          return accessibleBMUsNormalized.some(accessible => normalizeForComparison(accessible) === originalNormalized);
+          return accessibleBMUsOriginal.some(accessible =>
+            landingSiteMatchesQueryBmu(accessible, item.originalBmuName!)
+          );
         }
-        return true; // Include if no original name (shouldn't happen)
+        return true;
       });
 
       setRankingData(filteredRankingData);
@@ -454,6 +448,17 @@ export default function BMURanking({
       setLoading(false);
     }
   }, [rawData, selectedMetric, selectedTimeRange, effectiveBMU, referenceBMU, hasRestrictedAccess, getAccessibleBMUs, shouldShowIndividualData, isMetricCompatibleWithIndividualData, fisherData, userFisherId, t, isLoadingFisherData]);
+
+  // Reserve enough horizontal space for long BMU labels (Recharts clips ticks if YAxis width is too small)
+  const yAxisWidth = useMemo(() => {
+    if (!rankingData?.length) return 140;
+    const maxPrimaryLen = Math.max(
+      ...rankingData.map((r) => (r.name ?? "").length)
+    );
+    // ~6.5px per char for text-xs; cap keeps very wide containers reasonable on huge lists
+    const fromLabels = Math.ceil(maxPrimaryLen * 6.5 + 28);
+    return Math.min(340, Math.max(120, fromLabels));
+  }, [rankingData]);
 
   // If in CIA or AIA mode, don't render the ranking as it doesn't make sense to show a comparison
   // ranking with just one BMU
@@ -514,7 +519,7 @@ export default function BMURanking({
           <ResponsiveContainer width="100%" height="100%">
             <BarChart
               data={rankingData}
-              margin={{ top: 20, right: 30, left: 20, bottom: 60 }}
+              margin={{ top: 20, right: 30, left: 12, bottom: 60 }}
               layout="vertical"
             >
               <CartesianGrid strokeDasharray="3 3" horizontal={false} />
@@ -552,7 +557,7 @@ export default function BMURanking({
                 />}
                 axisLine={false}
                 tickLine={false}
-                width={100}
+                width={yAxisWidth}
               />
               <Tooltip
                 content={(props) => <CustomTooltip {...props} selectedMetricOption={selectedMetricOption} />}

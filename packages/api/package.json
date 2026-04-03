@@ -10,7 +10,8 @@
   "scripts": {
     "clean": "rm -rf .turbo node_modules",
     "format": "prettier --check . --ignore-path ../../.gitignore --ignore-path ../../.prettierignore",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
   },
   "dependencies": {
     "@repo/nosql": "workspace:*",
@@ -30,6 +31,7 @@
     "@types/lodash": "^4.17.1",
     "@types/nodemailer": "^6.4.15",
     "prettier": "^3.2.5",
-    "typescript": "^5.3.3"
+    "typescript": "^5.3.3",
+    "vitest": "2.1.9"
   }
 }

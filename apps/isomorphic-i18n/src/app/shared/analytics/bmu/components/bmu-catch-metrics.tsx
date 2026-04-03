@@ -27,6 +27,7 @@ import { getClientLanguage } from "@/app/i18n/language-link";
 // Import shared permissions hook
 import useUserPermissions from "../../core/hooks/use-user-permissions";
 import { filterDataByTimeRange } from "../../core/utils/time-range-filter";
+import { landingSiteMatchesQueryBmu } from "../../charts/utils/bmu-display-normalizer";
 import { useIndividualFisherDataOnly, useIndividualYearlyData } from "../../individual/hooks/use-individual-data";
 
 // Create a more robust language context that includes both the language code and translations
@@ -84,14 +85,9 @@ const prepareDataForCiaComparison = (chartData: ChartDataPoint[], bmuName: strin
   // Import baseline data and helper function
   const { BASELINE_DATA, isIslandSite } = require('../../charts/utils/site-config');
   
-  // Helper to normalize BMU names for comparison
-  const normalizeBmuName = (name: string) => name.toLowerCase().replace(/[-_]/g, '');
-  
-  // Helper to find the actual BMU key in data point
   const findBmuKey = (point: ChartDataPoint, targetBmu: string): string | null => {
-    const normalizedTarget = normalizeBmuName(targetBmu);
     return Object.keys(point).find(key => 
-      key !== 'date' && normalizeBmuName(key) === normalizedTarget
+      key !== 'date' && landingSiteMatchesQueryBmu(targetBmu, key)
     ) || null;
   };
   
@@ -224,15 +220,10 @@ const prepareMultiBMUBaselineComparison = (chartData: ChartDataPoint[], selected
   // Import baseline data and helper function
   const { BASELINE_DATA, isIslandSite } = require('../../charts/utils/site-config');
   
-  // Helper to normalize BMU names for comparison
-  const normalizeBmuName = (name: string) => name.toLowerCase().replace(/[-_]/g, '');
-
-  // Helper to find the actual BMU key in data point
   const findBmuKey = (point: ChartDataPoint, targetBmu: string): string | null => {
-    const normalizedTarget = normalizeBmuName(targetBmu);
     return Object.keys(point).find(key =>
       key !== 'date' && key !== 'average' && key !== 'historical_average' &&
-      normalizeBmuName(key) === normalizedTarget
+      landingSiteMatchesQueryBmu(targetBmu, key)
     ) || null;
   };
 
@@ -610,8 +601,7 @@ export default function CatchMetricsChart({
       
       Object.keys(siteColors).forEach(site => {
         if (site !== 'average' && site !== 'historical_average' && !newState[site]) {
-          const normalizeBmuName = (name: string) => name.toLowerCase().replace(/[-_]/g, '');
-          const matchesEffectiveBMU = effectiveBMU && normalizeBmuName(site) === normalizeBmuName(effectiveBMU);
+          const matchesEffectiveBMU = effectiveBMU && landingSiteMatchesQueryBmu(effectiveBMU, site);
           newState[site] = { opacity: matchesEffectiveBMU ? 1 : 0.05 };
           
           // Also set positive/negative variants for comparison view
@@ -705,8 +695,8 @@ export default function CatchMetricsChart({
           ...acc,
           [site as string]:           {
             opacity: hasRestrictedAccess
-              ? (accessibleSites.includes(site as string) ? 1 : 0.05)
-              : (effectiveBMU && (site as string).toLowerCase().replace(/[-_]/g, '') === effectiveBMU.toLowerCase().replace(/[-_]/g, '') ? 1 : 0.05)
+              ? (accessibleSites.some(a => landingSiteMatchesQueryBmu(a, site as string)) ? 1 : 0.05)
+              : (effectiveBMU && landingSiteMatchesQueryBmu(effectiveBMU, site as string) ? 1 : 0.05)
           },
         }),
         {}

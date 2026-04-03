@@ -23,6 +23,7 @@ import {
 // Import shared MetricSelector component
 import { METRIC_OPTIONS } from "../../charts/utils/chart-types";
 import { generateColor, updateBmuColorRegistry, getSortedBmuList } from "../../charts/utils/chart-utils";
+import { landingSiteMatchesQueryBmu } from "../../charts/utils/bmu-display-normalizer";
 import useUserPermissions from "../../core/hooks/use-user-permissions";
 // Import time range filtering utilities
 import { getTimeRangeStartDate } from "../../core/utils/time-range-filter";
@@ -474,11 +475,6 @@ export default function GearHeatmap({
     }));
   }, []);
 
-  // Helper function to normalize BMU names for comparison
-  const normalizeBmuName = useCallback((name: string) => {
-    return name.toLowerCase().replace(/[-_]/g, '');
-  }, []);
-
   // Reset to distribution tab if CIA or AIA user somehow gets to comparison tab
   useEffect(() => {
     if ((isCiaUser || isAiaUser) && activeTab === 'comparison') {
@@ -614,8 +610,8 @@ export default function GearHeatmap({
             ...acc,
             [site]: { 
               opacity: hasRestrictedAccess 
-                ? (accessibleBMUs.includes(site) ? 1 : 0.05) 
-                : (site === effectiveBMU ? 1 : 0.05) 
+                ? (accessibleBMUs.some(a => landingSiteMatchesQueryBmu(a, site)) ? 1 : 0.05) 
+                : (effectiveBMU && landingSiteMatchesQueryBmu(effectiveBMU, site) ? 1 : 0.05) 
             },
           }),
           {}
@@ -695,13 +691,10 @@ export default function GearHeatmap({
       // Filter data based on user permissions
       const filteredRankingData = rawData.filter((d: GearData) => {
         if (hasRestrictedAccess) {
-          // For CIA users, only show their assigned BMU (use flexible matching)
-          return effectiveBMU && normalizeBmuName(d.BMU) === normalizeBmuName(effectiveBMU);
+          return !!effectiveBMU && landingSiteMatchesQueryBmu(effectiveBMU, d.BMU);
         } else if (isWbciaUser && effectiveBMU) {
-          // For WBCIA users with a selected BMU, filter to that BMU (use flexible matching)
-          return normalizeBmuName(d.BMU) === normalizeBmuName(effectiveBMU);
+          return landingSiteMatchesQueryBmu(effectiveBMU, d.BMU);
         }
-        // For admins and users without restrictions, show all data
         return true;
       });
       
@@ -733,23 +726,18 @@ export default function GearHeatmap({
       // For the user's BMU compared to average of others
       // Only generate for users who can compare with others (not CIA or AIA users)
       if (effectiveBMU && !isCiaUser && !isAiaUser) {
-        const normalizedEffectiveBMU = normalizeBmuName(effectiveBMU);
-        
         const comparisonData = gearTypes.map((gear, index) => {
-          // Get value for user's BMU (use flexible matching)
           const bmuValue = rawData.find(
-            d => normalizeBmuName(d.BMU) === normalizedEffectiveBMU && d.gear === gear && typeof (d as any)[mappedMetricField] === "number"
+            d => landingSiteMatchesQueryBmu(effectiveBMU, d.BMU) && d.gear === gear && typeof (d as any)[mappedMetricField] === "number"
           )?.[mappedMetricField as keyof typeof rawData[0]] || 0;
 
-          // Get average value for other BMUs (use flexible matching)
-          const otherBMUs = uniqueBMUs.filter(b => normalizeBmuName(b) !== normalizedEffectiveBMU);
+          const otherBMUs = uniqueBMUs.filter(b => !landingSiteMatchesQueryBmu(effectiveBMU, b));
           let otherBMUsTotal = 0;
           let otherBMUsCount = 0;
 
           otherBMUs.forEach(otherBMU => {
-            const normalizedOtherBMU = normalizeBmuName(otherBMU);
             const value = rawData.find(
-              d => normalizeBmuName(d.BMU) === normalizedOtherBMU && d.gear === gear && typeof (d as any)[mappedMetricField] === "number"
+              d => landingSiteMatchesQueryBmu(otherBMU, d.BMU) && d.gear === gear && typeof (d as any)[mappedMetricField] === "number"
             )?.[mappedMetricField as keyof typeof rawData[0]];
 
             if (value) {

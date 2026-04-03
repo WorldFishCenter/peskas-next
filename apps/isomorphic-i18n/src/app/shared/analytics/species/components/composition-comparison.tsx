@@ -11,6 +11,7 @@ import { getClientLanguage } from "@/app/i18n/language-link";
 import SimpleBar from "@ui/simplebar";
 import useUserPermissions from "../../core/hooks/use-user-permissions";
 import { generateFishCategoryColor, updateBmuColorRegistry } from "../../charts/utils/chart-utils";
+import { normalizeBmuForDisplay, landingSiteMatchesQueryBmu } from "../../charts/utils/bmu-display-normalizer";
 import { filterDataByTimeRange } from "../../core/utils/time-range-filter";
 import cn from "@utils/class-names";
 
@@ -135,6 +136,12 @@ export default function FishCompositionComparison({
   // Use external chart data if in IIA mode
   const useChartData = isIiaUser && externalChartData ? externalChartData : chartData;
 
+  const compositionYAxisWidth = useMemo(() => {
+    if (!useChartData?.length) return 140;
+    const maxLen = Math.max(...useChartData.map((r: { bmuName?: string }) => (r.bmuName ?? "").length));
+    return Math.min(340, Math.max(120, Math.ceil(maxLen * 6.5 + 28)));
+  }, [useChartData]);
+
   // Track selectedTimeRange changes and force data reprocessing
   useEffect(() => {
     if (previousTimeRangeRef.current !== selectedTimeRange) {
@@ -230,19 +237,11 @@ export default function FishCompositionComparison({
         totals[bmu] = {};
       });
       
-      // Helper to normalize BMU names for comparison
-      const normalizeBmuName = (name: string) => name.toLowerCase().replace(/[-_]/g, '');
-      
       // Process the filtered monthly data
       filteredFishDistributionData.forEach(monthData => {
         const bmuName = monthData.landing_site;
 
-        // Skip if this BMU isn't in our query list (use flexible matching)
-        const matchesBmu = queryBmus.some(qBmu => normalizeBmuName(qBmu) === normalizeBmuName(bmuName));
-        if (!matchesBmu) return;
-
-        // Find the actual matching query BMU to use for indexing (to handle name format differences)
-        const matchedQueryBmu = queryBmus.find(qBmu => normalizeBmuName(qBmu) === normalizeBmuName(bmuName));
+        const matchedQueryBmu = queryBmus.find(qBmu => landingSiteMatchesQueryBmu(qBmu, bmuName));
         if (!matchedQueryBmu) return;
 
         // Process categories for this month/BMU
@@ -290,7 +289,7 @@ export default function FishCompositionComparison({
         // Create the base data object
         const bmuData: any = {
           bmu,
-          bmuName: bmu,
+          bmuName: normalizeBmuForDisplay(bmu),
           totalCatch,
         };
         
@@ -411,9 +410,8 @@ export default function FishCompositionComparison({
 
   // Custom Y-axis tick to highlight user's BMU
 const CustomYAxisTick = ({ x = 0, y = 0, payload = { value: '' }, userBMU }: any) => {
-  // Helper to normalize BMU names for comparison
-  const normalizeBmuName = (name: string) => name.toLowerCase().replace(/[-_]/g, '');
-  const isUserBMU = userBMU && normalizeBmuName(payload.value) === normalizeBmuName(userBMU);
+  const isUserBMU =
+    userBMU && landingSiteMatchesQueryBmu(userBMU, payload.value as string);
 
   return (
     <g transform={`translate(${x},${y})`}>
@@ -453,7 +451,7 @@ const CustomYAxisTick = ({ x = 0, y = 0, payload = { value: '' }, userBMU }: any
             <div className="text-base font-medium text-gray-800">
               <div className="text-center">
                 {hasRestrictedAccess && effectiveBMU
-                  ? t("text-fish-composition-for-bmu", { bmuName: effectiveBMU }) || `Average Fish Composition for ${effectiveBMU}`
+                  ? t("text-fish-composition-for-bmu", { bmuName: normalizeBmuForDisplay(effectiveBMU) }) || `Average Fish Composition for ${normalizeBmuForDisplay(effectiveBMU)}`
                   : t("text-fish-composition-by-bmu") || "Average Fish Composition by BMU"}
               </div>
               <div className="text-xs text-gray-500 text-center mt-1">
@@ -501,8 +499,8 @@ const CustomYAxisTick = ({ x = 0, y = 0, payload = { value: '' }, userBMU }: any
                   data={useChartData}
                   layout="vertical"
                   margin={useChartData.length === 1 
-                    ? { top: 15, right: 30, left: 20, bottom: 15 } 
-                    : { top: 5, right: 30, left: 20, bottom: 5 }
+                    ? { top: 15, right: 30, left: 12, bottom: 15 } 
+                    : { top: 5, right: 30, left: 12, bottom: 5 }
                   }
                   barSize={useChartData.length === 1 ? 90 : 75} 
                   barGap={1}
@@ -519,7 +517,7 @@ const CustomYAxisTick = ({ x = 0, y = 0, payload = { value: '' }, userBMU }: any
                   <YAxis 
                     dataKey="bmuName" 
                     type="category" 
-                    width={useChartData.length === 1 ? 80 : 100}
+                    width={compositionYAxisWidth}
                     tick={<CustomYAxisTick userBMU={userBMU} />}
                     tickLine={false}
                     axisLine={false}

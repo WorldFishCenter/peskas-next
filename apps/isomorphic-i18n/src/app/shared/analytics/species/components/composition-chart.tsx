@@ -26,6 +26,7 @@ import {
   MetricKey
 } from "../../charts/utils/chart-types";
 import { generateColor, getAnnualData, getRecentData, updateBmuColorRegistry, generateFishCategoryColor } from "../../charts/utils/chart-utils";
+import { landingSiteMatchesQueryBmu } from "../../charts/utils/bmu-display-normalizer";
 import CustomLegend from "../../charts/base/custom-legend";
 // Import the chart components
 import TrendsChart from "../../charts/base/trends-chart";
@@ -44,15 +45,11 @@ import { filterDataByTimeRange } from "../../core/utils/time-range-filter";
 const prepareDataForCiaComparison = (chartData: ChartDataPoint[], bmuName: string) => {
   if (!chartData.length) return [];
   
-  // Helper to normalize BMU names for comparison
-  const normalizeBmuName = (name: string) => name.toLowerCase().replace(/[-_]/g, '');
-  
-  // Helper to find the actual BMU key in data point
+  // Helper to find the actual BMU key in data point (Kiwayuu Nje ↔ Inde alias)
   const findBmuKey = (point: ChartDataPoint, targetBmu: string): string | null => {
-    const normalizedTarget = normalizeBmuName(targetBmu);
     return Object.keys(point).find(key => 
       key !== 'date' && key !== 'average' && key !== 'historical_average' && 
-      normalizeBmuName(key) === normalizedTarget
+      landingSiteMatchesQueryBmu(targetBmu, key)
     ) || null;
   };
   
@@ -522,8 +519,7 @@ export default function FishCompositionChart({
       
       Object.keys(siteColors).forEach(site => {
         if (site !== 'average' && site !== 'historical_average' && !newState[site]) {
-          const normalizeBmuName = (name: string) => name.toLowerCase().replace(/[-_]/g, '');
-          const matchesEffectiveBMU = effectiveBMU && normalizeBmuName(site) === normalizeBmuName(effectiveBMU);
+          const matchesEffectiveBMU = effectiveBMU && landingSiteMatchesQueryBmu(effectiveBMU, site);
           newState[site] = { opacity: matchesEffectiveBMU ? 1 : 0.2 };
           
           // Also set positive/negative variants for comparison view
@@ -600,15 +596,7 @@ export default function FishCompositionChart({
         // Get landing site (BMU) from the data
         const landingSite = month.landing_site;
 
-        // Helper to normalize BMU names for comparison
-        const normalizeBmuName = (name: string) => name.toLowerCase().replace(/[-_]/g, '');
-
-        // Skip if this BMU isn't in our list (use flexible matching)
-        const matchesBmu = effectiveBmus.some(bmu => normalizeBmuName(bmu) === normalizeBmuName(landingSite));
-        if (!matchesBmu) return;
-
-        // Find the actual matching query BMU to use for indexing (to handle name format differences)
-        const matchedQueryBmu = effectiveBmus.find(bmu => normalizeBmuName(bmu) === normalizeBmuName(landingSite));
+        const matchedQueryBmu = effectiveBmus.find(bmu => landingSiteMatchesQueryBmu(bmu, landingSite));
         if (!matchedQueryBmu) return;
 
         // Find the category that matches our selected category
@@ -703,8 +691,8 @@ export default function FishCompositionChart({
           ...acc,
           [site]:           {
             opacity: hasRestrictedAccess
-              ? (accessibleSites.includes(site) ? 1 : 0.2)
-              : (effectiveBMU && site.toLowerCase().replace(/[-_]/g, '') === effectiveBMU.toLowerCase().replace(/[-_]/g, '') ? 1 : 0.2)
+              ? (accessibleSites.some(a => landingSiteMatchesQueryBmu(a, site)) ? 1 : 0.2)
+              : (effectiveBMU && landingSiteMatchesQueryBmu(effectiveBMU, site) ? 1 : 0.2)
           },
         }),
         {}

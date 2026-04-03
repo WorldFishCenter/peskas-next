@@ -30,6 +30,7 @@ import { MetricKey, METRIC_OPTIONS } from "../../charts/utils/chart-types";
 import useUserPermissions from "../../core/hooks/use-user-permissions";
 import { getClientLanguage } from "@/app/i18n/language-link";
 import { filterDataByTimeRange } from "../../core/utils/time-range-filter";
+import { landingSiteMatchesQueryBmu } from "../../charts/utils/bmu-display-normalizer";
 
 // Add local formatNumber function to replace the import
 const formatNumber = (num: number, precision = 0): string => {
@@ -431,7 +432,7 @@ export default function CatchMetricsChart({
       const initialVisibility = uniqueSites.reduce<VisibilityState>(
           (acc, site) => ({
             ...acc,
-            [site as string]: { opacity: (bmu && (site as string).toLowerCase().replace(/[-_]/g, '') === bmu.toLowerCase().replace(/[-_]/g, '') ? 1 : 0.2) },
+            [site as string]: { opacity: (bmu && landingSiteMatchesQueryBmu(bmu, site as string) ? 1 : 0.2) },
           }),
           {}
       );
@@ -716,7 +717,7 @@ export default function CatchMetricsChart({
       const newVisibilityState = { ...visibilityState };
       Object.keys(siteColors).forEach(site => {
         if (site !== 'average' && !newVisibilityState[site]) {
-          const matchesBmu = bmu && site.toLowerCase().replace(/[-_]/g, '') === bmu.toLowerCase().replace(/[-_]/g, '');
+          const matchesBmu = bmu && landingSiteMatchesQueryBmu(bmu, site);
           newVisibilityState[site] = { opacity: matchesBmu ? 1 : 0.2 };
         }
       });
@@ -756,13 +757,8 @@ export default function CatchMetricsChart({
         color: entry.color
       }))
       .sort((a: any, b: any) => {
-        // Helper to normalize BMU names for comparison
-        const normalizeBmuName = (name: string) => name.toLowerCase().replace(/[-_]/g, '');
-        const normalizedBmu = bmu ? normalizeBmuName(bmu) : '';
-        
-        // Put the reference BMU first, then sort alphabetically
-        if (normalizeBmuName(a.name) === normalizedBmu) return -1;
-        if (normalizeBmuName(b.name) === normalizedBmu) return 1;
+        if (bmu && landingSiteMatchesQueryBmu(bmu, a.name)) return -1;
+        if (bmu && landingSiteMatchesQueryBmu(bmu, b.name)) return 1;
         return a.name.localeCompare(b.name);
       });
     

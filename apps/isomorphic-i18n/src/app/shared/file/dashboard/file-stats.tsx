@@ -14,6 +14,7 @@ import { api } from "@/trpc/react";
 import { useUserPermissions } from "../../analytics/core/hooks/use-user-permissions";
 import { bmusAtom } from "@/app/components/filter-selector";
 import { useIndividualData } from "../../analytics/individual/hooks/use-individual-data";
+import { landingSiteMatchesQueryBmu } from "../../analytics/charts/utils/bmu-display-normalizer";
 
 type FileStatsType = {
   className?: string;
@@ -130,22 +131,14 @@ export function FileStatGrid({ className, lang, bmu }: { className?: string; lan
     { id: 'profit', field: 'mean_profit', title: t('text-metrics-profit'), unit: t('text-unit-kes-fisher-day'), category: 'revenue' as const }
   ] as const, [t]);
 
-  // Helper function to normalize BMU names for comparison
-  const normalizeBmuName = (name: string) => {
-    return name.toLowerCase().replace(/[-_]/g, '');
-  };
-
   // Process data - get the latest 3 months
   const processedData = useMemo(() => {
     if (!monthlyData || !effectiveBMU) return null;
     
     try {
-      // Normalize effectiveBMU for flexible matching
-      const normalizedEffectiveBMU = normalizeBmuName(effectiveBMU);
-      
       // Sort data by date and get latest 3 months
       const sortedData = monthlyData
-        .filter(record => normalizeBmuName(record.landing_site) === normalizedEffectiveBMU)
+        .filter(record => landingSiteMatchesQueryBmu(effectiveBMU, record.landing_site))
         .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
         .slice(0, 3)
         .reverse(); // Reverse to show chronological order (oldest to newest)

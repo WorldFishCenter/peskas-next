@@ -14,6 +14,7 @@ import { api } from "@/trpc/react";
 import { useUserPermissions } from "../../analytics/core/hooks/use-user-permissions";
 import { bmusAtom } from "@/app/components/filter-selector";
 import { useIndividualData } from "../../analytics/individual/hooks/use-individual-data";
+import { landingSiteMatchesQueryBmu } from "../../analytics/charts/utils/bmu-display-normalizer";
 
 type FileStatsCIAType = {
   className?: string;
@@ -250,12 +251,9 @@ export function FileStatWBCIAGrid({ className, lang }: { className?: string; lan
           ? bmuOnlyValues.reduce((sum, v) => sum + (v.value || 0), 0) / bmuOnlyValues.length
           : 0;
         
-        // Helper to normalize BMU names for comparison
-        const normalizeBmuName = (name: string) => name.toLowerCase().replace(/[-_]/g, '');
-        const normalizedUserBMU = normalizeBmuName(userBMU || '');
-        
-        // Find user's BMU value (use flexible matching)
-        const userBMUData = bmuValues.find(v => normalizeBmuName(v.bmu) === normalizedUserBMU && !v.isIndividual);
+        const userBMUData = bmuValues.find(
+          v => !v.isIndividual && userBMU && landingSiteMatchesQueryBmu(userBMU, v.bmu)
+        );
         
         return {
           id: metric.id,
@@ -353,14 +351,10 @@ export function FileStatWBCIAGrid({ className, lang }: { className?: string; lan
     const isRevenueMetric = metricCategory === 'revenue';
     const baseColor = isRevenueMetric ? "rgba(245, 158, 11, 0.5)" : "rgba(59, 130, 246, 0.5)"; // amber vs blue - more opaque
     
-    // Different colors for different data types
-    // Helper to normalize BMU names for comparison
-    const normalizeBmuName = (name: string) => name.toLowerCase().replace(/[-_]/g, '');
-    
     let fill = baseColor;
     if (payload?.isIndividual) {
       fill = "#F79F79"; // Coral/orange for individual performance (consistent with other components)
-    } else if (payload?.bmu && userBMU && normalizeBmuName(payload.bmu) === normalizeBmuName(userBMU)) {
+    } else if (payload?.bmu && userBMU && landingSiteMatchesQueryBmu(userBMU, payload.bmu)) {
       fill = "#fc3468"; // Pink for user's BMU
     }
     
@@ -394,7 +388,7 @@ export function FileStatWBCIAGrid({ className, lang }: { className?: string; lan
           ...point,
           barColor: point.isIndividual 
             ? "#F79F79" 
-            : point.bmu === userBMU 
+            : userBMU && landingSiteMatchesQueryBmu(userBMU, point.bmu)
               ? "#fc3468" 
               : isRevenueMetric 
                 ? "rgba(245, 158, 11, 0.5)" 
@@ -459,12 +453,6 @@ export function FileStatWBCIAGrid({ className, lang }: { className?: string; lan
               </span>
               </div>
               
-              {/* {userBMU && stat.userBMUValue !== null && stat.userBMUValue !== undefined && (
-                <div className="flex items-center gap-1 text-2xs">
-                  <div className="w-2 h-2 rounded-full bg-[#fc3468]" />
-                  <span className="text-gray-600">{userBMU}: {Math.round(stat.userBMUValue).toLocaleString()}</span>
-                </div>
-              )} */}
             </div>
           </div>
           
@@ -486,9 +474,8 @@ export function FileStatWBCIAGrid({ className, lang }: { className?: string; lan
                   hide={false}
                   tick={(props) => {
                     const { x, y, payload } = props;
-                    const normalizeBmuName = (name: string) => name.toLowerCase().replace(/[-_]/g, '');
                     const isUserData = payload.value === t('text-you') || 
-                      (userBMU && normalizeBmuName(payload.value) === normalizeBmuName(userBMU));
+                      (userBMU && landingSiteMatchesQueryBmu(userBMU, String(payload.value)));
                     return (
                       <g transform={`translate(${x},${y})`}>
                         <text
