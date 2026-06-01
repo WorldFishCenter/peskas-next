@@ -45,9 +45,14 @@ export default function IndividualFisherStats({
   
   // Always use a fixed date range for stats (latest 3 months) - independent of time range filter
   const dateRange = useMemo(() => {
-    const endDate = new Date();
-    const startDate = new Date();
-    startDate.setMonth(startDate.getMonth() - 3); // Always get last 3 months
+    const now = new Date();
+    const endDate = now;
+    // individual_stats records are monthly and dated at the first day of the
+    // month (midnight UTC). Snap the start to the first day of the month 3
+    // months back so the boundary month is never excluded by a same-day
+    // time-of-day offset (e.g. a 09:49 "now" would otherwise drop a record
+    // dated at 00:00 on the 1st of that month, hiding a whole month).
+    const startDate = new Date(now.getFullYear(), now.getMonth() - 3, 1, 0, 0, 0, 0);
     return { startDate, endDate };
   }, []);
   
@@ -103,11 +108,14 @@ export default function IndividualFisherStats({
     if (!fisherData || fisherData.length === 0) return null;
     
     try {
-      // Sort data by date and get latest 3 months
-      const sortedData = fisherData
-        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-        .slice(0, 90) // Get more days to ensure we have 3 full months
-        .reverse(); // Reverse to show chronological order (oldest to newest)
+      // Sort data chronologically (oldest to newest).
+      // NOTE: Do NOT slice by a fixed record count here. The individual_stats
+      // collection stores multiple records per fisher per day, so slicing to a
+      // fixed number of records (e.g. 90) would drop entire calendar months for
+      // active fishers. The query already constrains data to the date range, and
+      // the monthly grouping below selects the latest 3 months.
+      const sortedData = [...fisherData]
+        .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
       
       if (sortedData.length === 0) return null;
       
