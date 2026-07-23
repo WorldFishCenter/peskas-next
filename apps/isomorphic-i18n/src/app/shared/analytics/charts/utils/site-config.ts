@@ -1,11 +1,12 @@
+import { lookupByBmuName, normalizeBmuNameLoose } from './bmu-display-normalizer';
+
 // Site classifications
 export const ISLAND_SITES = ['Kibuyuni', 'Shimoni', 'Vanga', 'Mkwiro', 'Wasini', 'Jimbo'];
 
 // Check if a site is an island seascape
 export const isIslandSite = (siteName: string): boolean => {
-  return ISLAND_SITES.some(island => 
-    siteName.toLowerCase().includes(island.toLowerCase())
-  );
+  const key = normalizeBmuNameLoose(siteName);
+  return ISLAND_SITES.some(island => key.includes(normalizeBmuNameLoose(island)));
 };
 
 // Historical baseline data for comparisons
@@ -51,7 +52,7 @@ export const BASELINE_DATA = {
     'Reef': 4.6,
     'Msumarini': 4.6,
     'Nyali': 4.6,
-    'Shelly_timbwani': 2.5,
+    'Shelly-Timbwani': 2.5,
     'Tradewinds': 1.0,
     'Mtwape': 4.6,
     'Mvuleni': 4.6,
@@ -84,7 +85,7 @@ export const BASELINE_DATA = {
     'Reef': 3.64,
     'Msumarini': 3.64,
     'Nyali': 3.64,
-    'Shelly_timbwani': 3.80,
+    'Shelly-Timbwani': 3.80,
     'Tradewinds': 2.43,
     'Mtwape': 3.64,
     'Mvuleni': 3.64,
@@ -117,7 +118,7 @@ export const BASELINE_DATA = {
     'Reef': 11.5,
     'Msumarini': 11.5,
     'Nyali': 11.5,
-    'Shelly_timbwani': 11.5,
+    'Shelly-Timbwani': 11.5,
     'Tradewinds': 11.5,
     'Mtwape': 11.5,
     'Mvuleni': 11.5,
@@ -137,64 +138,13 @@ export const BASELINE_DATA = {
 };
 
 // Helper function to get effort baseline for a specific BMU
-export const getEffortBaseline = (bmuName: string): number | null => {
-  // Normalize BMU name for lookup (trim, handle hyphen/underscore variations)
-  const normalizedName = bmuName.trim();
-
-  // Direct lookup
-  if (normalizedName in BASELINE_DATA.EFFORT) {
-    return BASELINE_DATA.EFFORT[normalizedName as keyof typeof BASELINE_DATA.EFFORT];
-  }
-
-  // Flexible fallback: case-insensitive and hyphen/underscore agnostic
-  const normalize = (name: string) => name.toLowerCase().replace(/[-_]/g, '');
-  const searchKey = normalize(normalizedName);
-  
-  const key = Object.keys(BASELINE_DATA.EFFORT).find(
-    k => normalize(k) === searchKey
-  );
-
-  return key ? BASELINE_DATA.EFFORT[key as keyof typeof BASELINE_DATA.EFFORT] : null;
-};
+export const getEffortBaseline = (bmuName: string): number | null =>
+  lookupByBmuName(BASELINE_DATA.EFFORT, bmuName);
 
 // Helper function to get CPUE baseline for a specific BMU
-export const getCpueBaseline = (bmuName: string): number | null => {
-  // Normalize BMU name for lookup (trim, handle hyphen/underscore variations)
-  const normalizedName = bmuName.trim();
-
-  // Direct lookup
-  if (normalizedName in BASELINE_DATA.CPUE) {
-    return BASELINE_DATA.CPUE[normalizedName as keyof typeof BASELINE_DATA.CPUE];
-  }
-
-  // Flexible fallback: case-insensitive and hyphen/underscore agnostic
-  const normalize = (name: string) => name.toLowerCase().replace(/[-_]/g, '');
-  const searchKey = normalize(normalizedName);
-  
-  const key = Object.keys(BASELINE_DATA.CPUE).find(
-    k => normalize(k) === searchKey
-  );
-
-  return key ? BASELINE_DATA.CPUE[key as keyof typeof BASELINE_DATA.CPUE] : null;
-};
+export const getCpueBaseline = (bmuName: string): number | null =>
+  lookupByBmuName(BASELINE_DATA.CPUE, bmuName);
 
 // Helper function to get BMU-specific CPUA baseline
-export const getCpuaBaseline = (bmuName: string): number | null => {
-  // Normalize BMU name for lookup (trim, handle hyphen/underscore variations)
-  const normalizedName = bmuName.trim();
-
-  // Direct lookup
-  if (normalizedName in BASELINE_DATA.CPUA_BMU_SPECIFIC) {
-    return BASELINE_DATA.CPUA_BMU_SPECIFIC[normalizedName as keyof typeof BASELINE_DATA.CPUA_BMU_SPECIFIC];
-  }
-
-  // Flexible fallback: case-insensitive and hyphen/underscore agnostic
-  const normalize = (name: string) => name.toLowerCase().replace(/[-_]/g, '');
-  const searchKey = normalize(normalizedName);
-  
-  const key = Object.keys(BASELINE_DATA.CPUA_BMU_SPECIFIC).find(
-    k => normalize(k) === searchKey
-  );
-
-  return key ? BASELINE_DATA.CPUA_BMU_SPECIFIC[key as keyof typeof BASELINE_DATA.CPUA_BMU_SPECIFIC] : null;
-}; 
+export const getCpuaBaseline = (bmuName: string): number | null =>
+  lookupByBmuName(BASELINE_DATA.CPUA_BMU_SPECIFIC, bmuName);

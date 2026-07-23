@@ -15,7 +15,9 @@ import { ChartDataPoint, MetricOption, VisibilityState } from "../utils/chart-ty
 import { CustomYAxisTick } from "../utils/chart-components";
 import { useTranslation } from "@/app/i18n/client";
 import React, { useCallback, useEffect, useRef, useMemo } from "react";
-import { BASELINE_DATA } from "../utils/site-config";
+import { BASELINE_DATA, isIslandSite } from "../utils/site-config";
+import { normalizeBmuForDisplay } from "../utils/bmu-display-normalizer";
+import { filterDataByTimeRange } from "../../core/utils/time-range-filter";
 import { TimeRangeOption } from "@/app/components/filter-selector";
 
 interface ComparisonChartProps {
@@ -116,10 +118,6 @@ export default function ComparisonChart({
   // Process individual fisher data for overlay
   const individualFisherChartData = useMemo(() => {
     if (!individualFisherData || !userFisherId || individualFisherData.length === 0) return [];
-    
-    // Import required utilities
-    const { filterDataByTimeRange } = require('../../core/utils/time-range-filter');
-    const { BASELINE_DATA, isIslandSite } = require('../utils/site-config');
     
     // Apply time range filtering
     const filteredIndividualData = filterDataByTimeRange(individualFisherData, selectedTimeRange);
@@ -309,7 +307,6 @@ export default function ComparisonChart({
     if (sites.length === 0) return null;
     
     return sites.flatMap((site) => {
-      const { normalizeBmuForDisplay } = require('../utils/bmu-display-normalizer');
       const displayName = normalizeBmuForDisplay(site);
       
       // Check if we're in baseline comparison mode for WBCIA users

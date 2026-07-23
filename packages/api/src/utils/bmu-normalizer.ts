@@ -1,43 +1,45 @@
 /**
- * BMU Name Normalization Utilities
+ * BMU Name Normalization
  *
- * Handles inconsistencies across sources:
- * - UI/session: "Shelly-Timbwani", "Kiwayuu cha Ndani" (hyphens or spaces)
- * - MongoDB: "Shelly_timbwani", "Kiwayuu_cha_ndani" (underscores)
+ * BMU (Beach Management Unit) names are recorded inconsistently across
+ * collections - some documents use "Shelly-Timbwani" (hyphens/spaces,
+ * mixed case), others "shelly_timbwani" (underscores, lowercase). A
+ * handful of sites also go by genuinely different names depending on
+ * the source - see BMU_SPELLING_ALIASES below.
  *
- * Contract with the app: routers use `getAllBmuVariants` / `normalizeBmusForQuery` so Mongo
- * `landing_site` matches expanded OR conditions; the client maps responses back onto the
- * user’s canonical filter keys via `landingSiteMatchesQueryBmu` (see isomorphic-i18n
- * `bmu-display-normalizer.ts`).
+ * This module's only job is producing every spelling variant that might
+ * be stored in Mongo for a given user-facing BMU name, so router queries
+ * can `$in`-match against all of them: `getAllBmuVariants` is the one
+ * function every router should call to build that match.
+ *
+ * Display-side formatting is a separate concern, owned by the frontend's
+ * own `bmu-display-normalizer.ts` (apps/isomorphic-i18n).
  */
+
+/**
+ * Sites recorded under names that don't share a common separator/case
+ * pattern, so the variants generated below can't bridge them on their
+ * own. `trigger` is a lowercase, separator-free substring shared by every
+ * spelling of the site; any input name containing it pulls in the whole
+ * group. Add an entry here whenever another site turns out to have a
+ * second registry spelling.
+ */
+const BMU_SPELLING_ALIASES: { trigger: string; names: string[] }[] = [
+  {
+    trigger: 'kiwayuu',
+    names: ['Kiwayuu cha Inde', 'Kiwayuu cha Nje', 'Kiwayuu cha Ndani'],
+  },
+];
+
+/** Loose canonical key used only to decide whether two spellings refer to the same site. */
+const canonicalKey = (name: string): string =>
+  name.trim().toLowerCase().replace(/[-_\s]+/g, '');
 
 const capitalizeWord = (word: string) =>
   word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
 
-/**
- * Normalize BMU name for strict DB-style key (underscores, lowercase)
- */
-export const normalizeBmuForQuery = (bmuName: string): string => {
-  return bmuName.trim().replace(/[-_\s]+/g, '_').toLowerCase();
-};
-
-/**
- * Normalize BMU name from database format to hyphenated display
- */
-export const normalizeBmuForDisplay = (bmuName: string): string => {
-  const parts = bmuName
-    .trim()
-    .replace(/[_\s]+/g, '-')
-    .split('-')
-    .filter(Boolean);
-
-  return parts.map(capitalizeWord).join('-');
-};
-
-/**
- * Generate all possible BMU name variants for querying
- */
-export const generateBmuVariants = (bmuName: string): string[] => {
+/** All separator/case permutations of a single BMU name. */
+const generateBmuVariants = (bmuName: string): string[] => {
   const variants = new Set<string>();
   const trimmedName = bmuName.trim();
   if (!trimmedName) return [];
@@ -46,86 +48,41 @@ export const generateBmuVariants = (bmuName: string): string[] => {
   variants.add(trimmedName.toLowerCase());
 
   const parts = trimmedName.split(/[-_\s]+/).filter(Boolean);
-  const separators = ['_', '-', ' '];
 
-  separators.forEach(separator => {
-    const joined = parts.join(separator);
-    const lowerJoined = parts.map(p => p.toLowerCase()).join(separator);
-    const titleJoined = parts.map(capitalizeWord).join(separator);
-    const firstCapitalRestLower =
-      parts.length > 0
-        ? [capitalizeWord(parts[0]), ...parts.slice(1).map(p => p.toLowerCase())].join(separator)
-        : '';
-
-    variants.add(joined);
-    variants.add(lowerJoined);
-    variants.add(titleJoined);
-    if (firstCapitalRestLower) variants.add(firstCapitalRestLower);
+  ['_', '-', ' '].forEach((separator) => {
+    variants.add(parts.join(separator));
+    variants.add(parts.map((p) => p.toLowerCase()).join(separator));
+    variants.add(parts.map(capitalizeWord).join(separator));
+    if (parts.length > 0) {
+      variants.add(
+        [capitalizeWord(parts[0]), ...parts.slice(1).map((p) => p.toLowerCase())].join(separator)
+      );
+    }
   });
 
   return Array.from(variants);
 };
 
-export const normalizeBmusForQuery = (bmuNames: string[]): string[] => {
-  const allVariants: string[] = [];
-  bmuNames.forEach(bmu => {
-    allVariants.push(...generateBmuVariants(bmu));
-  });
-  return allVariants;
-};
+/** Every alias-group name for BMUs matched by an entry in `bmus`, expanded to their own separator/case variants. */
+const expandSpellingAliases = (bmus: string[]): string[] => {
+  const keys = bmus.map(canonicalKey);
 
-export const normalizeBmusForDisplay = (bmuNames: string[]): string[] => {
-  return bmuNames.map(normalizeBmuForDisplay);
+  return BMU_SPELLING_ALIASES.filter(({ trigger }) => keys.some((key) => key.includes(trigger)))
+    .flatMap(({ names }) => names)
+    .flatMap(generateBmuVariants);
 };
 
 /**
- * When any Kiwayuu BMU is requested, also include Inde / Nje / Ndani variants
- * so catch and composition queries match Mongo even if the BMU registry uses another spelling.
+ * Every spelling a BMU name might appear under in Mongo: separator/case
+ * variants of each input name, plus any known cross-spelling aliases.
  */
 export const getAllBmuVariants = (bmus: string[]): string[] => {
-  const normalizedBmus = normalizeBmusForQuery(bmus);
+  const variants = bmus.flatMap(generateBmuVariants);
+  const aliases = expandSpellingAliases(bmus);
 
-  const additionalBmus: string[] = [];
-  bmus.forEach(bmu => {
-    const normalized = bmu.toLowerCase().replace(/[-_\s]/g, '');
-    if (normalized.includes('kiwayuu')) {
-      if (!normalized.includes('inde')) {
-        additionalBmus.push(
-          'Kiwayuu cha Inde',
-          'Kiwayuu_cha_inde',
-          'Kiwayuu_cha_Inde',
-          'kiwayuu_cha_inde',
-        );
-      }
-      if (!normalized.includes('nje')) {
-        additionalBmus.push(
-          'Kiwayuu cha Nje',
-          'Kiwayuu_cha_nje',
-          'Kiwayuu_cha_Nje',
-          'kiwayuu_cha_nje',
-        );
-      }
-      if (!normalized.includes('ndani')) {
-        additionalBmus.push(
-          'Kiwayuu cha Ndani',
-          'Kiwayuu_cha_ndani',
-          'Kiwayuu_cha_Ndani',
-          'kiwayuu_cha_ndani',
-        );
-      }
-    }
-  });
-
-  return Array.from(new Set([...bmus, ...normalizedBmus, ...additionalBmus]));
+  return Array.from(new Set([...bmus, ...variants, ...aliases]));
 };
 
-export const bmuNamesMatch = (bmuName1: string, bmuName2: string): boolean => {
-  const normalize = (name: string) =>
-    name.toLowerCase().replace(/[-_\s]/g, '').trim();
-
-  return normalize(bmuName1) === normalize(bmuName2);
-};
-
-export const findBmuInArray = (searchName: string, bmuArray: string[]): string | null => {
-  return bmuArray.find(bmu => bmuNamesMatch(searchName, bmu)) || null;
-};
+/** Loose equality between two BMU names, ignoring separators and case. */
+export const bmuNamesMatch = (bmuName1: string, bmuName2: string): boolean =>
+  canonicalKey(bmuName1) === canonicalKey(bmuName2);

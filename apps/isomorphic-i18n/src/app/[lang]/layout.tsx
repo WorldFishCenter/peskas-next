@@ -11,7 +11,6 @@ import { inter, lexendDeca } from "@/app/fonts";
 import cn from "@utils/class-names";
 import { dir } from "i18next";
 import { languages } from "../i18n/settings";
-import { GlobalFilterProvider } from "../components/global-filter-provider";
 import { TRPCReactProvider } from "@/trpc/react";
 import LanguageInitializer from "../i18n/language-initializer";
 import GoogleAnalytics from "../_components/google-analytics";
@@ -46,22 +45,20 @@ export default async function RootLayout({
         className={cn(inter.variable, lexendDeca.variable, "font-inter")}
       >
         <GoogleAnalytics />
-        <GlobalFilterProvider>
-          <TRPCReactProvider>
-            <AuthProvider session={session}>
-              <UserAnalyticsTracker />
-              <ThemeProvider>
-                <NextProgress />
-                <LanguageInitializer lang={lang} />
-                {children}
-                <Toaster />
-                <GlobalDrawer />
-                <GlobalModal />
-                <ModalSwitcher />
-              </ThemeProvider>
-            </AuthProvider>
-          </TRPCReactProvider>
-        </GlobalFilterProvider>
+        <TRPCReactProvider>
+          <AuthProvider session={session}>
+            <UserAnalyticsTracker />
+            <ThemeProvider>
+              <NextProgress />
+              <LanguageInitializer lang={lang} />
+              {children}
+              <Toaster />
+              <GlobalDrawer />
+              <GlobalModal />
+              <ModalSwitcher />
+            </ThemeProvider>
+          </AuthProvider>
+        </TRPCReactProvider>
       </body>
     </html>
   );

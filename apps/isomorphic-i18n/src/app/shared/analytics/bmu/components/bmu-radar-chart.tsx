@@ -26,7 +26,7 @@ import { MetricKey, MetricOption } from "../../charts/utils/chart-types";
 // Import site configuration
 // Import time range filtering utilities
 import { getTimeRangeStartDate } from "../../core/utils/time-range-filter";
-import { landingSiteMatchesQueryBmu } from "../../charts/utils/bmu-display-normalizer";
+import { landingSiteMatchesQueryBmu, normalizeBmuForDisplay } from "../../charts/utils/bmu-display-normalizer";
 import { useIndividualData } from "../../individual/hooks/use-individual-data";
 
 interface RadarData {
@@ -670,7 +670,6 @@ export default function CatchRadarChart({
               strokeWidth={0.5}
             />
             {Object.entries(siteColors).map(([site, color]) => {
-              const { normalizeBmuForDisplay } = require('../../charts/utils/bmu-display-normalizer');
               const displayName = normalizeBmuForDisplay(site);
               
               // In differenced mode, only show the selected BMU

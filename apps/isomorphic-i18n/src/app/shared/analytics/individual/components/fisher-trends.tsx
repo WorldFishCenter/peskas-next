@@ -20,7 +20,7 @@ import {
 import { format } from "date-fns";
 import cn from "@utils/class-names";
 import { api } from "@/trpc/react";
-import { BASELINE_DATA } from "../../charts/utils/site-config";
+import { BASELINE_DATA, getCpueBaseline } from "../../charts/utils/site-config";
 import { useAtom } from 'jotai';
 import { selectedTimeRangeAtom, selectedMetricAtom } from "@/app/components/filter-selector";
 import { MetricKey } from "../../charts/utils/chart-types";
@@ -128,7 +128,6 @@ export default function IndividualFisherTrends({
       baseline = BASELINE_DATA.INCOME.LIVING_WAGE;
     } else if (selectedMetric === 'mean_cpue' && fisherBMU) {
       // For fisher CPUE, use BMU-specific recommended CPUE baseline
-      const { getCpueBaseline } = require('../../charts/utils/site-config');
       const cpueBaseline = getCpueBaseline(fisherBMU);
       baseline = cpueBaseline !== null ? cpueBaseline : validValues.reduce((sum, val) => sum + val, 0) / validValues.length;
     } else {

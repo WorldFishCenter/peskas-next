@@ -15,6 +15,7 @@ import { CustomYAxisTick } from "../utils/chart-components";
 import { useTranslation } from "@/app/i18n/client";
 import { useEffect, useRef, useCallback, useMemo } from "react";
 import { BASELINE_DATA, getCpuaBaseline, isIslandSite } from "../utils/site-config";
+import { normalizeBmuForDisplay } from "../utils/bmu-display-normalizer";
 
 interface TrendsChartProps {
   chartData: ChartDataPoint[];
@@ -182,7 +183,6 @@ export default function TrendsChart({
     });
     
     return sites.map((site) => {
-      const { normalizeBmuForDisplay } = require('../utils/bmu-display-normalizer');
       const displayName = normalizeBmuForDisplay(site);
       
       return (

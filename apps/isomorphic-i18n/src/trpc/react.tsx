@@ -5,8 +5,6 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { httpBatchLink, loggerLink, httpLink } from "@trpc/client";
 import { createTRPCReact } from "@trpc/react-query";
 import SuperJSON from "superjson";
-import Cookies from "js-cookie";
-import { useGlobalFilter } from "@/app/components/global-filter-provider";
 import { AppRouter } from "@isomorphic/api";
 
 export const api = createTRPCReact<AppRouter>();
@@ -21,7 +19,6 @@ const ReactQueryDevtoolsProduction = React.lazy(() =>
 );
 
 export function TRPCReactProvider(props: { children: React.ReactNode }) {
-  const { bmuFilter } = useGlobalFilter();
   const [queryClient] = useState(
     () =>
       new QueryClient({
@@ -54,7 +51,6 @@ export function TRPCReactProvider(props: { children: React.ReactNode }) {
           async headers() {
             const headers = new Headers();
             headers.set("x-trpc-source", "nextjs-react");
-            headers.set("x-global-filters", Cookies.get("bmuFilter") ?? "[]");
             return headers;
           },
         }),

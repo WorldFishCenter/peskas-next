@@ -4,7 +4,7 @@ import { createTRPCRouter, protectedProcedure } from "../trpc";
 import { IndividualFishDistributionModel } from "@repo/nosql/schema/individual-fish-distribution";
 import { TRPCError } from "@trpc/server";
 import getDb from "@repo/nosql";
-import { normalizeBmusForQuery } from "../utils/bmu-normalizer";
+import { getAllBmuVariants } from "../utils/bmu-normalizer";
 
 export const individualDataRouter = createTRPCRouter({
   // Get all individual data for specified BMUs
@@ -14,9 +14,7 @@ export const individualDataRouter = createTRPCRouter({
       try {
         await getDb();
         
-        // Normalize BMU names to handle both hyphen and underscore formats
-        const normalizedBmus = normalizeBmusForQuery(input.bmus);
-        const allBmus = Array.from(new Set([...input.bmus, ...normalizedBmus]));
+        const allBmus = getAllBmuVariants(input.bmus);
         
         const matchStage = {
           BMU: { $in: allBmus },
@@ -153,77 +151,6 @@ export const individualDataRouter = createTRPCRouter({
       }
     }),
 
-  // Get aggregated individual data by gear type
-  gearSummary: protectedProcedure
-    .input(z.object({ 
-      bmus: z.string().array(),
-      startDate: z.string().optional(),
-      endDate: z.string().optional(),
-    }))
-    .query(async ({ input }) => {
-      try {
-        await getDb();
-        
-        // Normalize BMU names to handle both hyphen and underscore formats
-        const normalizedBmus = normalizeBmusForQuery(input.bmus);
-        const allBmus = Array.from(new Set([...input.bmus, ...normalizedBmus]));
-        
-        // Prepare match stage with optional date filtering
-        const matchStage: any = {
-          BMU: { $in: allBmus },
-        };
-        
-        if (input.startDate || input.endDate) {
-          matchStage.date = {};
-          if (input.startDate) {
-            matchStage.date.$gte = new Date(input.startDate);
-          }
-          if (input.endDate) {
-            matchStage.date.$lte = new Date(input.endDate);
-          }
-        }
-        
-        return await IndividualStatsModel.aggregate([
-          {
-            $match: matchStage,
-          },
-          {
-            $group: {
-              _id: {
-                BMU: "$BMU",
-                gear: "$gear",
-              },
-              avg_cpue: { $avg: "$mean_cpue" },
-              avg_rpue: { $avg: "$mean_rpue" },
-              avg_cost: { $avg: "$mean_cost" },
-              total_fishers: { $sum: 1 },
-            },
-          },
-          {
-            $project: {
-              _id: 0,
-              BMU: "$_id.BMU",
-              gear: "$_id.gear",
-              avg_cpue: { $round: ["$avg_cpue", 2] },
-              avg_rpue: { $round: ["$avg_rpue", 2] },
-              avg_cost: { $round: ["$avg_cost", 2] },
-              total_fishers: 1,
-            },
-          },
-          {
-            $sort: { BMU: 1, gear: 1 },
-          },
-        ]).exec();
-      } catch (error) {
-        console.error('Error in gear summary query:', error);
-        throw new TRPCError({
-          code: 'INTERNAL_SERVER_ERROR',
-          message: 'Failed to fetch gear summary',
-          cause: error,
-        });
-      }
-    }),
-
   // Get performance metrics by individual fishers
   performanceMetrics: protectedProcedure
     .input(z.object({ 
@@ -234,9 +161,7 @@ export const individualDataRouter = createTRPCRouter({
       try {
         await getDb();
         
-        // Normalize BMU names to handle both hyphen and underscore formats
-        const normalizedBmus = normalizeBmusForQuery(input.bmus);
-        const allBmus = Array.from(new Set([...input.bmus, ...normalizedBmus]));
+        const allBmus = getAllBmuVariants(input.bmus);
         
         return await IndividualStatsModel.aggregate([
           {
@@ -300,9 +225,7 @@ export const individualDataRouter = createTRPCRouter({
       try {
         await getDb();
         
-        // Normalize BMU names to handle both hyphen and underscore formats
-        const normalizedBmus = normalizeBmusForQuery(input.bmus);
-        const allBmus = Array.from(new Set([...input.bmus, ...normalizedBmus]));
+        const allBmus = getAllBmuVariants(input.bmus);
         
         return await IndividualStatsModel.aggregate([
           {
@@ -504,13 +427,13 @@ export const individualDataRouter = createTRPCRouter({
       try {
         await getDb();
         
-        const query: any = { landing_site: input.bmu };
+        const query: any = { landing_site: { $in: getAllBmuVariants([input.bmu]) } };
         if (input.startDate || input.endDate) {
           query.date = {};
           if (input.startDate) query.date.$gte = new Date(input.startDate);
           if (input.endDate) query.date.$lte = new Date(input.endDate);
         }
-        
+
         return await IndividualFishDistributionModel.find(query).sort({ date: 1 }).exec();
       } catch (error) {
         console.error('Error in individual fish distribution by BMU query:', error);

@@ -4,13 +4,24 @@ import mongoose from "mongoose";
 import { decode, encode } from "next-auth/jwt";
 import { createSecretKey } from "node:crypto";
 import { z } from "zod";
+import { TRPCError } from "@trpc/server";
 
 import type { TPermission } from "@repo/nosql/schema/auth";
 import { BmuModel, GroupModel, UserModel } from "@repo/nosql/schema/auth";
 
 import { MailService, Templates } from "../lib/mail";
 import { createTRPCRouter, protectedProcedure, publicProcedure } from "../trpc";
-import { normalizeBmusForQuery } from "../utils/bmu-normalizer";
+import { getAllBmuVariants } from "../utils/bmu-normalizer";
+
+function requireAdmin(ctx: { session: { user: unknown } }) {
+  const groups = (ctx.session.user as { groups?: { name: string }[] }).groups;
+  const isAdmin = groups?.some(
+    (group) => group.name === "admin" || group.name === "Admin"
+  );
+  if (!isAdmin) {
+    throw new TRPCError({ code: "FORBIDDEN", message: "Admin access required" });
+  }
+}
 
 /**
  * We need to duplicate the validators here.
@@ -166,49 +177,42 @@ export const userRouter = createTRPCRouter({
 
       return {
         ...user,
-        role: user?.groups[0].name,
+        role: user?.groups?.[0]?.name,
       };
     }),
   delete: protectedProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ input, ctx }) => {
-      // Verify user has admin privileges
-      if (!ctx.session?.user?.email) {
-        throw new Error("Unauthorized");
-      }
-      
-      // Find and delete the user
+      requireAdmin(ctx);
+
       const result = await UserModel.findByIdAndDelete(input.id);
-      
+
       if (!result) {
-        throw new Error("User not found");
+        throw new TRPCError({ code: "NOT_FOUND", message: "User not found" });
       }
-      
+
       return { success: true };
     }),
-  allBmus: publicProcedure.query(async () => {
+  allBmus: protectedProcedure.query(async () => {
     const bmus = await BmuModel.find({});
     return bmus;
   }),
   upsert: protectedProcedure
     .input(UpsertUserSchema)
-    .mutation(async ({ input }) => {
+    .mutation(async ({ input, ctx }) => {
+      requireAdmin(ctx);
+
       const userGroup = await GroupModel.findOne({ name: input.role });
       
-      // Normalize BMU names to handle both hyphen and underscore formats
       const bmuLabels = input.bmuNames.map((bmu) => bmu.label);
-      const normalizedBmuLabels = normalizeBmusForQuery(bmuLabels);
-      const allBmuLabels = Array.from(new Set([...bmuLabels, ...normalizedBmuLabels]));
-      
       const bmuGroups = await BmuModel.find({
-        BMU: { $in: allBmuLabels },
+        BMU: { $in: getAllBmuVariants(bmuLabels) },
       });
-      
+
       let userBmu = null;
       if (input.userBmu) {
-        const normalizedUserBmu = normalizeBmusForQuery([input.userBmu.label]);
         userBmu = await BmuModel.findOne({
-          BMU: { $in: [input.userBmu.label, ...normalizedUserBmu] },
+          BMU: { $in: getAllBmuVariants([input.userBmu.label]) },
         });
       }
       const findOne = input._id ? { _id: input._id } : { email: input.email };

@@ -29,6 +29,7 @@ import useUserPermissions from "../../core/hooks/use-user-permissions";
 import { filterDataByTimeRange } from "../../core/utils/time-range-filter";
 import { landingSiteMatchesQueryBmu } from "../../charts/utils/bmu-display-normalizer";
 import { useIndividualFisherDataOnly, useIndividualYearlyData } from "../../individual/hooks/use-individual-data";
+import { BASELINE_DATA, isIslandSite, getCpuaBaseline, getCpueBaseline, getEffortBaseline } from "../../charts/utils/site-config";
 
 // Create a more robust language context that includes both the language code and translations
 const LanguageContext = createContext<{
@@ -82,9 +83,7 @@ const LoadingState = () => {
 const prepareDataForCiaComparison = (chartData: ChartDataPoint[], bmuName: string, selectedMetric?: string) => {
   if (!chartData.length) return [];
   
-  // Import baseline data and helper function
-  const { BASELINE_DATA, isIslandSite } = require('../../charts/utils/site-config');
-  
+
   const findBmuKey = (point: ChartDataPoint, targetBmu: string): string | null => {
     return Object.keys(point).find(key => 
       key !== 'date' && landingSiteMatchesQueryBmu(targetBmu, key)
@@ -100,12 +99,10 @@ const prepareDataForCiaComparison = (chartData: ChartDataPoint[], bmuName: strin
   
   if (selectedMetric === 'mean_cpua') {
     // For catch density, use BMU-specific baseline
-    const { getCpuaBaseline } = require('../../charts/utils/site-config');
     const cpuaBaseline = getCpuaBaseline(bmuName);
     baseline = cpuaBaseline !== null ? cpuaBaseline : 0;
   } else if (selectedMetric === 'mean_cpue') {
     // For CPUE, use BMU-specific baseline
-    const { getCpueBaseline } = require('../../charts/utils/site-config');
     const cpueBaseline = getCpueBaseline(bmuName);
     baseline = cpueBaseline !== null ? cpueBaseline : 0;
   } else if (selectedMetric === 'mean_rpue') {
@@ -113,7 +110,6 @@ const prepareDataForCiaComparison = (chartData: ChartDataPoint[], bmuName: strin
     baseline = BASELINE_DATA.INCOME.LIVING_WAGE;
   } else if (selectedMetric === 'mean_effort') {
     // For effort, use BMU-specific baseline
-    const { getEffortBaseline } = require('../../charts/utils/site-config');
     const effortBaseline = getEffortBaseline(bmuName);
     baseline = effortBaseline !== null ? effortBaseline : 0;
   } else if (selectedMetric === 'mean_profit') {
@@ -217,9 +213,7 @@ const prepareDataForCiaComparison = (chartData: ChartDataPoint[], bmuName: strin
 const prepareMultiBMUBaselineComparison = (chartData: ChartDataPoint[], selectedMetric: string) => {
   if (!chartData.length) return [];
   
-  // Import baseline data and helper function
-  const { BASELINE_DATA, isIslandSite } = require('../../charts/utils/site-config');
-  
+
   const findBmuKey = (point: ChartDataPoint, targetBmu: string): string | null => {
     return Object.keys(point).find(key =>
       key !== 'date' && key !== 'average' && key !== 'historical_average' &&
@@ -244,12 +238,10 @@ const prepareMultiBMUBaselineComparison = (chartData: ChartDataPoint[], selected
       
       if (selectedMetric === 'mean_cpua') {
         // For catch density, use BMU-specific baseline
-        const { getCpuaBaseline } = require('../../charts/utils/site-config');
         const cpuaBaseline = getCpuaBaseline(bmuName);
         baseline = cpuaBaseline !== null ? cpuaBaseline : 0;
       } else if (selectedMetric === 'mean_cpue') {
         // For CPUE, use BMU-specific baseline
-        const { getCpueBaseline } = require('../../charts/utils/site-config');
         const cpueBaseline = getCpueBaseline(bmuName);
         baseline = cpueBaseline !== null ? cpueBaseline : 0;
       } else if (selectedMetric === 'mean_rpue') {
@@ -257,7 +249,6 @@ const prepareMultiBMUBaselineComparison = (chartData: ChartDataPoint[], selected
         baseline = BASELINE_DATA.INCOME.LIVING_WAGE;
       } else if (selectedMetric === 'mean_effort') {
         // For effort, use BMU-specific baseline
-        const { getEffortBaseline } = require('../../charts/utils/site-config');
         const effortBaseline = getEffortBaseline(bmuName);
         baseline = effortBaseline !== null ? effortBaseline : 0;
       } else if (selectedMetric === 'mean_profit') {

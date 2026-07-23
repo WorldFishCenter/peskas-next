@@ -1,6 +1,5 @@
 
 import { api } from "@/trpc/react";
-import { useSession } from "next-auth/react";
 import useUserPermissions from '../../core/hooks/use-user-permissions';
 
 interface UseIndividualDataOptions {
@@ -16,11 +15,10 @@ interface UseIndividualDataOptions {
  */
 export const useIndividualData = (options?: UseIndividualDataOptions) => {
   const { startDate, endDate } = options || {};
-  const { getAccessibleBMUs, isIiaUser, userFisherId, shouldShowIndividualData } = useUserPermissions();
-  const { data: session } = useSession();
-  
-  // For now, we'll use a basic set of BMUs - this should be replaced with actual BMU data
-  const accessibleBMUs = getAccessibleBMUs(['BMU1', 'BMU2', 'BMU3']); // This should come from actual BMU data
+  const { getAccessibleBMUs, userFisherId, shouldShowIndividualData } = useUserPermissions();
+  const { data: allBmus } = api.user.allBmus.useQuery();
+
+  const accessibleBMUs = getAccessibleBMUs((allBmus ?? []).map((bmu) => bmu.BMU));
   
   // Fetch all individual data
   const {

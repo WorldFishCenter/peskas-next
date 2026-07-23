@@ -1,9 +1,7 @@
 import {
   pingRouter,
   aggregatedCatchRouter,
-  mapDistributionRouter,
   gearRouter,
-  monthlyStatsRouter,
   userRouter,
   fishDistributionRouter,
   individualDataRouter,
@@ -15,8 +13,6 @@ export const appRouter = createTRPCRouter({
   ping: pingRouter,
   aggregatedCatch: aggregatedCatchRouter,
   gear: gearRouter,
-  mapDistribution: mapDistributionRouter,
-  monthlyStats: monthlyStatsRouter,
   user: userRouter,
   fishDistribution: fishDistributionRouter,
   individualData: individualDataRouter,

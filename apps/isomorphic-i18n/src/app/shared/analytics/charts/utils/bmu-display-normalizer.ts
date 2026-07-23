@@ -1,7 +1,14 @@
 /**
- * BMU Display Name Normalization
+ * BMU Name Normalization (frontend)
  *
- * Keeps labels aligned with the rest of the dashboard (hyphenated Title-Case):
+ * Handles the same spelling inconsistencies as the backend's
+ * `bmu-normalizer.ts` (packages/api), but for two different jobs:
+ * - `normalizeBmuForDisplay`: format a raw name for display (hyphenated Title-Case).
+ * - `landingSiteMatchesQueryBmu` / `lookupByBmuName`: match a raw name (from an
+ *   API response, e.g. `landing_site`) back to a user's canonical filter/session
+ *   value, or into a hardcoded lookup table, regardless of separator/case.
+ *
+ * Keeps labels aligned with the rest of the dashboard:
  * - "Kiwayuu_cha_ndani" → "Kiwayuu-Cha-Ndani"
  * - "Kiwayuu cha Ndani" → "Kiwayuu-Cha-Ndani"
  */
@@ -46,71 +53,13 @@ export function landingSiteMatchesQueryBmu(queryBmu: string, landingSite: string
 }
 
 /**
- * Normalize BMU names in chart data keys for display
+ * Look up a value keyed by BMU name, matching regardless of separator/case
+ * style (e.g. a table keyed by "Shelly-Timbwani" still matches "shelly_timbwani").
  */
-export const normalizeChartDataKeys = (data: Record<string, any>): Record<string, any> => {
-  const normalized: Record<string, any> = {};
+export function lookupByBmuName<T>(table: Record<string, T>, bmuName: string): T | null {
+  if (bmuName in table) return table[bmuName];
 
-  Object.entries(data).forEach(([key, value]) => {
-    if (key === 'date' || key === 'average' || key === 'historical_average' ||
-        key === 'difference' || key === 'isAboveAverage' || key === 'actualValue' ||
-        key === 'individualFisher') {
-      normalized[key] = value;
-    } else {
-      normalized[normalizeBmuForDisplay(key)] = value;
-    }
-  });
-
-  return normalized;
-};
-
-/**
- * Normalize site colors object keys for display
- */
-export const normalizeSiteColors = (siteColors: Record<string, string>): Record<string, string> => {
-  const normalized: Record<string, string> = {};
-
-  Object.entries(siteColors).forEach(([key, value]) => {
-    if (key === 'average' || key === 'historical_average' || key === 'individualFisher') {
-      normalized[key] = value;
-    } else {
-      normalized[normalizeBmuForDisplay(key)] = value;
-    }
-  });
-
-  return normalized;
-};
-
-/**
- * Normalize visibility state object keys for display
- */
-export const normalizeVisibilityState = (visibilityState: Record<string, any>): Record<string, any> => {
-  const normalized: Record<string, any> = {};
-
-  Object.entries(visibilityState).forEach(([key, value]) => {
-    if (key.endsWith('Positive') || key.endsWith('Negative')) {
-      const suffix = key.endsWith('Positive') ? 'Positive' : 'Negative';
-      const baseName = key.slice(0, -(suffix.length));
-      if (baseName === 'average' || baseName === 'historical_average' || baseName === 'individualFisher') {
-        normalized[key] = value;
-      } else {
-        normalized[normalizeBmuForDisplay(baseName) + suffix] = value;
-      }
-    }
-    else if (key === 'average' || key === 'historical_average' || key === 'individualFisher') {
-      normalized[key] = value;
-    } else {
-      normalized[normalizeBmuForDisplay(key)] = value;
-    }
-  });
-
-  return normalized;
-};
-
-export const getBmuDisplayName = (bmuName: string): string => {
-  if (bmuName === 'average') return 'Average';
-  if (bmuName === 'historical_average') return 'Historical Average';
-  if (bmuName === 'individualFisher') return 'Your Performance';
-
-  return normalizeBmuForDisplay(bmuName);
-};
+  const key = normalizeBmuNameLoose(bmuName);
+  const match = Object.keys(table).find(k => normalizeBmuNameLoose(k) === key);
+  return match !== undefined ? table[match] : null;
+}

@@ -33,14 +33,10 @@ export const createTRPCContext = async (opts: {
   session: Session | null;
 }) => {
   const session = opts.session ?? (await getServerSession());
-  const source = opts.headers.get("x-trpc-source") ?? "unknown";
   const xRealIp = opts.headers.get("x-real-ip") ?? "unknown";
   const xForwardedFor = opts.headers.get("x-forwarded-for") ?? "unknown";
-  const globalFilter = opts.headers.get("x-global-filters") ?? "[]";
 
   const ip = xForwardedFor ?? xRealIp;
-
-  
 
   await getDb();
   return {

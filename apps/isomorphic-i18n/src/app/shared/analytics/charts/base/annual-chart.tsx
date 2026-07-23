@@ -14,7 +14,8 @@ import { ChartDataPoint, MetricOption, VisibilityState } from "../utils/chart-ty
 import { CustomYAxisTick } from "../utils/chart-components";
 import { useTranslation } from "@/app/i18n/client";
 import { useCallback, useEffect, useRef, useMemo } from "react";
-import { BASELINE_DATA, getCpuaBaseline, isIslandSite } from "../utils/site-config";
+import { BASELINE_DATA, getCpuaBaseline, isIslandSite, getEffortBaseline, getCpueBaseline } from "../utils/site-config";
+import { normalizeBmuForDisplay } from "../utils/bmu-display-normalizer";
 
 interface AnnualChartProps {
   chartData: ChartDataPoint[];
@@ -236,7 +237,6 @@ export default function AnnualChart({
     );
     
     return sites.map((site) => {
-      const { normalizeBmuForDisplay } = require('../utils/bmu-display-normalizer');
       const displayName = normalizeBmuForDisplay(site);
       
       return (
@@ -414,7 +414,6 @@ export default function AnnualChart({
 
           {/* Add Effort baseline reference line */}
           {selectedMetric === "mean_effort" && userBMU && (() => {
-            const { getEffortBaseline } = require('../utils/site-config');
             const effortBaseline = getEffortBaseline(userBMU);
 
             if (effortBaseline !== null) {
@@ -439,7 +438,6 @@ export default function AnnualChart({
 
           {/* Add CPUE baseline reference line */}
           {selectedMetric === "mean_cpue" && userBMU && (() => {
-            const { getCpueBaseline } = require('../utils/site-config');
             const cpueBaseline = getCpueBaseline(userBMU);
 
             if (cpueBaseline !== null) {
