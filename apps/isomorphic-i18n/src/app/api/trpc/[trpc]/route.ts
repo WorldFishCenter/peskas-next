@@ -1,5 +1,8 @@
 import { appRouter, createTRPCContext } from "@isomorphic/api";
 import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
+import { getServerSession } from "next-auth";
+
+import { authOptions } from "@/app/api/auth/[...nextauth]/auth-options";
 
 /**
  * Configure basic CORS headers
@@ -25,9 +28,12 @@ const handler = async (req: any) => {
     endpoint: "/api/trpc",
     router: appRouter,
     req,
-    createContext: () => {
+    createContext: async () => {
+      // Resolve the full session (with the custom `session` callback applied, so
+      // `groups`/`id`/`userBmu`/`fisherId` are present) instead of relying on
+      // `req.auth`, which NextAuth v4 does not populate here. Mirrors trpc/server.ts.
       return createTRPCContext({
-        session: req.auth,
+        session: await getServerSession(authOptions),
         headers: req.headers,
       });
     },

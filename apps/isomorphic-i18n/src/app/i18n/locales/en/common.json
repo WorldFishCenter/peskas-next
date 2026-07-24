@@ -885,6 +885,7 @@
   "text-yellow": "Yellow",
   "text-no-data": "No Data",
   "text-manage-users": "Manage Users",
+  "text-user-usage": "User Usage",
   "text-bmu-ranking": "BMU Performance Rankings",
   "text-bmu-ranking-title": "BMU Performance Rankings",
   "text-bmu-ranking-description": "Shows ranked performance of all BMUs based on selected metrics",
