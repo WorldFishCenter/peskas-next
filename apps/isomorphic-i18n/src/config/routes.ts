@@ -5,5 +5,6 @@ export const routes = {
   forgotPassword: '/forgot-password',
   admin: {
     users: '/admin/users',
+    usage: '/admin/usage',
   },
 };

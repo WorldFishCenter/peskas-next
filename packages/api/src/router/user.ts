@@ -10,18 +10,13 @@ import type { TPermission } from "@repo/nosql/schema/auth";
 import { BmuModel, GroupModel, UserModel } from "@repo/nosql/schema/auth";
 
 import { MailService, Templates } from "../lib/mail";
-import { createTRPCRouter, protectedProcedure, publicProcedure } from "../trpc";
+import {
+  createTRPCRouter,
+  protectedProcedure,
+  publicProcedure,
+  adminProcedure,
+} from "../trpc";
 import { getAllBmuVariants } from "../utils/bmu-normalizer";
-
-function requireAdmin(ctx: { session: { user: unknown } }) {
-  const groups = (ctx.session.user as { groups?: { name: string }[] }).groups;
-  const isAdmin = groups?.some(
-    (group) => group.name === "admin" || group.name === "Admin"
-  );
-  if (!isAdmin) {
-    throw new TRPCError({ code: "FORBIDDEN", message: "Admin access required" });
-  }
-}
 
 /**
  * We need to duplicate the validators here.
@@ -180,11 +175,9 @@ export const userRouter = createTRPCRouter({
         role: user?.groups?.[0]?.name,
       };
     }),
-  delete: protectedProcedure
+  delete: adminProcedure
     .input(z.object({ id: z.string() }))
-    .mutation(async ({ input, ctx }) => {
-      requireAdmin(ctx);
-
+    .mutation(async ({ input }) => {
       const result = await UserModel.findByIdAndDelete(input.id);
 
       if (!result) {
@@ -197,11 +190,9 @@ export const userRouter = createTRPCRouter({
     const bmus = await BmuModel.find({});
     return bmus;
   }),
-  upsert: protectedProcedure
+  upsert: adminProcedure
     .input(UpsertUserSchema)
-    .mutation(async ({ input, ctx }) => {
-      requireAdmin(ctx);
-
+    .mutation(async ({ input }) => {
       const userGroup = await GroupModel.findOne({ name: input.role });
       
       const bmuLabels = input.bmuNames.map((bmu) => bmu.label);

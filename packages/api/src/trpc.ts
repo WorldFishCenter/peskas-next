@@ -115,3 +115,19 @@ export const protectedProcedure = t.procedure.use(({ ctx, next }) => {
     },
   });
 });
+
+/**
+ * Admin-only procedure. Builds on `protectedProcedure` and additionally requires
+ * the user to belong to an `admin`/`Admin` group. Use this instead of repeating
+ * the admin check inside individual procedures.
+ */
+export const adminProcedure = protectedProcedure.use(({ ctx, next }) => {
+  const groups = (ctx.session.user as { groups?: { name?: string }[] }).groups;
+  const isAdmin = groups?.some(
+    (group) => group.name === "admin" || group.name === "Admin"
+  );
+  if (!isAdmin) {
+    throw new TRPCError({ code: "FORBIDDEN", message: "Admin access required" });
+  }
+  return next();
+});

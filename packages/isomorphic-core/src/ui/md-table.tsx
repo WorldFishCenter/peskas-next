@@ -162,16 +162,18 @@ export const MDTable = <T,>(params: MDTableProps<T>) => {
                 .getAllColumns()
                 .filter((column) => column.getCanHide())
                 .map((column) => {
+                  const label =
+                    (column.columnDef.meta as { name?: string } | undefined)
+                      ?.name ?? column.id;
                   return (
                     <DropdownMenuCheckboxItem
                       key={column.id}
-                      className="capitalize"
                       checked={column.getIsVisible()}
                       onCheckedChange={(value) =>
                         column.toggleVisibility(!!value)
                       }
                     >
-                      {column.id}
+                      {label}
                     </DropdownMenuCheckboxItem>
                   );
                 })}

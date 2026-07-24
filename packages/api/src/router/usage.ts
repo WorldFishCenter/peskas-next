@@ -1,8 +1,9 @@
+import mongoose from "mongoose";
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import getDb from "@repo/nosql";
 import { AppUsageSessionModel } from "@repo/nosql/schema/app-usage";
-import { createTRPCRouter, protectedProcedure } from "../trpc";
+import { createTRPCRouter, protectedProcedure, adminProcedure } from "../trpc";
 
 /**
  * Shape of the authenticated user carried on the session. The `next-auth`
@@ -83,13 +84,20 @@ export const usageRouter = createTRPCRouter({
         const role = deriveRole(groups, user.fisherId);
 
         // Build $set / $setOnInsert without undefined values so we don't
-        // write null placeholders into the document.
+        // write null placeholders into the document. Identity/role fields live
+        // in $set (not $setOnInsert) so a session started before its data was
+        // available self-heals on the next heartbeat. Only truly immutable
+        // fields (start time) are insert-only.
         const set: Record<string, unknown> = {
           lastSeenAt: now,
           updated_at: now,
           role,
           groups: groupNames,
         };
+        if (user.id) set.userId = user.id;
+        if (user.email) set.userEmail = user.email;
+        if (user.name) set.userName = user.name;
+        if (user.fisherId) set.fisherId = user.fisherId;
         if (user.userBmu?.BMU) set.bmu = user.userBmu.BMU;
         if (input.language) set.language = input.language;
         if (input.userAgent) set.userAgent = input.userAgent;
@@ -99,10 +107,6 @@ export const usageRouter = createTRPCRouter({
           startedAt: now,
           created_at: now,
         };
-        if (user.id) setOnInsert.userId = user.id;
-        if (user.email) setOnInsert.userEmail = user.email;
-        if (user.name) setOnInsert.userName = user.name;
-        if (user.fisherId) setOnInsert.fisherId = user.fisherId;
 
         await AppUsageSessionModel.updateOne(
           { sessionId: input.sessionId },
@@ -152,6 +156,89 @@ export const usageRouter = createTRPCRouter({
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
           message: "Failed to record app usage",
+          cause: error,
+        });
+      }
+    }),
+
+  /**
+   * Admin-only. Returns the raw usage log — one row per session (access),
+   * newest first — so it can be analysed as a time series (each row carries its
+   * own `startedAt`). Capped at `limit` most-recent sessions to bound payload.
+   */
+  list: adminProcedure
+    .input(
+      z
+        .object({
+          limit: z.number().int().min(1).max(20000).default(5000),
+        })
+        .optional()
+    )
+    .query(async ({ input }) => {
+      try {
+        await getDb();
+
+        const limit = input?.limit ?? 5000;
+        const docs = await AppUsageSessionModel.find({})
+          .sort({ startedAt: -1 })
+          .limit(limit)
+          .select({
+            sessionId: 1,
+            userName: 1,
+            userEmail: 1,
+            role: 1,
+            bmu: 1,
+            fisherId: 1,
+            language: 1,
+            activeMs: 1,
+            pageViews: 1,
+            startedAt: 1,
+            lastSeenAt: 1,
+            userAgent: 1,
+          })
+          .lean();
+
+        return docs.map((d) => ({
+          id: String(d._id),
+          sessionId: d.sessionId,
+          userName: d.userName ?? null,
+          userEmail: d.userEmail ?? null,
+          role: d.role ?? "unknown",
+          bmu: d.bmu ?? null,
+          fisherId: d.fisherId ?? null,
+          language: d.language ?? null,
+          activeMs: d.activeMs ?? 0,
+          pageViews: d.pageViews ?? 0,
+          startedAt: (d.startedAt as Date | undefined) ?? null,
+          lastSeenAt: (d.lastSeenAt as Date | undefined) ?? null,
+          userAgent: d.userAgent ?? null,
+        }));
+      } catch (error) {
+        if (error instanceof TRPCError) throw error;
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Failed to load usage log",
+          cause: error,
+        });
+      }
+    }),
+
+  /** Admin-only. Deletes a single usage-log row (session) by document id. */
+  delete: adminProcedure
+    .input(z.object({ id: z.string().min(1) }))
+    .mutation(async ({ input }) => {
+      if (!mongoose.Types.ObjectId.isValid(input.id)) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Invalid id" });
+      }
+      try {
+        await getDb();
+        await AppUsageSessionModel.deleteOne({ _id: input.id });
+        return { success: true };
+      } catch (error) {
+        if (error instanceof TRPCError) throw error;
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Failed to delete usage row",
           cause: error,
         });
       }
