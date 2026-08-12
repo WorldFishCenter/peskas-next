@@ -45,7 +45,18 @@ export function TRPCReactProvider(props: { children: React.ReactNode }) {
             (op.direction === "down" && op.result instanceof Error),
         }),
         httpBatchLink({
-          maxURLLength: 750,
+          // Chart queries send the full accessible-BMU list as input, which alone is
+          // ~700 chars of URL-encoded GET query string. `window.location.origin` is
+          // prepended, so a short production domain squeaked under the old 750 cap
+          // while any longer Vercel preview host (…-git-<branch>-<team>.vercel.app)
+          // pushed single queries over it. tRPC's dataLoader then rejects an
+          // over-length query client-side with "Input is too big for a single
+          // dispatch" — the request is never sent and the chart renders empty.
+          // 4000 stays well under Vercel's request-head limit and every browser's
+          // URL limit, while still splitting batches instead of sending one huge URL.
+          // ponytail: raises the ceiling; the real shrink is deriving the BMU scope
+          // from the session server-side instead of shipping 35 names per query.
+          maxURLLength: 4000,
           transformer: SuperJSON,
           url: getBaseUrl() + "/api/trpc",
           async headers() {
