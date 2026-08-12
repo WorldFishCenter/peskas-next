@@ -124,7 +124,9 @@ export default function IndividualFishCompositionComparison({
       initialVisibility[category.id] = { opacity: 1 };
     });
     setVisibilityState(initialVisibility);
-  }, [categoryDisplays]);
+    // categoryDisplays is rebuilt each render; length is the stable signal we care about
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- categoryDisplays identity would infinite-loop
+  }, [categoryDisplays.length]);
 
   const handleLegendClick = (categoryId: string) => {
     setVisibilityState(prev => {
