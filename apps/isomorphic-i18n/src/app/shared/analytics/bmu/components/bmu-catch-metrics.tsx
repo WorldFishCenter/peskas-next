@@ -821,11 +821,9 @@ export default function CatchMetricsChart({
     } finally {
       setLoading(false);
     }
-    // visibilityState is written here (setVisibilityState with a fresh object) and never
-    // read, so listing it as a dependency feeds the effect its own output. The
-    // shouldSkipProcessing guard above absorbs that in the normal case, but when the
-    // selected metric yields no rows (chartData stays empty) the guard never trips and
-    // the write/re-run cycle spins forever. Keep it out of the deps.
+    // visibilityState is written here and never read; as a dep it feeds the effect its
+    // own output, which spins forever when the metric yields no rows (chartData empty,
+    // so shouldSkipProcessing never trips).
     // eslint-disable-next-line react-hooks/exhaustive-deps -- visibilityState is write-only here and would infinite-loop
   }, [monthlyData, selectedMetric, effectiveBMU, hasRestrictedAccess, getAccessibleBMUs, safeBmus, isCiaUser, isAiaUser, localActiveTab, selectedTimeRange, shouldFetchIndividualData, chartData.length, loading]);
 
