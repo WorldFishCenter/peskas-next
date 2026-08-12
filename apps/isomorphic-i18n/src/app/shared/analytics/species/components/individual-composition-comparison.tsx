@@ -100,7 +100,7 @@ export default function IndividualFishCompositionComparison({
     }
     // Return only user's row if they can't compare, otherwise return both
     return canCompareWithOthers ? [youRow, othersRow] : [youRow];
-  }, [filteredData, userFisherId, canCompareWithOthers, availableFishCategories]);
+  }, [filteredData, userFisherId, canCompareWithOthers, availableFishCategories, t]);
 
   // Legend and color mapping - only available categories
   const categoryDisplays = availableFishCategories.map(cat => ({
@@ -124,7 +124,7 @@ export default function IndividualFishCompositionComparison({
       initialVisibility[category.id] = { opacity: 1 };
     });
     setVisibilityState(initialVisibility);
-  }, [categoryDisplays.length]);
+  }, [categoryDisplays]);
 
   const handleLegendClick = (categoryId: string) => {
     setVisibilityState(prev => {

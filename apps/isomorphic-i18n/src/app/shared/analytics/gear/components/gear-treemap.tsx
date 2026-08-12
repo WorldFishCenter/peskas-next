@@ -787,7 +787,7 @@ export default function GearHeatmap({
     } finally {
       setLoading(false);
     }
-  }, [rawData, selectedMetric, selectedTimeRange, effectiveBMU, hasRestrictedAccess, isWbciaUser, safeBmus, individualGearData, shouldFetchIndividualGearData, userFisherId, isLoadingIndividualGear, t]);
+  }, [rawData, selectedMetric, selectedTimeRange, effectiveBMU, hasRestrictedAccess, isWbciaUser, isCiaUser, isAiaUser, safeBmus, individualGearData, shouldFetchIndividualGearData, userFisherId, isLoadingIndividualGear, visibilityState, t]);
 
   const getTabTitle = (tab: string): string => {
     // Custom titles for CIA and AIA users who can only see their own BMU

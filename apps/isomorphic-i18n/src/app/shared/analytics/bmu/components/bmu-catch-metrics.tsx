@@ -821,7 +821,7 @@ export default function CatchMetricsChart({
     } finally {
       setLoading(false);
     }
-  }, [monthlyData, selectedMetric, effectiveBMU, hasRestrictedAccess, getAccessibleBMUs, safeBmus, isCiaUser, localActiveTab, selectedTimeRange, shouldFetchIndividualData, chartData.length, loading, visibilityState]);
+  }, [monthlyData, selectedMetric, effectiveBMU, hasRestrictedAccess, getAccessibleBMUs, safeBmus, isCiaUser, isAiaUser, localActiveTab, selectedTimeRange, shouldFetchIndividualData, chartData.length, loading, visibilityState]);
 
   // Calculate derived data when chartData changes
   useEffect(() => {
