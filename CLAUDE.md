@@ -3,7 +3,7 @@
 Kenya WCS BMU dashboard with role-based access, built on the Isomorphic Next.js
 template as a pnpm + Turborepo monorepo (Next 15, tRPC 11 beta, Mongoose, NextAuth v4). It reads
 the Mongo `app` / `app-dev` database written by `peskas.kenya.data.pipeline`. Ecosystem context
-(other repos, data flow, cross-repo contracts): see PESKAS.md, loaded via CLAUDE.local.md.
+(other repos, data flow, cross-repo contracts): loaded by the `peskas` Claude Code plugin (repo `peskas-context`).
 
 ## Commands
 
