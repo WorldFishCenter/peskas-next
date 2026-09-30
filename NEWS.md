@@ -1,3 +1,12 @@
+# peskas.kenya.bmu.dashboard 2.5.2
+
+## Fixes
+- Password reset emails link to the dashboard again
+- Security updates for the libraries the dashboard is built on
+- Addresses in languages the dashboard does not offer show "page not found"
+---
+
+
 # peskas.kenya.bmu.dashboard 2.5.1
 
 ## Enhancements

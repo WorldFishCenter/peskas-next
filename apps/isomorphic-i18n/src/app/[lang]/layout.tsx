@@ -1,5 +1,6 @@
 import { Toaster } from "react-hot-toast";
 import { getServerSession } from "next-auth/next";
+import { notFound } from "next/navigation";
 import NextProgress from "@components/next-progress";
 import { authOptions } from "@/app/api/auth/[...nextauth]/auth-options";
 import AuthProvider from "@/app/api/auth/[...nextauth]/auth-provider";
@@ -35,6 +36,7 @@ export default async function RootLayout({
   params: Promise<{ lang: string }>;
 }) {
   const { lang } = await params;
+  if (!languages.includes(lang)) notFound();
   const session = await getServerSession(authOptions);
   return (
     <html lang={lang} dir={dir(lang)} suppressHydrationWarning>

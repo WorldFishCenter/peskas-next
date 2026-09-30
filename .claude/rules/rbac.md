@@ -56,5 +56,6 @@ pipeline.
 `src/middleware.ts` composes `withJwt(withLang(defaultMiddleware))`. `withJwt` only checks that a
 cookie whose name contains `next-auth.session-token` exists; it redirects to `/{lang}/sign-in`
 without one and away from `sign-in` / `forgot-password` / `reset-password` with one. It does not
-validate the token. The `matcher` lists the paths the middleware runs on; keep it in step with
-`languages` in `src/app/i18n/settings.ts`.
+validate the token. The `matcher` lists the paths the middleware runs on; keep it in step with `languages` in
+`src/app/i18n/settings.ts`. `[lang]/layout.tsx` answers any other language with a 404, so no page
+renders outside the matcher.
